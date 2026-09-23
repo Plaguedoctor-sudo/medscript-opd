@@ -45,9 +45,19 @@ db.exec(`
     clinic_name TEXT NOT NULL,
     address TEXT NOT NULL,
     contact TEXT NOT NULL,
-    logo_url TEXT
+    logo_url TEXT,
+    pin_hash TEXT,
+    security_enabled INTEGER DEFAULT 0
   );
 `);
+
+try {
+  db.exec("ALTER TABLE clinic_settings ADD COLUMN pin_hash TEXT;");
+} catch {}
+try {
+  db.exec("ALTER TABLE clinic_settings ADD COLUMN security_enabled INTEGER DEFAULT 0;");
+} catch {}
+
 
 // Seed Clinic Settings
 const existingSettings = db.prepare("SELECT * FROM clinic_settings WHERE id = 1").get();

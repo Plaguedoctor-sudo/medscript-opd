@@ -6,6 +6,8 @@ import { db } from "@/db";
 import { prescriptions, patients } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { Patient, Prescription } from "@/types";
+import { requireAuth, getSecurityConfig } from "@/lib/auth";
+import { LockDeskButton } from "@/components/LockDeskButton";
 
 export default async function NewPrescriptionPage({
   searchParams,
@@ -13,6 +15,13 @@ export default async function NewPrescriptionPage({
   searchParams: Promise<{ patientId?: string; cloneFrom?: string }>;
 }) {
   const { patientId, cloneFrom } = await searchParams;
+  const redirectTarget = cloneFrom
+    ? `/prescription/new?cloneFrom=${cloneFrom}`
+    : patientId
+    ? `/prescription/new?patientId=${patientId}`
+    : '/prescription/new';
+  await requireAuth(redirectTarget);
+  const { securityEnabled } = await getSecurityConfig();
   const backHref = patientId ? `/patient/${patientId}` : "/";
 
   let cloneData: (Prescription & { patient?: Patient }) | null = null;
@@ -59,6 +68,7 @@ export default async function NewPrescriptionPage({
               </span>
             </div>
           </div>
+          {securityEnabled && <LockDeskButton />}
         </div>
       </nav>
 

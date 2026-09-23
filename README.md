@@ -1,68 +1,106 @@
 # MedScript OPD
 
-**MedScript OPD** is a modern Electronic Medical Records (EMR) and digital prescription system designed for outpatient clinics, independent doctors, and polyclinics. Built with Next.js 16, React 19, Tailwind CSS, SQLite with Drizzle ORM, and `@react-pdf/renderer`.
+**MedScript OPD** is a modern, privacy-focused Electronic Medical Records (EMR) and digital prescription system designed for outpatient clinics, independent doctors, and polyclinics. Built with Next.js 16, React 19, Tailwind CSS, SQLite with Drizzle ORM, and `@react-pdf/renderer`.
 
 ---
 
 ## 🌟 Key Features
 
-### 1. ℞ OPD Consultation & Prescription Generator
-- **Patient Identification**: Fast patient search or new patient registration with demographics, phone number, and Ayushman Bharat Health Account (ABHA ID).
-- **Vital Signs Recording**: Weight, Blood Pressure (BP), Pulse rate, Temperature (°F), and SPO2 (%).
+### 1. ℞ OPD Consultation & Digital Prescriptions
+- **Patient Directory & ABHA Integration**: Fast patient search by name, phone, or Ayushman Bharat Health Account (ABHA ID).
+- **Vital Signs Recording**: Weight, Blood Pressure (BP), Pulse rate, Temperature (°F), and SpO2 (%).
 - **Clinical Records**: Chief complaints, clinical history, and clinical diagnosis with autocompletion datalists.
-- **Medication Management**: Add generic medicines, strength, dosage frequencies (`1-0-1`, `1-1-1`, `SOS`), timing (`After food`, `Before food`), and durations (`5 days`, `1 month`) with one-click shortcut chips.
-- **Advice & Investigations**: Pre-configured dietary advice, lab tests recommended, and follow-up date scheduling.
+- **Medication Management**: Dosage frequencies (`1-0-1`, `1-1-1`, `SOS`), timing (`After food`, `Before food`), duration (`5 days`, `1 month`), and specific patient instructions (`Take at bedtime with warm water`).
+- **1-Click Repeat Rx**: Refill chronic medications and past clinical history instantly without re-typing.
 
-### 2. 📄 Professional PDF Letterhead & Printing
-- **Real-time PDF Preview**: Built-in interactive document viewer using `@react-pdf/renderer`.
-- **One-Click Download & Print**: Instant vector PDF downloads formatted to A4 medical prescription specifications, with support for direct thermal/desktop printing.
+### 2. 📊 Longitudinal Patient Vitals & Clinical Analytics
+- **Multi-Visit Parameter Trends**: Interactive SVG charts tracking Blood Pressure (with Normal Zone & Hypertensive alert bands), Weight progression curve, Pulse, SpO2, and Temperature curves.
+- **Longitudinal Clinical Flowsheet**: Tabular side-by-side comparison of vitals and diagnoses across all past visits.
+- **KPI Summary Cards**: Latest readings with delta indicators (`vs prev visit`) and automated JNC-8 BP classification.
+
+### 3. 📄 Professional PDF Letterhead & Printing
+- **Real-time PDF Preview**: Built-in document viewer powered by `@react-pdf/renderer`.
+- **One-Click Download & Print**: Instant vector PDF downloads formatted to A4 medical prescription specifications, with support for direct thermal and desktop printing.
 - **Custom Doctor Header & Signature**: Doctor qualifications, registration number, clinic logo, contact info, and legal computer-generated electronic Rx footer.
+- **Resilient Fallback**: Automatic default letterhead ensures immediate usability even before clinic settings are populated.
 
-### 3. 👥 Patient Directory & Medical History
-- **Searchable Patient Directory**: Search by patient name, phone number, or ABHA ID.
-- **Patient Profile**: Full timeline of past consultations, previous diagnoses, prescribed drugs, and follow-up dates.
-- **Demographic Updates**: Edit patient details (contact, age, ABHA ID) anytime directly from the patient profile.
+### 4. 🔒 Consultation Desk PIN Lock & Security
+- **Doctor PIN Protection**: Protect confidential patient health records when stepping away from the clinic desk.
+- **On-Screen Touch Keypad**: Virtual keypad designed for clinic tablets (iPad/Android) and touch-screen all-in-one PCs.
+- **Quick Lock**: 1-click "Lock Desk" button in the top navigation bar.
+- **Input Sanitization & Storage Integrity**: File MIME validation (2MB cap), string bounds, SQLite WAL mode, and foreign key cascading.
 
-### 4. 🏥 Clinic & Letterhead Customization
-- Configure clinic name, full address, contact numbers, doctor degree/specialization, medical council registration number, and custom clinic logo.
-- Automatic fallback letterhead ensures prescriptions can be drafted and tested immediately even before clinic settings are populated.
-
----
-
-## 🛠️ Tech Stack
-
-- **Framework**: [Next.js 16](https://nextjs.org/) (App Router, Turbopack, Server Actions)
-- **UI Library**: [React 19](https://react.dev/), [Tailwind CSS v4](https://tailwindcss.com/), [Lucide React](https://lucide.dev/)
-- **Components**: [Base UI](https://base-ui.com/)
-- **Database & ORM**: [SQLite (`better-sqlite3`)](https://github.com/WiseLibs/better-sqlite3) with [Drizzle ORM](https://orm.drizzle.team/)
-- **PDF Generation**: [@react-pdf/renderer](https://react-pdf.org/)
+### 5. 💾 Database Backup & Disaster Recovery
+- **1-Click Live Backup**: Download a clean, live copy of `sqlite.db` directly from the Settings page.
+- **Automated CLI Backup**: Scheduled atomic backup script (`npm run db:backup`) with automatic rotation keeping the last 30 daily backups.
+- **Disaster Recovery**: Restoring to a new computer is as simple as copying `sqlite.db`.
 
 ---
 
-## 🚀 Getting Started
+## 🚀 1-Click Quick Start (Clinic Deployment)
+
+### Windows
+Double-click **`start-windows.bat`**.
+> Automatically checks Node.js, installs dependencies, builds the production app, initializes the database, and opens `http://localhost:3000` in your default browser.
+
+### Linux / macOS
+Run the launcher script:
+```bash
+chmod +x start-linux.sh
+./start-linux.sh
+```
+
+### Clinic Local Area Network (LAN) / Multi-Device Mode
+To allow the receptionist to register patients from their desk and doctors to consult on tablets over clinic Wi-Fi:
+- **Windows**: Double-click `start-lan.bat`
+- **Linux/macOS**: `./start-lan.sh`
+> Displays the exact local IP address (e.g. `http://192.168.1.50:3000`) for all devices connected to the clinic Wi-Fi.
+
+---
+
+## 🛠️ Manual Installation
 
 ### Prerequisites
 - Node.js 18+ (Node 20+ recommended)
-- npm, yarn, or pnpm
+- npm, pnpm, or yarn
 
-### 1. Install Dependencies
 ```bash
+# 1. Install dependencies
 npm install
-```
 
-### 2. Populate Sample Data (Optional)
-To populate demo doctor settings, patients (Amit Verma, Priya Patel), and sample prescriptions:
-```bash
+# 2. Seed initial clinic settings & demo multi-visit patients (Optional)
 npm run db:seed
-```
-*(Alternatively, you can click "Load Sample Clinic Profile & Demo Patients" on the Settings page.)*
 
-### 3. Run the Development Server
-```bash
-npm run dev
-```
+# 3. Build optimized production bundle
+npm run build
 
+# 4. Start production server
+npm run start
+```
 Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+---
+
+## 🔄 Automated Daily Backups
+
+To back up your clinic database daily:
+
+```bash
+# Run backup manually
+npm run db:backup
+```
+Backups are saved to `./backups/medscript-backup-YYYY-MM-DD_HH-mm-ss.db`.
+
+### Linux / macOS Cron Setup
+Add to crontab (`crontab -e`) to run every evening at 9:00 PM:
+```bash
+0 21 * * * cd /path/to/medscript-opd && npm run db:backup >> /tmp/medscript-backup.log 2>&1
+```
+
+### Windows Task Scheduler Setup
+Create a basic task in Windows Task Scheduler:
+- **Trigger**: Daily at 9:00 PM
+- **Action**: Start a program -> select `backup-task.bat`
 
 ---
 
@@ -72,6 +110,7 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 | :--- | :--- |
 | `npm run dev` | Runs the Next.js development server with Turbopack |
 | `npm run build` | Compiles and builds the production application |
-| `npm run start` | Starts the production server |
+| `npm run start` | Starts the production server on port 3000 |
 | `npm run lint` | Runs ESLint code quality checks |
-| `npm run db:seed` | Populates sample clinic profile, patients, and prescriptions |
+| `npm run db:seed` | Populates sample clinic profile, patients, and multi-visit consultations |
+| `npm run db:backup` | Creates an atomic timestamped backup snapshot in `./backups` |

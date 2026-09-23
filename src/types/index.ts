@@ -48,4 +48,7 @@ export interface ClinicSettings {
   address: string;
   contact: string;
   logoUrl?: string | null;
+  pinHash?: string | null;
+  securityEnabled?: boolean | null;
 }
+

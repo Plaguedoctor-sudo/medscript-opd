@@ -3,9 +3,17 @@ import SettingsForm from "./SettingsForm";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Settings } from "lucide-react";
+import { requireAuth, getSecurityConfig } from "@/lib/auth";
+import { getLocalBackupSnapshots } from "./backup-actions";
+import { LockDeskButton } from "@/components/LockDeskButton";
 
 export default async function SettingsPage() {
-  const settings = await getSettings();
+  await requireAuth('/settings');
+  const [settings, securityConfig, backupSnapshots] = await Promise.all([
+    getSettings(),
+    getSecurityConfig(),
+    getLocalBackupSnapshots(),
+  ]);
 
   return (
     <div className="min-h-screen bg-slate-50 pb-12">
@@ -24,11 +32,16 @@ export default async function SettingsPage() {
               <span className="text-xl font-bold text-slate-900 tracking-tight">Clinic & Doctor Settings</span>
             </div>
           </div>
+          {securityConfig.securityEnabled && <LockDeskButton />}
         </div>
       </nav>
 
       <main className="container mx-auto px-4 py-8">
-        <SettingsForm settings={settings} />
+        <SettingsForm
+          settings={settings}
+          securityConfig={securityConfig}
+          initialBackups={backupSnapshots}
+        />
       </main>
     </div>
   );

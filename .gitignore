@@ -47,4 +47,5 @@ next-env.d.ts
 *.db-wal
 *.db-shm
 *.sqlite*
+/backups/
 

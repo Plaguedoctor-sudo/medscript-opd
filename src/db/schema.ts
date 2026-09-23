@@ -60,4 +60,6 @@ export const clinicSettings = sqliteTable("clinic_settings", {
   address: text("address").notNull(),
   contact: text("contact").notNull(),
   logoUrl: text("logo_url"),
+  pinHash: text("pin_hash"),
+  securityEnabled: integer("security_enabled", { mode: "boolean" }).$defaultFn(() => false),
 });

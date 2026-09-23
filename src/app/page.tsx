@@ -8,6 +8,8 @@ import Link from "next/link";
 import { PlusCircle, Settings, Users, FileText, AlertCircle, Edit, ExternalLink, Calendar } from "lucide-react";
 import { DashboardSearch } from "@/components/DashboardSearch";
 import { formatDate } from "@/lib/utils";
+import { requireAuth, getSecurityConfig } from "@/lib/auth";
+import { LockDeskButton } from "@/components/LockDeskButton";
 
 interface ConsultationRow {
   id: number;
@@ -22,6 +24,8 @@ interface ConsultationRow {
 }
 
 export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
+  await requireAuth('/');
+  const { securityEnabled } = await getSecurityConfig();
   const query = (await searchParams)?.q;
 
   // Fetch prescriptions with patient data, filtered by search query if present
@@ -91,6 +95,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
                 <PlusCircle className="w-4 h-4" /> New Consultation
               </Button>
             </Link>
+            {securityEnabled && <LockDeskButton />}
           </div>
         </div>
       </nav>

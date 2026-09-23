@@ -4,9 +4,11 @@ import { eq } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import PrescriptionPreview from "./preview";
 import { ClinicSettings, Patient, Prescription } from "@/types";
+import { requireAuth } from "@/lib/auth";
 
 export default async function PrescriptionPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  await requireAuth(`/prescription/${id}`);
   const prescriptionId = parseInt(id, 10);
 
   const prescription = await db.query.prescriptions.findFirst({

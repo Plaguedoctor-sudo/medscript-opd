@@ -8,8 +8,12 @@ import Link from "next/link";
 import { Users, PlusCircle, ArrowLeft, Phone, Fingerprint } from "lucide-react";
 import { DashboardSearch } from "@/components/DashboardSearch";
 import { Patient } from "@/types";
+import { requireAuth, getSecurityConfig } from "@/lib/auth";
+import { LockDeskButton } from "@/components/LockDeskButton";
 
 export default async function PatientsPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
+  await requireAuth('/patients');
+  const { securityEnabled } = await getSecurityConfig();
   const query = (await searchParams)?.q;
 
   // Fetch patients, optionally filtered by search
@@ -67,6 +71,7 @@ export default async function PatientsPage({ searchParams }: { searchParams: Pro
                 <PlusCircle className="w-4 h-4" /> New Consultation
               </Button>
             </Link>
+            {securityEnabled && <LockDeskButton />}
           </div>
         </div>
       </nav>

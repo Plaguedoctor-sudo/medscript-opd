@@ -11,9 +11,13 @@ import { Medication, Patient, Prescription } from "@/types";
 import { EditPatientModal } from "./EditPatientModal";
 import { PatientVitalsAnalytics } from "./PatientVitalsAnalytics";
 import { formatDate } from "@/lib/utils";
+import { requireAuth, getSecurityConfig } from "@/lib/auth";
+import { LockDeskButton } from "@/components/LockDeskButton";
 
 export default async function PatientProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  await requireAuth(`/patient/${id}`);
+  const { securityEnabled } = await getSecurityConfig();
   const patientId = parseInt(id, 10);
 
   const patient = await db.query.patients.findFirst({
@@ -49,6 +53,7 @@ export default async function PatientProfilePage({ params }: { params: Promise<{
                 <PlusCircle className="w-4 h-4" /> New Consultation
               </Button>
             </Link>
+            {securityEnabled && <LockDeskButton />}
           </div>
         </div>
       </nav>
