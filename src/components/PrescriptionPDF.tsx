@@ -384,7 +384,14 @@ export const PrescriptionPDF = ({ prescription, patient, settings }: Prescriptio
             medications.map((med, i) => (
               <View key={i} style={styles.rxRow}>
                 <Text style={[styles.sectionContent, styles.colNum]}>{i + 1}</Text>
-                <Text style={[styles.medName, styles.colMed]}>{med.name}</Text>
+                <View style={styles.colMed}>
+                  <Text style={styles.medName}>{med.name}</Text>
+                  {med.instruction ? (
+                    <Text style={{ fontSize: 7.5, color: '#475569', fontStyle: 'italic', marginTop: 1 }}>
+                      {med.instruction}
+                    </Text>
+                  ) : null}
+                </View>
                 <Text style={[styles.sectionContent, styles.colStrength]}>{med.strength || '-'}</Text>
                 <Text style={[styles.sectionContent, styles.colDosage]}>{med.dosage || '-'}</Text>
                 <Text style={[styles.sectionContent, styles.colTiming]}>{med.timing || '-'}</Text>

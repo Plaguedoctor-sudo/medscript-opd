@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,18 +16,50 @@ import {
   DialogClose,
 } from "@/components/ui/dialog";
 import { Patient } from "@/types";
-import { updatePatient } from "@/app/prescription/new/actions";
+import { updatePatient, deletePatient } from "@/app/prescription/new/actions";
 import { toast } from "@/components/ui/toast";
-import { Edit, Loader2 } from "lucide-react";
+import { Edit, Loader2, Trash2 } from "lucide-react";
 
 export function EditPatientModal({ patient }: { patient: Patient }) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [name, setName] = useState(patient.name);
   const [age, setAge] = useState(String(patient.age));
   const [gender, setGender] = useState(patient.gender);
   const [phone, setPhone] = useState(patient.phone || "");
   const [abhaId, setAbhaId] = useState(patient.abhaId || "");
+
+  const handleDelete = async () => {
+    if (
+      !confirm(
+        `Are you sure you want to delete patient "${patient.name}" and all associated prescription history? This action cannot be undone.`
+      )
+    ) {
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      await deletePatient(patient.id);
+      toast.show({
+        title: "Patient Deleted",
+        description: `Patient record and history for ${patient.name} has been deleted.`,
+        type: "info",
+      });
+      setOpen(false);
+      router.push("/patients");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to delete patient.";
+      toast.show({
+        title: "Error",
+        description: msg,
+        type: "error",
+      });
+      setIsDeleting(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -134,19 +167,32 @@ export function EditPatientModal({ patient }: { patient: Patient }) {
             </div>
           </div>
 
-          <DialogFooter className="gap-2">
-            <DialogClose render={<Button type="button" variant="outline" />}>
-              Cancel
-            </DialogClose>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> Saving...
-                </>
-              ) : (
-                "Save Changes"
-              )}
+          <DialogFooter className="flex flex-col sm:flex-row items-center justify-between gap-2 pt-2">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={handleDelete}
+              disabled={isDeleting || isSubmitting}
+              className="text-red-600 hover:bg-red-50 hover:text-red-700 text-xs gap-1.5 self-start sm:self-auto"
+            >
+              {isDeleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+              Delete Patient
             </Button>
+            <div className="flex items-center gap-2 self-end sm:self-auto">
+              <DialogClose render={<Button type="button" variant="outline" size="sm" />}>
+                Cancel
+              </DialogClose>
+              <Button type="submit" size="sm" disabled={isSubmitting || isDeleting}>
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> Saving...
+                  </>
+                ) : (
+                  "Save Changes"
+                )}
+              </Button>
+            </div>
           </DialogFooter>
         </form>
       </DialogContent>

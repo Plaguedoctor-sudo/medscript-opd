@@ -46,21 +46,45 @@ export async function getPatientById(id: number): Promise<Patient | null> {
   return (patient as Patient) || null;
 }
 
+function sanitizeString(val: unknown, maxLen: number): string | null {
+  if (typeof val !== "string") return null;
+  const trimmed = val.trim();
+  return trimmed.length > 0 ? trimmed.slice(0, maxLen) : null;
+}
+
+function sanitizeMedications(meds: unknown): Medication[] {
+  if (!Array.isArray(meds)) return [];
+  return meds
+    .filter((m): m is Medication => typeof m === "object" && m !== null && typeof m.name === "string" && m.name.trim().length > 0)
+    .map((m) => ({
+      name: m.name.trim().slice(0, 100),
+      strength: (m.strength || "").trim().slice(0, 50),
+      dosage: (m.dosage || "").trim().slice(0, 50),
+      timing: (m.timing || "").trim().slice(0, 50),
+      duration: (m.duration || "").trim().slice(0, 50),
+      instruction: m.instruction ? m.instruction.trim().slice(0, 150) : undefined,
+    }));
+}
+
 export async function createPrescription(formData: PrescriptionFormData) {
   let patientId = formData.patientId ? Number(formData.patientId) : null;
 
   // 1. Create or Find Patient
   if (!patientId) {
-    if (!formData.patientName || !formData.patientAge || !formData.patientGender) {
-      throw new Error("Patient name, age, and gender are required.");
+    const rawName = sanitizeString(formData.patientName, 100);
+    const rawAge = parseInt(String(formData.patientAge), 10);
+    const rawGender = sanitizeString(formData.patientGender, 20);
+
+    if (!rawName || isNaN(rawAge) || !rawGender) {
+      throw new Error("Patient name, valid age, and gender are required.");
     }
 
     const patientData = {
-      name: String(formData.patientName).trim(),
-      age: parseInt(String(formData.patientAge), 10),
-      gender: String(formData.patientGender),
-      phone: formData.patientPhone ? String(formData.patientPhone).trim() : null,
-      abhaId: formData.abhaId ? String(formData.abhaId).trim() : null,
+      name: rawName,
+      age: Math.max(0, Math.min(130, rawAge)),
+      gender: ["Male", "Female", "Other"].includes(rawGender) ? rawGender : "Other",
+      phone: sanitizeString(formData.patientPhone, 25),
+      abhaId: sanitizeString(formData.abhaId, 30),
     };
 
     const [newPatient] = await db.insert(patients).values(patientData).returning();
@@ -70,18 +94,18 @@ export async function createPrescription(formData: PrescriptionFormData) {
   // 2. Create Prescription
   const prescriptionData = {
     patientId: patientId,
-    weight: formData.weight || null,
-    bp: formData.bp || null,
-    pulse: formData.pulse || null,
-    temp: formData.temp || null,
-    spo2: formData.spo2 || null,
-    chiefComplaints: formData.chiefComplaints || null,
-    clinicalHistory: formData.clinicalHistory || null,
-    diagnosis: formData.diagnosis || null,
-    medications: JSON.stringify(formData.medications || []),
-    advice: formData.advice || null,
-    labTests: formData.labTests || null,
-    followUpDate: formData.followUpDate || null,
+    weight: sanitizeString(formData.weight, 20),
+    bp: sanitizeString(formData.bp, 20),
+    pulse: sanitizeString(formData.pulse, 20),
+    temp: sanitizeString(formData.temp, 20),
+    spo2: sanitizeString(formData.spo2, 20),
+    chiefComplaints: sanitizeString(formData.chiefComplaints, 1000),
+    clinicalHistory: sanitizeString(formData.clinicalHistory, 2000),
+    diagnosis: sanitizeString(formData.diagnosis, 500),
+    medications: JSON.stringify(sanitizeMedications(formData.medications)),
+    advice: sanitizeString(formData.advice, 2000),
+    labTests: sanitizeString(formData.labTests, 1000),
+    followUpDate: sanitizeString(formData.followUpDate, 30),
   };
 
   const [prescription] = await db.insert(prescriptions).values(prescriptionData).returning();
@@ -95,18 +119,18 @@ export async function createPrescription(formData: PrescriptionFormData) {
 
 export async function updatePrescription(id: number, formData: PrescriptionFormData) {
   const prescriptionData = {
-    weight: formData.weight || null,
-    bp: formData.bp || null,
-    pulse: formData.pulse || null,
-    temp: formData.temp || null,
-    spo2: formData.spo2 || null,
-    chiefComplaints: formData.chiefComplaints || null,
-    clinicalHistory: formData.clinicalHistory || null,
-    diagnosis: formData.diagnosis || null,
-    medications: JSON.stringify(formData.medications || []),
-    advice: formData.advice || null,
-    labTests: formData.labTests || null,
-    followUpDate: formData.followUpDate || null,
+    weight: sanitizeString(formData.weight, 20),
+    bp: sanitizeString(formData.bp, 20),
+    pulse: sanitizeString(formData.pulse, 20),
+    temp: sanitizeString(formData.temp, 20),
+    spo2: sanitizeString(formData.spo2, 20),
+    chiefComplaints: sanitizeString(formData.chiefComplaints, 1000),
+    clinicalHistory: sanitizeString(formData.clinicalHistory, 2000),
+    diagnosis: sanitizeString(formData.diagnosis, 500),
+    medications: JSON.stringify(sanitizeMedications(formData.medications)),
+    advice: sanitizeString(formData.advice, 2000),
+    labTests: sanitizeString(formData.labTests, 1000),
+    followUpDate: sanitizeString(formData.followUpDate, 30),
   };
 
   await db.update(prescriptions)
@@ -150,24 +174,47 @@ export async function updatePatient(
     abhaId?: string | null;
   }
 ) {
-  if (!data.name || !data.age || !data.gender) {
-    throw new Error("Patient name, age, and gender are required.");
+  const rawName = sanitizeString(data.name, 100);
+  const rawAge = parseInt(String(data.age), 10);
+  const rawGender = sanitizeString(data.gender, 20);
+
+  if (!rawName || isNaN(rawAge) || !rawGender) {
+    throw new Error("Patient name, valid age, and gender are required.");
   }
 
   await db
     .update(patients)
     .set({
-      name: data.name.trim(),
-      age: data.age,
-      gender: data.gender,
-      phone: data.phone ? data.phone.trim() : null,
-      abhaId: data.abhaId ? data.abhaId.trim() : null,
+      name: rawName,
+      age: Math.max(0, Math.min(130, rawAge)),
+      gender: ["Male", "Female", "Other"].includes(rawGender) ? rawGender : "Other",
+      phone: sanitizeString(data.phone, 25),
+      abhaId: sanitizeString(data.abhaId, 30),
     })
     .where(eq(patients.id, id));
 
   revalidatePath("/");
   revalidatePath("/patients");
   revalidatePath(`/patient/${id}`);
+
+  return { success: true };
+}
+
+export async function deletePatient(id: number) {
+  const patient = await db.query.patients.findFirst({
+    where: eq(patients.id, id),
+  });
+  if (!patient) {
+    throw new Error("Patient not found.");
+  }
+
+  // Delete all associated prescriptions first
+  await db.delete(prescriptions).where(eq(prescriptions.patientId, id));
+  // Delete patient
+  await db.delete(patients).where(eq(patients.id, id));
+
+  revalidatePath("/");
+  revalidatePath("/patients");
 
   return { success: true };
 }

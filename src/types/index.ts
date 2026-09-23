@@ -14,6 +14,7 @@ export interface Medication {
   dosage: string;
   timing: string;
   duration: string;
+  instruction?: string;
 }
 
 export interface Prescription {

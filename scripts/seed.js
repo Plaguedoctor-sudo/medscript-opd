@@ -81,9 +81,9 @@ if (patientCount === 0) {
   `);
 
   const rx1Meds = JSON.stringify([
-    { name: "Telmisartan", strength: "40mg", dosage: "1-0-0", timing: "After food", duration: "30 days" },
-    { name: "Paracetamol", strength: "650mg", dosage: "SOS", timing: "After food", duration: "3 days" },
-    { name: "Levocetirizine", strength: "5mg", dosage: "0-0-1", timing: "At bedtime", duration: "5 days" },
+    { name: "Telmisartan", strength: "40mg", dosage: "1-0-0", timing: "After food", duration: "30 days", instruction: "Take every morning at a fixed time" },
+    { name: "Paracetamol", strength: "650mg", dosage: "SOS", timing: "After food", duration: "3 days", instruction: "Take only if fever > 100°F or severe body ache" },
+    { name: "Levocetirizine", strength: "5mg", dosage: "0-0-1", timing: "At bedtime", duration: "5 days", instruction: "At night before sleeping" },
   ]);
 
   const followUp1 = new Date(Date.now() + 14 * 86400000).toISOString().split("T")[0];
@@ -105,8 +105,8 @@ if (patientCount === 0) {
   );
 
   const rx2Meds = JSON.stringify([
-    { name: "Pantoprazole + Domperidone", strength: "40mg/30mg", dosage: "1-0-0", timing: "Before food", duration: "14 days" },
-    { name: "Sucralfate Syrup", strength: "10ml", dosage: "1-1-1", timing: "Empty stomach", duration: "7 days" },
+    { name: "Pantoprazole + Domperidone", strength: "40mg/30mg", dosage: "1-0-0", timing: "Before food", duration: "14 days", instruction: "Take 30 mins before breakfast on empty stomach" },
+    { name: "Sucralfate Syrup", strength: "10ml", dosage: "1-1-1", timing: "Empty stomach", duration: "7 days", instruction: "Shake well before use, avoid food for 30 mins after syrup" },
   ]);
 
   const followUp2 = new Date(Date.now() + 7 * 86400000).toISOString().split("T")[0];

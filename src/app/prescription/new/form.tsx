@@ -32,7 +32,7 @@ export default function NewPrescriptionForm({ initialPatientId, initialData }: F
         // fallback
       }
     }
-    return [{ name: "", strength: "", dosage: "1-0-1", timing: "After food", duration: "5 days" }];
+    return [{ name: "", strength: "", dosage: "1-0-1", timing: "After food", duration: "5 days", instruction: "" }];
   });
 
   const [patientSearch, setPatientSearch] = useState("");
@@ -66,7 +66,7 @@ export default function NewPrescriptionForm({ initialPatientId, initialData }: F
   const addMedication = () => {
     setMedications([
       ...medications,
-      { name: "", strength: "", dosage: "1-0-1", timing: "After food", duration: "5 days" },
+      { name: "", strength: "", dosage: "1-0-1", timing: "After food", duration: "5 days", instruction: "" },
     ]);
   };
 
@@ -456,6 +456,16 @@ export default function NewPrescriptionForm({ initialPatientId, initialData }: F
                     <Trash2 className="w-4 h-4" />
                   </Button>
                 </div>
+              </div>
+
+              {/* Special Instructions */}
+              <div>
+                <Input
+                  value={med.instruction || ""}
+                  onChange={(e) => updateMedicationField(index, "instruction", e.target.value)}
+                  placeholder="Special instructions (optional: e.g. With warm water, SOS only if fever > 100°F)"
+                  className="bg-white text-xs h-8 text-slate-700"
+                />
               </div>
 
               {/* Quick shortcut chips for dosage, timing, duration */}

@@ -16,16 +16,29 @@ export async function saveSettings(formData: FormData): Promise<void> {
   let logoUrl: string | undefined = undefined;
 
   if (file && file.size > 0) {
+    const ALLOWED_MIME_TYPES = ["image/png", "image/jpeg", "image/jpg", "image/webp"];
+    if (!ALLOWED_MIME_TYPES.includes(file.type)) {
+      throw new Error("Invalid file format. Only PNG, JPEG, and WebP images are allowed.");
+    }
+    const MAX_SIZE = 2 * 1024 * 1024; // 2MB
+    if (file.size > MAX_SIZE) {
+      throw new Error("Logo image file size exceeds the 2MB maximum limit.");
+    }
+
     const buffer = Buffer.from(await file.arrayBuffer());
     logoUrl = `data:${file.type};base64,${buffer.toString("base64")}`;
   }
 
-  const doctorName = (formData.get("doctorName") as string) || "";
-  const qualifications = (formData.get("qualifications") as string) || "";
-  const regNumber = (formData.get("regNumber") as string) || "";
-  const clinicName = (formData.get("clinicName") as string) || "";
-  const address = (formData.get("address") as string) || "";
-  const contact = (formData.get("contact") as string) || "";
+  const doctorName = ((formData.get("doctorName") as string) || "").trim().slice(0, 100);
+  const qualifications = ((formData.get("qualifications") as string) || "").trim().slice(0, 100);
+  const regNumber = ((formData.get("regNumber") as string) || "").trim().slice(0, 50);
+  const clinicName = ((formData.get("clinicName") as string) || "").trim().slice(0, 150);
+  const address = ((formData.get("address") as string) || "").trim().slice(0, 300);
+  const contact = ((formData.get("contact") as string) || "").trim().slice(0, 100);
+
+  if (!doctorName || !qualifications || !regNumber || !clinicName || !address || !contact) {
+    throw new Error("All required clinic profile fields must be filled.");
+  }
 
   const data: {
     doctorName: string;
@@ -119,6 +132,7 @@ export async function seedDemoData(): Promise<void> {
             dosage: "1-0-0",
             timing: "After food",
             duration: "30 days",
+            instruction: "Take every morning at a fixed time",
           },
           {
             name: "Paracetamol",
@@ -126,6 +140,7 @@ export async function seedDemoData(): Promise<void> {
             dosage: "SOS",
             timing: "After food",
             duration: "3 days",
+            instruction: "Take only if fever > 100°F or severe body ache",
           },
           {
             name: "Levocetirizine",
@@ -133,6 +148,7 @@ export async function seedDemoData(): Promise<void> {
             dosage: "0-0-1",
             timing: "At bedtime",
             duration: "5 days",
+            instruction: "At night before sleeping",
           },
         ]),
         advice: "Low sodium diet (< 2g/day), maintain 30 mins daily brisk walking, maintain BP log",
@@ -156,6 +172,7 @@ export async function seedDemoData(): Promise<void> {
             dosage: "1-0-0",
             timing: "Before food",
             duration: "14 days",
+            instruction: "Take 30 mins before breakfast on empty stomach",
           },
           {
             name: "Sucralfate Syrup",
@@ -163,6 +180,7 @@ export async function seedDemoData(): Promise<void> {
             dosage: "1-1-1",
             timing: "Empty stomach",
             duration: "7 days",
+            instruction: "Shake well before use, avoid food for 30 mins after syrup",
           },
         ]),
         advice: "Small frequent meals, avoid spicy/fried foods and caffeine, elevate head while sleeping",
