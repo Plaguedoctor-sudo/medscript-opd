@@ -7,20 +7,21 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { createPrescription, updatePrescription, searchPatients, getPatientById } from "./actions";
-import { Plus, Trash2, Search, User, X, Save, Loader2, Pill } from "lucide-react";
+import { Plus, Trash2, Search, User, X, Save, Loader2, Pill, Copy } from "lucide-react";
 import { toast } from "@/components/ui/toast";
 import { Medication, Patient, Prescription } from "@/types";
 
 interface FormProps {
   initialPatientId?: string;
   initialData?: (Prescription & { patient?: Patient }) | null;
+  cloneFromId?: number;
 }
 
 const COMMON_DOSAGES = ["1-0-1", "1-1-1", "1-0-0", "0-0-1", "0-1-0", "1-0-1-1", "SOS"];
 const COMMON_TIMINGS = ["After food", "Before food", "With food", "At bedtime", "Empty stomach"];
 const COMMON_DURATIONS = ["3 days", "5 days", "7 days", "10 days", "14 days", "1 month"];
 
-export default function NewPrescriptionForm({ initialPatientId, initialData }: FormProps) {
+export default function NewPrescriptionForm({ initialPatientId, initialData, cloneFromId }: FormProps) {
   const router = useRouter();
 
   const [medications, setMedications] = useState<Medication[]>(() => {
@@ -155,6 +156,16 @@ export default function NewPrescriptionForm({ initialPatientId, initialData }: F
           </div>
         )}
       </div>
+
+      {/* Clone Notice Banner */}
+      {cloneFromId && (
+        <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg flex items-center gap-2.5 text-xs text-emerald-900">
+          <Copy className="w-4 h-4 text-emerald-600 shrink-0" />
+          <span>
+            <strong>Repeat Consultation:</strong> Medications and diagnosis have been copied from Prescription #{cloneFromId}. Record today&apos;s vitals and review prescribed drugs.
+          </span>
+        </div>
+      )}
 
       {/* Patient Selection / Search */}
       {!selectedPatient && !isEditMode ? (

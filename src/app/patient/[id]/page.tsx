@@ -6,9 +6,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import Link from "next/link";
-import { ArrowLeft, User, FileText, Calendar, Phone, Fingerprint, PlusCircle, Edit, ExternalLink } from "lucide-react";
+import { ArrowLeft, User, FileText, Calendar, Phone, Fingerprint, PlusCircle, Edit, ExternalLink, Copy } from "lucide-react";
 import { Medication, Patient, Prescription } from "@/types";
 import { EditPatientModal } from "./EditPatientModal";
+import { PatientVitalsAnalytics } from "./PatientVitalsAnalytics";
 import { formatDate } from "@/lib/utils";
 
 export default async function PatientProfilePage({ params }: { params: Promise<{ id: string }> }) {
@@ -88,6 +89,9 @@ export default async function PatientProfilePage({ params }: { params: Promise<{
           </CardHeader>
         </Card>
 
+        {/* Longitudinal Vitals & Clinical Analytics */}
+        <PatientVitalsAnalytics prescriptions={typedPrescriptions} patientName={typedPatient.name} />
+
         {/* Prescription History */}
         <Card className="border-slate-200">
           <CardHeader>
@@ -145,6 +149,16 @@ export default async function PatientProfilePage({ params }: { params: Promise<{
                         </TableCell>
                         <TableCell className="text-right whitespace-nowrap">
                           <div className="flex items-center justify-end gap-1.5">
+                            <Link href={`/prescription/new?patientId=${typedPatient.id}&cloneFrom=${px.id}`}>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 px-2 gap-1 text-slate-600 hover:text-emerald-600"
+                                title="Repeat / Clone medications into a new consultation"
+                              >
+                                <Copy className="w-3.5 h-3.5" /> Repeat Rx
+                              </Button>
+                            </Link>
                             <Link href={`/prescription/${px.id}/edit`}>
                               <Button variant="ghost" size="sm" className="h-8 px-2 gap-1 text-slate-600 hover:text-blue-600" title="Edit Prescription">
                                 <Edit className="w-3.5 h-3.5" /> Edit

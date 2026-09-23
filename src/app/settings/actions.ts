@@ -92,6 +92,9 @@ export async function seedDemoData(): Promise<void> {
 
   const existingPatients = await db.select().from(patients).limit(1);
   if (existingPatients.length === 0) {
+    const DAY = 86400000;
+    const now = Date.now();
+
     const [p1] = await db
       .insert(patients)
       .values({
@@ -100,6 +103,7 @@ export async function seedDemoData(): Promise<void> {
         gender: "Male",
         phone: "+91 98765 43210",
         abhaId: "14-2345-6789-0123",
+        createdAt: new Date(now - 28 * DAY),
       })
       .returning();
 
@@ -111,27 +115,29 @@ export async function seedDemoData(): Promise<void> {
         gender: "Female",
         phone: "+91 98234 56789",
         abhaId: "14-9876-5432-1098",
+        createdAt: new Date(now - 10 * DAY),
       })
       .returning();
 
     await db.insert(prescriptions).values([
+      // Amit Verma - Visit 1
       {
         patientId: p1.id,
-        weight: "74",
-        bp: "130/84",
-        pulse: "78",
-        temp: "98.6",
-        spo2: "98",
-        chiefComplaints: "Mild headache, occasional fatigue and dry cough for 3 days",
-        clinicalHistory: "No prior chronic illnesses, no known drug allergies",
-        diagnosis: "Essential Stage 1 Hypertension & Mild Viral URTI",
+        weight: "75.5",
+        bp: "142/90",
+        pulse: "84",
+        temp: "99.2",
+        spo2: "97",
+        chiefComplaints: "Headache, persistent fatigue, and elevated BP readings at home",
+        clinicalHistory: "Sedentary lifestyle, high sodium diet, no prior BP medication",
+        diagnosis: "Essential Stage 2 Hypertension & Mild Viral Pharyngitis",
         medications: JSON.stringify([
           {
             name: "Telmisartan",
             strength: "40mg",
             dosage: "1-0-0",
             timing: "After food",
-            duration: "30 days",
+            duration: "14 days",
             instruction: "Take every morning at a fixed time",
           },
           {
@@ -151,15 +157,85 @@ export async function seedDemoData(): Promise<void> {
             instruction: "At night before sleeping",
           },
         ]),
-        advice: "Low sodium diet (< 2g/day), maintain 30 mins daily brisk walking, maintain BP log",
-        labTests: "Serum Creatinine, Fasting Lipid Profile, Complete Blood Count",
-        followUpDate: new Date(Date.now() + 14 * 86400000).toISOString().split("T")[0],
+        advice: "Strict low sodium diet (< 2g/day), avoid fried snacks, 30 min daily brisk walk",
+        labTests: "Serum Creatinine, Fasting Blood Sugar, Lipid Profile, ECG",
+        followUpDate: new Date(now - 14 * DAY).toISOString().split("T")[0],
+        createdAt: new Date(now - 28 * DAY),
       },
+      // Amit Verma - Visit 2
+      {
+        patientId: p1.id,
+        weight: "74.6",
+        bp: "132/84",
+        pulse: "78",
+        temp: "98.6",
+        spo2: "98",
+        chiefComplaints: "Follow-up for BP review. Headache improved, mild pedal puffiness in evenings",
+        clinicalHistory: "Responding favorably to Telmisartan",
+        diagnosis: "Essential Hypertension - Stage 1 (Improving)",
+        medications: JSON.stringify([
+          {
+            name: "Telmisartan",
+            strength: "40mg",
+            dosage: "1-0-0",
+            timing: "After food",
+            duration: "30 days",
+            instruction: "Continue morning dose",
+          },
+          {
+            name: "Amlodipine",
+            strength: "2.5mg",
+            dosage: "0-0-1",
+            timing: "At bedtime",
+            duration: "30 days",
+            instruction: "Added for tighter evening control",
+          },
+        ]),
+        advice: "Maintain daily salt restriction, continue morning walking routine",
+        labTests: "Repeat serum electrolytes in 4 weeks",
+        followUpDate: new Date(now + 14 * DAY).toISOString().split("T")[0],
+        createdAt: new Date(now - 14 * DAY),
+      },
+      // Amit Verma - Visit 3
+      {
+        patientId: p1.id,
+        weight: "73.8",
+        bp: "122/80",
+        pulse: "72",
+        temp: "98.4",
+        spo2: "99",
+        chiefComplaints: "Routine follow-up. Feeling energetic, no headaches, no visual disturbances",
+        clinicalHistory: "Well-controlled hypertension on combination therapy",
+        diagnosis: "Essential Hypertension - Target Controlled (Normal Range)",
+        medications: JSON.stringify([
+          {
+            name: "Telmisartan",
+            strength: "40mg",
+            dosage: "1-0-0",
+            timing: "After food",
+            duration: "60 days",
+            instruction: "Maintain regularly",
+          },
+          {
+            name: "Amlodipine",
+            strength: "2.5mg",
+            dosage: "0-0-1",
+            timing: "At bedtime",
+            duration: "60 days",
+            instruction: "Evening bedtime dose",
+          },
+        ]),
+        advice: "Excellent response. Continue regular physical activity and diet control",
+        labTests: "Annual wellness panel after 6 months",
+        followUpDate: new Date(now + 60 * DAY).toISOString().split("T")[0],
+        createdAt: new Date(now - 2 * DAY),
+      },
+      // Priya Patel - Visit 1
       {
         patientId: p2.id,
-        weight: "58",
+        weight: "58.0",
         bp: "118/76",
-        pulse: "72",
+        pulse: "74",
         temp: "98.4",
         spo2: "99",
         chiefComplaints: "Epigastric burning sensation, post-prandial fullness for 1 week",
@@ -185,7 +261,34 @@ export async function seedDemoData(): Promise<void> {
         ]),
         advice: "Small frequent meals, avoid spicy/fried foods and caffeine, elevate head while sleeping",
         labTests: "Ultrasound Abdomen if symptoms persist",
-        followUpDate: new Date(Date.now() + 7 * 86400000).toISOString().split("T")[0],
+        followUpDate: new Date(now).toISOString().split("T")[0],
+        createdAt: new Date(now - 10 * DAY),
+      },
+      // Priya Patel - Visit 2
+      {
+        patientId: p2.id,
+        weight: "58.3",
+        bp: "116/74",
+        pulse: "70",
+        temp: "98.5",
+        spo2: "99",
+        chiefComplaints: "Follow-up for GERD. Burning significantly subsided, no regurgitation",
+        clinicalHistory: "Complete resolution of acute symptoms",
+        diagnosis: "Acid Peptic Disease - Symptomatically Controlled",
+        medications: JSON.stringify([
+          {
+            name: "Pantoprazole",
+            strength: "40mg",
+            dosage: "1-0-0",
+            timing: "Before food",
+            duration: "14 days",
+            instruction: "Taper to single agent before breakfast",
+          },
+        ]),
+        advice: "Continue regular meal timings, reduce stress and late-night snacking",
+        labTests: "None required at present",
+        followUpDate: new Date(now + 30 * DAY).toISOString().split("T")[0],
+        createdAt: new Date(now - 1 * DAY),
       },
     ]);
   }
