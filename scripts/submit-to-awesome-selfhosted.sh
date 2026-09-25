@@ -10,15 +10,7 @@ echo "================================================================="
 echo "    MEDSCRIPT OPD - AWESOME-SELFHOSTED SUBMISSION ASSISTANT"
 echo "================================================================="
 echo ""
-echo "Step 1: Fork awesome-selfhosted/awesome-selfhosted on GitHub."
-echo "If not yet forked, open: https://github.com/awesome-selfhosted/awesome-selfhosted/fork"
-echo ""
-read -p "Have you forked awesome-selfhosted/awesome-selfhosted? (y/n): " -n 1 -r
-echo
-if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-    echo "Please visit https://github.com/awesome-selfhosted/awesome-selfhosted/fork to fork first."
-    exit 0
-fi
+echo "Cloning your fork of awesome-selfhosted into temporary staging..."
 
 echo "Step 2: Cloning your fork..."
 rm -rf "$STAGE_DIR"
@@ -53,7 +45,8 @@ git push -u origin add-medscript-opd
 echo ""
 echo "================================================================="
 echo "🎉 Branch pushed! Open your Pull Request to Awesome-Selfhosted:"
-echo "👉 https://github.com/awesome-selfhosted/awesome-selfhosted/compare/master...$GH_USER:awesome-selfhosted:add-medscript-opd?expand=1"
+echo "👉 https://github.com/awesome-selfhosted/awesome-selfhosted/compare/master...$GH_USER:add-medscript-opd?expand=1"
+echo "Or visit your fork: https://github.com/$GH_USER/awesome-selfhosted/tree/add-medscript-opd"
 echo "================================================================="
 
 rm -rf "$STAGE_DIR"
