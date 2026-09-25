@@ -1,0 +1,19 @@
+[Unit]
+Description=MedScript OPD Clinical System
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/nitin/medscript-opd
+ExecStart=/usr/bin/npm run start -- -H 0.0.0.0 -p 3000
+Restart=always
+RestartSec=5
+Environment=NODE_ENV=production
+Environment=PORT=3000
+
+# Logging to systemd journal
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=default.target
