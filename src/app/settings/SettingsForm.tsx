@@ -27,6 +27,7 @@ import {
   HardDrive,
   CheckCircle2,
   Plus,
+  Trash2,
 } from "lucide-react";
 import { ClinicSettings } from "@/types";
 
@@ -62,6 +63,99 @@ export default function SettingsForm({
   const [isPending, setIsPending] = useState(false);
   const [isSeeding, setIsSeeding] = useState(false);
   const [savedRecently, setSavedRecently] = useState(false);
+
+  // Logo Processing & Removal State
+  const [logoDataUrl, setLogoDataUrl] = useState<string | null>(null);
+  const [isRemovingLogo, setIsRemovingLogo] = useState(false);
+  const [isProcessingImage, setIsProcessingImage] = useState(false);
+
+  function handleLogoFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast.show({
+        title: "Invalid File",
+        description: "Please select an image file (PNG or JPEG).",
+        type: "error",
+      });
+      return;
+    }
+
+    setIsProcessingImage(true);
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new window.Image();
+      img.onload = () => {
+        try {
+          // Resize to max 300x300 for optimal PDF letterhead resolution & small file size (< 40KB)
+          const MAX_DIM = 300;
+          let width = img.width;
+          let height = img.height;
+          if (width > height) {
+            if (width > MAX_DIM) {
+              height = Math.round((height * MAX_DIM) / width);
+              width = MAX_DIM;
+            }
+          } else {
+            if (height > MAX_DIM) {
+              width = Math.round((width * MAX_DIM) / height);
+              height = MAX_DIM;
+            }
+          }
+
+          const canvas = document.createElement("canvas");
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            // Always export as clean standard PNG (supported 100% by @react-pdf/renderer)
+            const cleanPng = canvas.toDataURL("image/png");
+            setLogoDataUrl(cleanPng);
+            setIsRemovingLogo(false);
+            setProfile((p) => ({ ...p, logoUrl: cleanPng }));
+            toast.show({
+              title: "Logo Processed",
+              description: `Logo optimized to ${width}x${height}px PNG for crisp, error-free PDF rendering.`,
+              type: "info",
+            });
+          }
+        } catch {
+          toast.show({
+            title: "Processing Failed",
+            description: "Could not optimize image. Please try another PNG or JPEG file.",
+            type: "error",
+          });
+        } finally {
+          setIsProcessingImage(false);
+        }
+      };
+      img.onerror = () => {
+        setIsProcessingImage(false);
+        toast.show({
+          title: "Image Error",
+          description: "Could not read image file.",
+          type: "error",
+        });
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function handleRemoveLogo() {
+    setIsRemovingLogo(true);
+    setLogoDataUrl("");
+    setProfile((p) => ({ ...p, logoUrl: null }));
+    const fileInput = document.getElementById("logo") as HTMLInputElement;
+    if (fileInput) fileInput.value = "";
+    toast.show({
+      title: "Logo Removed",
+      description: "Clinic logo removed. Save settings to apply changes.",
+      type: "info",
+    });
+  }
 
   // Security State
   const [securityEnabled, setSecurityEnabled] = useState(securityConfig.securityEnabled);
@@ -292,27 +386,44 @@ export default function SettingsForm({
 
                 <div className="space-y-2">
                   <Label htmlFor="logo">Clinic Logo (Optional)</Label>
-                  <div className="flex items-center gap-4">
-                    {profile.logoUrl && (
-                      <div className="w-16 h-16 border rounded-lg overflow-hidden flex items-center justify-center bg-slate-50 shrink-0">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={profile.logoUrl}
-                          alt="Clinic Logo"
-                          className="max-w-full max-h-full object-contain p-1"
-                        />
+                  <input type="hidden" name="logoDataUrl" value={logoDataUrl || ""} />
+                  <input type="hidden" name="removeLogo" value={isRemovingLogo ? "true" : "false"} />
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                    {profile.logoUrl && !isRemovingLogo ? (
+                      <div className="flex items-center gap-3">
+                        <div className="w-16 h-16 border rounded-lg overflow-hidden flex items-center justify-center bg-slate-50 shrink-0 shadow-2xs">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={profile.logoUrl}
+                            alt="Clinic Logo"
+                            className="max-w-full max-h-full object-contain p-1"
+                          />
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={handleRemoveLogo}
+                          className="text-xs text-red-600 hover:text-red-700 hover:bg-red-50 gap-1.5 h-8"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" /> Remove Logo
+                        </Button>
                       </div>
-                    )}
-                    <Input
-                      id="logo"
-                      name="logo"
-                      type="file"
-                      accept="image/png,image/jpeg,image/webp"
-                      className="flex-1"
-                    />
+                    ) : null}
+                    <div className="flex-1">
+                      <Input
+                        id="logo"
+                        name="logo"
+                        type="file"
+                        accept="image/png,image/jpeg,image/jpg"
+                        onChange={handleLogoFileChange}
+                        className="flex-1"
+                        disabled={isProcessingImage}
+                      />
+                    </div>
                   </div>
                   <p className="text-xs text-slate-500">
-                    Recommended format: Square transparent PNG or JPG image (max 2MB).
+                    PNG or JPG image. Logos are automatically scaled down and converted to standard PNG for error-free PDF letterheads without network errors.
                   </p>
                 </div>
               </div>

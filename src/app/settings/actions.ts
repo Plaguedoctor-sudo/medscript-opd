@@ -14,17 +14,29 @@ export async function getSettings(): Promise<ClinicSettings | null> {
 export async function saveSettings(formData: FormData): Promise<ClinicSettings> {
   const existing = await getSettings();
 
+  const removeLogo = formData.get("removeLogo") === "true";
+  const logoDataUrl = (formData.get("logoDataUrl") as string | null)?.trim();
   const file = formData.get("logo") as File | null;
-  let logoUrl: string | undefined = undefined;
+  let logoUrl: string | null | undefined = undefined;
 
-  if (file && file.size > 0) {
-    const ALLOWED_MIME_TYPES = ["image/png", "image/jpeg", "image/jpg", "image/webp"];
-    if (!ALLOWED_MIME_TYPES.includes(file.type)) {
-      throw new Error("Invalid file format. Only PNG, JPEG, and WebP images are allowed.");
+  if (removeLogo) {
+    logoUrl = null;
+  } else if (logoDataUrl && logoDataUrl.startsWith("data:image/")) {
+    if (!logoDataUrl.startsWith("data:image/png") && !logoDataUrl.startsWith("data:image/jpeg")) {
+      throw new Error("Only PNG and JPEG formats are supported for PDF letterheads.");
     }
-    const MAX_SIZE = 2 * 1024 * 1024; // 2MB
+    if (logoDataUrl.length > 500 * 1024) {
+      throw new Error("Logo image data exceeds 500KB limit. Please choose a smaller logo.");
+    }
+    logoUrl = logoDataUrl;
+  } else if (file && file.size > 0) {
+    const ALLOWED_MIME_TYPES = ["image/png", "image/jpeg", "image/jpg"];
+    if (!ALLOWED_MIME_TYPES.includes(file.type)) {
+      throw new Error("Invalid file format. Please upload a PNG or JPEG image.");
+    }
+    const MAX_SIZE = 1 * 1024 * 1024; // 1MB
     if (file.size > MAX_SIZE) {
-      throw new Error("Logo image file size exceeds the 2MB maximum limit.");
+      throw new Error("Logo image file size exceeds the 1MB maximum limit.");
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
@@ -49,7 +61,7 @@ export async function saveSettings(formData: FormData): Promise<ClinicSettings> 
     clinicName: string;
     address: string;
     contact: string;
-    logoUrl?: string;
+    logoUrl?: string | null;
   } = {
     doctorName,
     qualifications: qualifications || existing?.qualifications || "MBBS",

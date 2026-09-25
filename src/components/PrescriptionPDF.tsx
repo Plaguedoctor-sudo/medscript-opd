@@ -256,6 +256,17 @@ export const PrescriptionPDF = ({ prescription, patient, settings }: Prescriptio
     ? formatDateSafe(prescription.createdAt)
     : new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 
+  // Safe check for @react-pdf/renderer compatible image (PNG and JPEG only; WebP causes 'Network error while fetching resources')
+  const isSafePdfLogo =
+    typeof settings.logoUrl === 'string' &&
+    settings.logoUrl.length > 30 &&
+    !settings.logoUrl.startsWith('data:image/webp') &&
+    (settings.logoUrl.startsWith('data:image/png') ||
+      settings.logoUrl.startsWith('data:image/jpeg') ||
+      settings.logoUrl.startsWith('data:image/jpg') ||
+      settings.logoUrl.startsWith('http://') ||
+      settings.logoUrl.startsWith('https://'));
+
   return (
     <Document>
       <Page size="A4" style={styles.page}>
@@ -267,10 +278,10 @@ export const PrescriptionPDF = ({ prescription, patient, settings }: Prescriptio
             <Text style={styles.drReg}>Reg. No: {settings.regNumber || 'N/A'}</Text>
           </View>
 
-          {settings.logoUrl && (
+          {isSafePdfLogo && (
             <View style={styles.logoContainer}>
               {/* eslint-disable-next-line jsx-a11y/alt-text */}
-              <Image src={settings.logoUrl} style={styles.logo} />
+              <Image src={settings.logoUrl!} style={styles.logo} />
             </View>
           )}
 

@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import { toast } from "@/components/ui/toast";
 import { Medication, Patient, Prescription, ClinicSettings } from "@/types";
+import { DRUG_LIBRARY, DRUG_CATEGORIES, DrugItem, searchDrugs } from "@/lib/drug-library";
 
 interface FormProps {
   initialPatientId?: string;
@@ -138,6 +139,12 @@ export default function NewPrescriptionForm({
   const [isSearching, setIsSearching] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Drug Library Search & Formulary State
+  const [activeSearchIndex, setActiveSearchIndex] = useState<number | null>(null);
+  const [isLibraryModalOpen, setIsLibraryModalOpen] = useState(false);
+  const [librarySearchQuery, setLibrarySearchQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("All");
+
   useEffect(() => {
     if (initialPatientId && !selectedPatient) {
       getPatientById(parseInt(initialPatientId, 10)).then((patient) => {
@@ -200,6 +207,50 @@ export default function NewPrescriptionForm({
     const newMedications = [...medications];
     newMedications[index] = { ...newMedications[index], [field]: value };
     setMedications(newMedications);
+  };
+
+  const selectDrugForMedication = (index: number, drug: DrugItem) => {
+    const updated = [...medications];
+    updated[index] = {
+      ...updated[index],
+      name: drug.name,
+      strength: drug.defaultStrength,
+      dosage: drug.defaultDosage,
+      timing: drug.defaultTiming,
+      duration: drug.defaultDuration,
+      instruction: drug.defaultInstruction,
+    };
+    setMedications(updated);
+    setActiveSearchIndex(null);
+    toast.show({
+      title: "Drug Auto-Filled",
+      description: `${drug.name} (${drug.defaultStrength}) added with recommended schedule ${drug.defaultDosage}.`,
+      type: "success",
+    });
+  };
+
+  const addDrugFromLibrary = (drug: DrugItem) => {
+    const last = medications[medications.length - 1];
+    const newEntry: Medication = {
+      name: drug.name,
+      strength: drug.defaultStrength,
+      dosage: drug.defaultDosage,
+      timing: drug.defaultTiming,
+      duration: drug.defaultDuration,
+      instruction: drug.defaultInstruction,
+    };
+
+    if (medications.length === 1 && !last.name.trim()) {
+      setMedications([newEntry]);
+    } else {
+      setMedications([...medications, newEntry]);
+    }
+
+    toast.show({
+      title: "Added to Prescription",
+      description: `${drug.name} (${drug.defaultStrength}) added with schedule ${drug.defaultDosage}.`,
+      type: "success",
+    });
   };
 
   const isKnownDosage = (val: string) => DOSAGE_OPTIONS.some((o) => o.value === val);
@@ -792,18 +843,29 @@ export default function NewPrescriptionForm({
 
       {/* Medications (Schedule and Duration / No. of Days dropdowns) */}
       <Card className="border-slate-300 shadow-sm">
-        <CardHeader className="flex flex-row items-center justify-between border-b pb-4">
+        <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between border-b pb-4 gap-3">
           <div>
             <CardTitle className="text-lg flex items-center gap-2">
               <Pill className="w-5 h-5 text-blue-600" /> Medications (Rx)
             </CardTitle>
             <p className="text-xs text-slate-500 mt-0.5">
-              Select schedule frequency, timing, and number of days from quick dropdowns or shortcut chips.
+              Search drug library for 1-click auto-filling of strength, schedule, timing, and clinical instructions.
             </p>
           </div>
-          <Button type="button" variant="outline" size="sm" onClick={addMedication}>
-            <Plus className="w-4 h-4 mr-1.5" /> Add Medicine
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setIsLibraryModalOpen(true)}
+              className="gap-1.5 text-xs text-blue-700 border-blue-200 hover:bg-blue-50 bg-white shadow-2xs"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-blue-600" /> Browse Drug Library
+            </Button>
+            <Button type="button" variant="outline" size="sm" onClick={addMedication} className="gap-1.5 text-xs">
+              <Plus className="w-3.5 h-3.5" /> Add Medicine
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="pt-4 space-y-5">
           {medications.map((med, index) => {
@@ -814,17 +876,88 @@ export default function NewPrescriptionForm({
             return (
               <div key={index} className="p-4 bg-slate-50 rounded-lg border border-slate-200 space-y-3">
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-start">
-                  {/* Drug Name */}
-                  <div className="md:col-span-3 space-y-1">
-                    <Label className="text-xs font-semibold text-slate-700">Generic Drug / Brand *</Label>
+                  {/* Drug Name with Real-Time Library Autocomplete */}
+                  <div className="md:col-span-3 space-y-1 relative">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs font-semibold text-slate-700">Generic Drug / Brand *</Label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setLibrarySearchQuery(med.name || "");
+                          setIsLibraryModalOpen(true);
+                        }}
+                        className="text-[10px] text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-0.5 font-medium"
+                      >
+                        <Search className="w-2.5 h-2.5" /> Library
+                      </button>
+                    </div>
                     <Input
                       value={med.name}
-                      onChange={(e) => updateMedicationField(index, "name", e.target.value)}
+                      onChange={(e) => {
+                        updateMedicationField(index, "name", e.target.value);
+                        setActiveSearchIndex(index);
+                      }}
+                      onFocus={() => {
+                        if (med.name.trim().length > 0) {
+                          setActiveSearchIndex(index);
+                        }
+                      }}
+                      onBlur={() => {
+                        setTimeout(() => {
+                          setActiveSearchIndex((curr) => (curr === index ? null : curr));
+                        }, 250);
+                      }}
                       required
-                      placeholder="e.g. Paracetamol"
+                      placeholder="e.g. Paracetamol, Augmentin, Pan-D"
                       list="generic-drugs"
                       className="bg-white text-xs h-9"
                     />
+
+                    {/* Real-time Drug Library Autocomplete Dropdown */}
+                    {activeSearchIndex === index && med.name.trim().length >= 1 && (
+                      <div className="absolute z-40 left-0 right-0 mt-1 bg-white border border-blue-200 rounded-lg shadow-xl overflow-hidden max-h-64 overflow-y-auto">
+                        <div className="px-2.5 py-1 bg-blue-50 border-b border-blue-100 flex items-center justify-between text-[10px] font-semibold text-blue-900">
+                          <span>Formulary Matches</span>
+                          <span className="text-blue-600 font-normal">Click to auto-fill</span>
+                        </div>
+                        {searchDrugs(med.name).slice(0, 8).map((drug) => (
+                          <div
+                            key={drug.id}
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              selectDrugForMedication(index, drug);
+                            }}
+                            className="p-2 border-b border-slate-100 last:border-0 hover:bg-blue-50/80 cursor-pointer transition-colors"
+                          >
+                            <div className="flex items-center justify-between gap-1">
+                              <span className="text-xs font-bold text-slate-900">{drug.name}</span>
+                              <span className="text-[10px] bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded font-medium">
+                                {drug.category}
+                              </span>
+                            </div>
+                            {drug.brandNames.length > 0 && (
+                              <p className="text-[11px] text-slate-500 mt-0.5">
+                                Brands: <span className="text-slate-700 font-medium">{drug.brandNames.join(", ")}</span>
+                              </p>
+                            )}
+                            <div className="flex items-center gap-1.5 text-[10px] text-emerald-700 font-medium mt-1">
+                              <span>Default: {drug.defaultStrength}</span>
+                              <span>•</span>
+                              <span>{drug.defaultDosage}</span>
+                              <span>•</span>
+                              <span>{drug.defaultTiming}</span>
+                              <span>•</span>
+                              <span>{drug.defaultDuration}</span>
+                            </div>
+                          </div>
+                        ))}
+                        {searchDrugs(med.name).length === 0 && (
+                          <div className="p-3 text-center text-xs text-slate-400">
+                            No exact formulary match. Custom entry will be saved.
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   {/* Strength */}
@@ -1091,30 +1224,172 @@ export default function NewPrescriptionForm({
         )}
       </Button>
 
+      {/* Searchable Clinical Drug Library Modal */}
+      {isLibraryModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-2xl border border-slate-200 w-full max-w-4xl max-h-[85vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95">
+            {/* Modal Header */}
+            <div className="p-4 sm:p-5 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-lg bg-blue-600 text-white flex items-center justify-center shadow-xs">
+                  <Pill className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900">OPD Clinical Drug Library & Formulary</h3>
+                  <p className="text-xs text-slate-500">
+                    Search by generic or brand name. 1-click &quot;+ Add to Prescription&quot; to auto-fill schedules.
+                  </p>
+                </div>
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsLibraryModalOpen(false)}
+                className="text-slate-400 hover:text-slate-700"
+              >
+                <X className="w-5 h-5" />
+              </Button>
+            </div>
+
+            {/* Search Input & Category Pills */}
+            <div className="p-4 border-b border-slate-200 bg-white space-y-3">
+              <div className="relative">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <Input
+                  value={librarySearchQuery}
+                  onChange={(e) => setLibrarySearchQuery(e.target.value)}
+                  placeholder="Search medications (e.g. Paracetamol, Dolo, Augmentin, Pantocid, Telma, Metformin)..."
+                  className="pl-9 h-10 text-sm bg-slate-50 focus:bg-white"
+                  autoFocus
+                />
+                {librarySearchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setLibrarySearchQuery("")}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+
+              {/* Category Filter Pills */}
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs no-scrollbar">
+                {DRUG_CATEGORIES.map((cat) => (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => setSelectedCategory(cat)}
+                    className={`px-3 py-1 rounded-full whitespace-nowrap transition-colors font-medium ${
+                      selectedCategory === cat
+                        ? "bg-blue-600 text-white shadow-2xs"
+                        : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                    }`}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Drug Cards Grid */}
+            <div className="flex-1 overflow-y-auto p-4 sm:p-5 bg-slate-50/50 space-y-3">
+              {(() => {
+                const results = searchDrugs(librarySearchQuery, selectedCategory);
+                if (results.length === 0) {
+                  return (
+                    <div className="text-center py-12 text-slate-400">
+                      <Pill className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                      <p className="font-semibold text-sm">No drugs found matching &ldquo;{librarySearchQuery}&rdquo;</p>
+                      <p className="text-xs mt-1">Try another search term or browse different categories above.</p>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {results.map((drug) => (
+                      <div
+                        key={drug.id}
+                        className="bg-white border border-slate-200 rounded-lg p-3.5 shadow-2xs hover:border-blue-300 transition-all flex flex-col justify-between gap-3"
+                      >
+                        <div className="space-y-1.5">
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <h4 className="font-bold text-slate-900 text-sm">{drug.name}</h4>
+                              <p className="text-xs text-slate-500 font-medium">{drug.genericName}</p>
+                            </div>
+                            <span className="text-[10px] bg-blue-50 text-blue-700 font-semibold px-2 py-0.5 rounded border border-blue-200 shrink-0">
+                              {drug.category}
+                            </span>
+                          </div>
+
+                          {drug.brandNames.length > 0 && (
+                            <p className="text-[11px] text-slate-600">
+                              <span className="font-medium text-slate-500">Brands:</span> {drug.brandNames.join(", ")}
+                            </p>
+                          )}
+
+                          <div className="flex flex-wrap gap-1 text-[11px] pt-1">
+                            <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded border border-slate-200 font-medium">
+                              Strength: {drug.defaultStrength}
+                            </span>
+                            <span className="bg-emerald-50 text-emerald-800 px-2 py-0.5 rounded border border-emerald-200 font-medium">
+                              Schedule: {drug.defaultDosage}
+                            </span>
+                            <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded border border-slate-200">
+                              {drug.defaultTiming}
+                            </span>
+                            <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded border border-slate-200">
+                              {drug.defaultDuration}
+                            </span>
+                          </div>
+
+                          {drug.defaultInstruction && (
+                            <p className="text-[11px] text-slate-500 italic mt-1 line-clamp-2">
+                              &ldquo;{drug.defaultInstruction}&rdquo;
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+                          <span className="text-[10px] text-slate-400 font-mono">Form: {drug.form}</span>
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={() => {
+                              addDrugFromLibrary(drug);
+                              setIsLibraryModalOpen(false);
+                            }}
+                            className="h-7 text-xs bg-blue-600 hover:bg-blue-700 text-white gap-1 shadow-2xs"
+                          >
+                            <Plus className="w-3.5 h-3.5" /> Add to Prescription
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-3 border-t border-slate-200 bg-white flex items-center justify-between text-xs text-slate-500">
+              <span>{searchDrugs(librarySearchQuery, selectedCategory).length} formulary drugs found</span>
+              <Button type="button" variant="outline" size="sm" onClick={() => setIsLibraryModalOpen(false)}>
+                Close
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Datalists for autocompletion */}
       <datalist id="generic-drugs">
-        <option value="Paracetamol" />
-        <option value="Amoxicillin" />
-        <option value="Amoxicillin + Clavulanic Acid" />
-        <option value="Metformin" />
-        <option value="Atorvastatin" />
-        <option value="Amlodipine" />
-        <option value="Azithromycin" />
-        <option value="Cetirizine" />
-        <option value="Levocetirizine" />
-        <option value="Montelukast" />
-        <option value="Pantoprazole" />
-        <option value="Omeprazole" />
-        <option value="Rabeprazole" />
-        <option value="Diclofenac" />
-        <option value="Ibuprofen" />
-        <option value="Aceclofenac + Paracetamol" />
-        <option value="Ciprofloxacin" />
-        <option value="Ofloxacin" />
-        <option value="Telmisartan" />
-        <option value="Glimepiride" />
-        <option value="Salbutamol" />
-        <option value="Dextromethorphan" />
+        {DRUG_LIBRARY.map((d) => (
+          <option key={d.id} value={d.name} label={`${d.category} (${d.brandNames.join(", ")})`} />
+        ))}
       </datalist>
 
       <datalist id="timing-list">
