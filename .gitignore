@@ -49,3 +49,11 @@ next-env.d.ts
 *.sqlite*
 /backups/
 
+# packaging & distribution
+/dist/
+/.release-stage/
+/.flatpak-builder/
+/build-dir/
+start-hidden.vbs
+
+

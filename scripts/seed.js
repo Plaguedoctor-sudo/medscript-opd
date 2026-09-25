@@ -2,7 +2,7 @@
 const Database = require("better-sqlite3");
 const path = require("path");
 
-const dbPath = path.resolve(__dirname, "../sqlite.db");
+const dbPath = process.env.DATABASE_PATH || path.resolve(__dirname, "../sqlite.db");
 const db = new Database(dbPath);
 
 console.log("Seeding MedScript OPD database at:", dbPath);

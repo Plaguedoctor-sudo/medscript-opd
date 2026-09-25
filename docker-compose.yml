@@ -1,0 +1,13 @@
+services:
+  medscript-opd:
+    build: .
+    container_name: medscript-opd
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./data:/app/data
+      - ./backups:/app/backups
+    environment:
+      - NODE_ENV=production
+      - PORT=3000

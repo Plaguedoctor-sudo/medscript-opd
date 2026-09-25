@@ -1,14 +1,35 @@
 {
   "name": "medscript-opd",
-  "version": "0.1.0",
-  "private": true,
+  "version": "1.0.0",
+  "description": "Offline-First Outpatient Prescription & Electronic Medical Records (EMR) System",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/medscript/medscript-opd.git"
+  },
+  "keywords": [
+    "medical",
+    "prescription",
+    "opd",
+    "emr",
+    "ehr",
+    "healthcare",
+    "clinic",
+    "offline-first",
+    "nextjs",
+    "sqlite",
+    "flatpak"
+  ],
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "typecheck": "tsc --noEmit",
     "db:seed": "node scripts/seed.js",
-    "db:backup": "node scripts/backup.js"
+    "db:backup": "node scripts/backup.js",
+    "package:release": "bash scripts/package-release.sh",
+    "package:flatpak": "bash scripts/build-flatpak.sh"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",

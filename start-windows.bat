@@ -46,8 +46,8 @@ if not exist ".next\" (
     )
 )
 
-:: 5. Open browser after 2 seconds in background
-start "" cmd /c "timeout /t 2 /nobreak >nul & start http://localhost:3000"
+:: 5. Open in standalone application window (Edge/Chrome app-mode or default browser)
+start "" cmd /c "timeout /t 2 /nobreak >nul & if exist \"%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe\" (start \"\" \"%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe\" --app=http://localhost:3000) else if exist \"%ProgramFiles%\Microsoft\Edge\Application\msedge.exe\" (start \"\" \"%ProgramFiles%\Microsoft\Edge\Application\msedge.exe\" --app=http://localhost:3000) else if exist \"%ProgramFiles%\Google\Chrome\Application\chrome.exe\" (start \"\" \"%ProgramFiles%\Google\Chrome\Application\chrome.exe\" --app=http://localhost:3000) else (start http://localhost:3000)"
 
 echo.
 echo =================================================================

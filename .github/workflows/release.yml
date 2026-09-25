@@ -1,0 +1,41 @@
+name: Release Multi-Platform Packages
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-release:
+    name: Package Windows & Linux Distributions
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install zip tool
+        run: sudo apt-get update && sudo apt-get install -y zip
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run Build and Release Packager
+        run: ./scripts/package-release.sh
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          draft: false
+          prerelease: false
+          generate_release_notes: true

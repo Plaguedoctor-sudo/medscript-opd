@@ -36,10 +36,16 @@ if [ ! -d ".next" ]; then
     npm run build
 fi
 
-# 5. Open browser in background
+# 5. Open browser in standalone app window or default browser
 (
     sleep 2
-    if command -v xdg-open &> /dev/null; then
+    if command -v google-chrome &> /dev/null; then
+        google-chrome --app="http://localhost:3000" &> /dev/null || true
+    elif command -v chromium &> /dev/null; then
+        chromium --app="http://localhost:3000" &> /dev/null || true
+    elif command -v brave-browser &> /dev/null; then
+        brave-browser --app="http://localhost:3000" &> /dev/null || true
+    elif command -v xdg-open &> /dev/null; then
         xdg-open "http://localhost:3000" &> /dev/null || true
     elif command -v open &> /dev/null; then
         open "http://localhost:3000" &> /dev/null || true

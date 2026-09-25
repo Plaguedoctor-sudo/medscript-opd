@@ -1,116 +1,202 @@
-# MedScript OPD
+# MedScript OPD ℞
 
-**MedScript OPD** is a modern, privacy-focused Electronic Medical Records (EMR) and digital prescription system designed for outpatient clinics, independent doctors, and polyclinics. Built with Next.js 16, React 19, Tailwind CSS, SQLite with Drizzle ORM, and `@react-pdf/renderer`.
+<p align="center">
+  <img src="public/icon.svg" alt="MedScript OPD Logo" width="128" height="128" />
+</p>
 
----
+<p align="center">
+  <strong>Private, Offline-First Outpatient Prescription & Electronic Medical Records (EMR) System</strong><br>
+  Built for independent physicians, outpatient clinics, and polyclinics.
+</p>
 
-## 🌟 Key Features
-
-### 1. ℞ OPD Consultation & Digital Prescriptions
-- **Patient Directory & ABHA Integration**: Fast patient search by name, phone, or Ayushman Bharat Health Account (ABHA ID).
-- **Vital Signs Recording**: Weight, Blood Pressure (BP), Pulse rate, Temperature (°F), and SpO2 (%).
-- **Clinical Records**: Chief complaints, clinical history, and clinical diagnosis with autocompletion datalists.
-- **Medication Management**: Dosage frequencies (`1-0-1`, `1-1-1`, `SOS`), timing (`After food`, `Before food`), duration (`5 days`, `1 month`), and specific patient instructions (`Take at bedtime with warm water`).
-- **1-Click Repeat Rx**: Refill chronic medications and past clinical history instantly without re-typing.
-
-### 2. 📊 Longitudinal Patient Vitals & Clinical Analytics
-- **Multi-Visit Parameter Trends**: Interactive SVG charts tracking Blood Pressure (with Normal Zone & Hypertensive alert bands), Weight progression curve, Pulse, SpO2, and Temperature curves.
-- **Longitudinal Clinical Flowsheet**: Tabular side-by-side comparison of vitals and diagnoses across all past visits.
-- **KPI Summary Cards**: Latest readings with delta indicators (`vs prev visit`) and automated JNC-8 BP classification.
-
-### 3. 📄 Professional PDF Letterhead & Printing
-- **Real-time PDF Preview**: Built-in document viewer powered by `@react-pdf/renderer`.
-- **One-Click Download & Print**: Instant vector PDF downloads formatted to A4 medical prescription specifications, with support for direct thermal and desktop printing.
-- **Custom Doctor Header & Signature**: Doctor qualifications, registration number, clinic logo, contact info, and legal computer-generated electronic Rx footer.
-- **Resilient Fallback**: Automatic default letterhead ensures immediate usability even before clinic settings are populated.
-
-### 4. 🔒 Consultation Desk PIN Lock & Security
-- **Doctor PIN Protection**: Protect confidential patient health records when stepping away from the clinic desk.
-- **On-Screen Touch Keypad**: Virtual keypad designed for clinic tablets (iPad/Android) and touch-screen all-in-one PCs.
-- **Quick Lock**: 1-click "Lock Desk" button in the top navigation bar.
-- **Input Sanitization & Storage Integrity**: File MIME validation (2MB cap), string bounds, SQLite WAL mode, and foreign key cascading.
-
-### 5. 💾 Database Backup & Disaster Recovery
-- **1-Click Live Backup**: Download a clean, live copy of `sqlite.db` directly from the Settings page.
-- **Automated CLI Backup**: Scheduled atomic backup script (`npm run db:backup`) with automatic rotation keeping the last 30 daily backups.
-- **Disaster Recovery**: Restoring to a new computer is as simple as copying `sqlite.db`.
+<p align="center">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT"></a>
+  <a href="https://nextjs.org"><img src="https://img.shields.io/badge/Next.js-16.3-black.svg" alt="Next.js"></a>
+  <a href="https://react.dev"><img src="https://img.shields.io/badge/React-19.2-61dafb.svg" alt="React 19"></a>
+  <a href="https://www.sqlite.org"><img src="https://img.shields.io/badge/SQLite-WAL%20Mode-003B57.svg" alt="SQLite WAL"></a>
+  <a href="https://flatpak.org"><img src="https://img.shields.io/badge/Flatpak-Linux%20Package-4a90d9.svg" alt="Flatpak"></a>
+  <img src="https://img.shields.io/badge/Platform-Linux%20%7C%20Windows%20%7C%20macOS-success.svg" alt="Platforms">
+</p>
 
 ---
 
-## 🚀 1-Click Quick Start (Clinic Deployment)
+## 💡 Why MedScript OPD?
 
-### Windows
-Double-click **`start-windows.bat`**.
-> Automatically checks Node.js, installs dependencies, builds the production app, initializes the database, and opens `http://localhost:3000` in your default browser.
+Most modern electronic health systems lock doctors into expensive monthly cloud subscriptions, require continuous internet connectivity, and store sensitive patient records on third-party servers.
 
-### Linux / macOS
-Run the launcher script:
+**MedScript OPD is fundamentally different:**
+- 🛡️ **100% Offline & Sovereign**: All patient data, vitals, and consultation histories reside strictly on your local machine in an ACID-compliant SQLite database.
+- ⚡ **Sub-Second Prescription Workflow**: Designed with real-world outpatient speed in mind. Add medications rapidly with keyboard navigation, custom dosage prefixes, and repeat prescriptions in one click.
+- 🔒 **Defense-in-Depth Medical Security**: Protected by PIN authentication, brute-force rate-limiting, unattended screen auto-lock, strict POSIX 0600 file permissions, and an immutable clinical audit trail.
+- 📦 **Cross-Platform Distribution**: Ready for **Linux (Flatpak & systemd)**, **Windows (Standalone App Window & Background Service)**, and **Local Clinic LAN**.
+
+---
+
+## 🌟 Core Clinical Features
+
+### 1. ℞ Rapid Consultation Desk & Prescription Engine
+- **Keyboard-First Workflow**: Type a drug name, configure dosage/timing, and press <kbd>Enter</kbd> to automatically open a fresh row for the next medication.
+- **Brand & Generic Visual Hierarchy**: Displays the brand name in bold above with generic pharmacological composition below for maximum dispensing clarity.
+- **Dosage Form Prefixes**: Automatic and selectable prefixes (`Tab.`, `Cap.`, `Inj.`, `Syr.`, `Oint.`, `Drops`, `Inhaler`).
+- **Standardized Dosing Matrix**: Dosage frequencies (`1-0-1`, `1-1-1`, `SOS`), meal timing (`After food`, `Before food`), duration (`5 days`, `1 month`), and special instructions.
+- **Repeat Prescription (1-Click Refill)**: Instantly clone chronic medications and past clinical advice with a single click.
+
+### 2. 🧪 Diagnostic Lab Library (13 Panels & 48+ Tests)
+- **1-Click Bundles**: Rapidly order comprehensive bundles:
+  - *Diabetic Profile* (HbA1c, FBS, PPBS, Urine Microalbumin)
+  - *Hypertension Panel* (Lipid Profile, Serum Creatinine, ECG, Electrolytes)
+  - *Fever / Infection Workup* (CBC, ESR, Dengue NS1, Typhoid Widal, Urine Routine)
+  - *Cardiac Risk Panel* (Troponin-I, CPK-MB, hs-CRP, Lipid Profile)
+  - *Liver & Renal Panels* (LFT, KFT, Uric Acid, Ultrasound Abdomen)
+  - *Thyroid & Arthritic Panels* (T3/T4/TSH, RA Factor, Anti-CCP, Vitamin D/B12)
+- **Interactive Chip Toggles**: Add or remove individual lab tests with real-time badges.
+
+### 3. 📈 Longitudinal Vitals & Morbidity Tracking
+- **Standardized Celsius Temperature**: Clinical temperatures formatted in **°C** (with fever threshold warnings &ge; 38.0°C).
+- **Interactive SVG Trend Charts**: Real-time graphing of Blood Pressure (with JNC-8 alert bands), Weight progression curves, Pulse rate, SpO2 (%), and Temperature.
+- **Longitudinal Flowsheet**: Side-by-side tabular comparison of vitals and diagnoses across all past visits.
+
+### 4. 📄 Professional PDF Letterheads & Vector Printing
+- **Dynamic Letterhead Engine**: Powered by `@react-pdf/renderer` for crisp vector output.
+- **Clinic Branding**: Supports high-resolution clinic logos, doctor qualifications, registration numbers, and clinic addresses.
+- **Digital Rx Header & Legal Footers**: Standard medical Rx symbology, date-stamped consult details, and computer-generated prescription validity notices.
+
+### 5. 🛡️ Enterprise Medical Data Security
+- **Consultation Desk PIN Lock**: Secures the console against shoulder surfing.
+- **Anti-Brute Force Rate Limiter**: Maximum 5 failed attempts triggers an automated 5-minute lockout.
+- **Inactivity Screen Auto-Lock**: Automatically obscures and locks the screen after an idle period (configurable: 5, 10, 15, 30, or 60 min) with a 30-second warning countdown.
+- **Hardened HTTP Headers**: Strict Content Security Policy (CSP), `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, and anti-caching for patient records.
+- **Immutable Clinical Audit Trail**: Timestamped logging of logins, patient creations, prescription amendments, deletions, and data exports.
+- **POSIX 0600 Permissions**: SQLite database files and backup snapshots are locked down so other OS accounts cannot access clinical data.
+
+### 6. 📊 Reports & CSV Data Analytics
+- Filter by date range (Today, 7 Days, Month, Year, Custom).
+- RFC 4180 UTF-8 BOM CSV exports for:
+  - Complete Consultation Register
+  - Master Patient Directory
+  - Morbidity & Diagnosis Breakdown
+  - Drug Utilization & Scheduling Statistics
+
+---
+
+## 🚀 Quick Start & Installation
+
+### Option 1: Linux Flatpak (Universal Linux Desktop)
+
+MedScript OPD conforms to the Freedesktop and Flathub packaging specifications:
+
 ```bash
-chmod +x start-linux.sh
+# Build and install Flatpak locally
+./scripts/build-flatpak.sh
+
+# Run via Flatpak
+flatpak run io.github.medscript.MedScriptOPD
+```
+The application will appear in your desktop application menu with native icons and isolated sandbox storage.
+
+---
+
+### Option 2: Linux Native & Background Autostart
+
+```bash
+# 1. Run in current terminal (opens browser automatically)
 ./start-linux.sh
+
+# 2. Or install as a permanent systemd background service (starts on computer boot)
+./install-autostart.sh
 ```
 
-### Clinic Local Area Network (LAN) / Multi-Device Mode
-To allow the receptionist to register patients from their desk and doctors to consult on tablets over clinic Wi-Fi:
-- **Windows**: Double-click `start-lan.bat`
-- **Linux/macOS**: `./start-lan.sh`
-> Displays the exact local IP address (e.g. `http://192.168.1.50:3000`) for all devices connected to the clinic Wi-Fi.
+To manage the background service:
+```bash
+systemctl --user status medscript   # Check service status
+systemctl --user restart medscript  # Restart server
+systemctl --user stop medscript     # Stop server
+./uninstall-autostart.sh            # Remove background service
+```
 
 ---
 
-## 🛠️ Manual Installation
+### Option 3: Windows (1-Click Standalone Desktop Window)
+
+1. Download or clone this repository.
+2. Double-click **`start-windows.bat`**.
+   - Automatically initializes dependencies and opens MedScript OPD in a clean, standalone desktop application window (via Microsoft Edge or Chrome `--app` mode).
+3. **Windows Startup Service**:
+   - Double-click **`install-windows-service.bat`** to register MedScript OPD as an automatic startup task on Windows logon.
+   - Run **`uninstall-windows-service.bat`** to remove autostart.
+
+---
+
+### Option 4: Clinic Local Area Network (LAN) / Tablets
+
+Allow nursing stations, receptionists, or doctors on iPads/Android tablets to connect over clinic Wi-Fi:
+
+- **Windows**: Run `start-lan.bat`
+- **Linux/macOS**: Run `./start-lan.sh`
+
+The launcher displays your exact local network URL (e.g., `http://192.168.1.45:3000`).
+
+---
+
+### Option 5: Docker Container
+
+Deploy with Docker or Docker Compose on local clinic servers, Home Assistant, or NAS:
+
+```bash
+docker compose up -d
+```
+Access the desk at `http://localhost:3000`. Database and backups persist in `./data` and `./backups`.
+
+---
+
+## 🛠️ Developer Setup & Manual Build
 
 ### Prerequisites
-- Node.js 18+ (Node 20+ recommended)
-- npm, pnpm, or yarn
+- Node.js 18 or 20+ (Node.js 20 LTS recommended)
+- npm 9+
 
 ```bash
-# 1. Install dependencies
+# Clone the repository
+git clone https://github.com/medscript/medscript-opd.git
+cd medscript-opd
+
+# Install dependencies
 npm install
 
-# 2. Seed initial clinic settings & demo multi-visit patients (Optional)
+# Seed demo clinic data (optional)
 npm run db:seed
 
-# 3. Build optimized production bundle
-npm run build
-
-# 4. Start production server
-npm run start
+# Start development server
+npm run dev
 ```
-Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+### Typecheck & Linting
+```bash
+npm run typecheck   # npx tsc --noEmit
+npm run lint        # eslint checks
+npm run build       # Next.js production compilation
+```
+
+### Package Releases
+```bash
+# Builds .tar.gz for Linux and .zip for Windows
+npm run package:release
+```
 
 ---
 
-## 🔄 Automated Daily Backups
+## 🔒 Security & Privacy
 
-To back up your clinic database daily:
-
-```bash
-# Run backup manually
-npm run db:backup
-```
-Backups are saved to `./backups/medscript-backup-YYYY-MM-DD_HH-mm-ss.db`.
-
-### Linux / macOS Cron Setup
-Add to crontab (`crontab -e`) to run every evening at 9:00 PM:
-```bash
-0 21 * * * cd /path/to/medscript-opd && npm run db:backup >> /tmp/medscript-backup.log 2>&1
-```
-
-### Windows Task Scheduler Setup
-Create a basic task in Windows Task Scheduler:
-- **Trigger**: Daily at 9:00 PM
-- **Action**: Start a program -> select `backup-task.bat`
+For full details on data protection, offline sovereignty, and vulnerability disclosure, please read [SECURITY.md](SECURITY.md).
 
 ---
 
-## 📜 Available Scripts
+## 🤝 Contributing
 
-| Command | Description |
-| :--- | :--- |
-| `npm run dev` | Runs the Next.js development server with Turbopack |
-| `npm run build` | Compiles and builds the production application |
-| `npm run start` | Starts the production server on port 3000 |
-| `npm run lint` | Runs ESLint code quality checks |
-| `npm run db:seed` | Populates sample clinic profile, patients, and multi-visit consultations |
-| `npm run db:backup` | Creates an atomic timestamped backup snapshot in `./backups` |
+Contributions are warmly welcomed! Please read our [CONTRIBUTING.md](CONTRIBUTING.md) guide before submitting pull requests.
+
+---
+
+## 📄 License
+
+MedScript OPD is open-source software licensed under the **[MIT License](LICENSE)**.
