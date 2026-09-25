@@ -297,6 +297,15 @@ export async function verifyPrescriptionIntegrityAction(id: number) {
 
   const result = verifyPrescriptionIntegrity(rx, clinic?.regNumber, patient?.regNo);
 
+  if (!result.valid) {
+    await logAuditEvent({
+      action: 'PRESCRIPTION_TAMPER_DETECTED',
+      actorRole: 'SYSTEM',
+      details: `Prescription #${id} digital HMAC-SHA256 seal mismatch detected during clinical verification`,
+      status: 'FAILURE',
+    });
+  }
+
   return {
     ...result,
     sealCode: formatDigitalSealCode(result.signature),

@@ -17,6 +17,7 @@ import { LockDeskButton } from "@/components/LockDeskButton";
 import { PrivacyShield } from "@/components/PrivacyShield";
 import { UserRoleBadge } from "@/components/UserRoleBadge";
 import { MaskedIdentifier } from "@/components/MaskedIdentifier";
+import { SecurityAlertBell } from "@/components/SecurityAlertBell";
 
 export const dynamic = 'force-dynamic';
 
@@ -66,6 +67,7 @@ export default async function PatientProfilePage({ params }: { params: Promise<{
           <div className="flex items-center gap-2.5">
             <UserRoleBadge role={role} securityEnabled={securityEnabled} />
             <PrivacyShield />
+            <SecurityAlertBell />
             <EditPatientModal patient={typedPatient} />
             {role === 'doctor' && (
               <Link href={`/prescription/new?patientId=${typedPatient.id}`}>

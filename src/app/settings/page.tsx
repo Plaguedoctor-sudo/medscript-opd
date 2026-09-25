@@ -9,6 +9,7 @@ import { LockDeskButton } from "@/components/LockDeskButton";
 import { getRecentAuditLogs } from "@/lib/audit";
 import { PrivacyShield } from "@/components/PrivacyShield";
 import { UserRoleBadge } from "@/components/UserRoleBadge";
+import { SecurityAlertBell } from "@/components/SecurityAlertBell";
 
 export const dynamic = 'force-dynamic';
 
@@ -42,6 +43,7 @@ export default async function SettingsPage() {
           <div className="flex items-center gap-2.5">
             <UserRoleBadge role={role} securityEnabled={securityConfig.securityEnabled} />
             <PrivacyShield />
+            <SecurityAlertBell />
             <Link href="/reports">
               <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
                 <BarChart3 className="w-4 h-4 text-blue-600" /> Reports & Audit

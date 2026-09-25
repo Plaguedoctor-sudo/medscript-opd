@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, BarChart3, Settings, PlusCircle, Users } from "lucide-react";
 import { requireAuth, getSecurityConfig } from "@/lib/auth";
 import { LockDeskButton } from "@/components/LockDeskButton";
+import { SecurityAlertBell } from "@/components/SecurityAlertBell";
 import { db } from "@/db";
 
 export const dynamic = 'force-dynamic';
@@ -45,6 +46,7 @@ export default async function ReportsPage() {
           </div>
 
           <div className="flex items-center gap-2.5">
+            <SecurityAlertBell />
             <Link href="/patients">
               <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600 hidden sm:inline-flex">
                 <Users className="w-3.5 h-3.5" /> Patients

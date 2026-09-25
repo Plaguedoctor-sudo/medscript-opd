@@ -86,3 +86,17 @@ export const auditLogs = sqliteTable("audit_logs", {
   ipAddress: text("ip_address"),
   status: text("status").notNull().default("SUCCESS"), // 'SUCCESS' | 'FAILURE' | 'WARNING'
 });
+
+export const securityAlerts = sqliteTable("security_alerts", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  severity: text("severity").notNull(), // 'CRITICAL' | 'WARNING' | 'INFO'
+  category: text("category").notNull(), // 'BRUTE_FORCE' | 'BREAK_GLASS' | 'UNUSUAL_TRANSFER' | 'ACCESS_VIOLATION' | 'INTEGRITY_TAMPER'
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  ipAddress: text("ip_address"),
+  metadata: text("metadata"), // JSON string with incident metrics (e.g. export count, attempted action)
+  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+  acknowledgedAt: integer("acknowledged_at", { mode: "timestamp" }),
+  acknowledgedBy: text("acknowledged_by"),
+});
+

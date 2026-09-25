@@ -29,7 +29,11 @@ export type AuditAction =
   | 'AUDIT_LOG_EXPORTED'
   | 'BACKUP_SNAPSHOT_DOWNLOADED'
   | 'BACKUP_SNAPSHOT_CREATED'
-  | 'SETTINGS_SAVED';
+  | 'SETTINGS_SAVED'
+  | 'RBAC_ACCESS_DENIED'
+  | 'PRESCRIPTION_TAMPER_DETECTED'
+  | 'SECURITY_ALERT_TRIGGERED'
+  | 'SECURITY_ALERT_ACKNOWLEDGED';
 
 export type AuditStatus = 'SUCCESS' | 'FAILURE' | 'WARNING';
 
@@ -68,6 +72,16 @@ export async function logAuditEvent({
       details: details ? details.slice(0, 1000) : null,
       ipAddress: ip,
       status,
+    });
+
+    // Evaluate in real-time for security anomalies and threat alerts
+    const { evaluateAuditAnomaly } = await import('./security-engine');
+    await evaluateAuditAnomaly({
+      action,
+      actorRole,
+      details,
+      status,
+      ipAddress: ip,
     });
   } catch (err) {
     // Audit logging should not crash the main thread, but log to stderr

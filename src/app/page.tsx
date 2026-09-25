@@ -12,6 +12,9 @@ import { requireAuth, getSecurityConfig, getCurrentUserRole } from "@/lib/auth";
 import { LockDeskButton } from "@/components/LockDeskButton";
 import { PrivacyShield } from "@/components/PrivacyShield";
 import { UserRoleBadge } from "@/components/UserRoleBadge";
+import { SecurityAlertBell } from "@/components/SecurityAlertBell";
+import { DoctorSecurityBanner } from "@/components/DoctorSecurityBanner";
+import { getSecurityAlerts } from "@/lib/security-engine";
 
 interface ConsultationRow {
   id: number;
@@ -35,10 +38,11 @@ export default async function DashboardPage({
   searchParams: Promise<{ q?: string; unauthorized?: string }>;
 }) {
   await requireAuth('/');
-  const [{ securityEnabled }, role, resolvedParams] = await Promise.all([
+  const [{ securityEnabled }, role, resolvedParams, securityAlertsData] = await Promise.all([
     getSecurityConfig(),
     getCurrentUserRole(),
     searchParams,
+    getSecurityAlerts({ unacknowledgedOnly: false, limit: 30 }),
   ]);
   const query = resolvedParams?.q;
   const unauthorized = resolvedParams?.unauthorized;
@@ -110,6 +114,7 @@ export default async function DashboardPage({
           <div className="flex items-center gap-2.5">
             <UserRoleBadge role={role} securityEnabled={securityEnabled} />
             <PrivacyShield />
+            <SecurityAlertBell initialStats={securityAlertsData} />
             <Link href="/patients">
               <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
                 <Users className="w-4 h-4" /> Patients
@@ -144,6 +149,11 @@ export default async function DashboardPage({
       </nav>
 
       <main className="container mx-auto px-4 py-8 max-w-6xl">
+        {/* Doctor Threat & Security Anomaly Banner */}
+        <DoctorSecurityBanner
+          activeAlerts={securityAlertsData.alerts.filter((a) => a.acknowledgedAt === null)}
+        />
+
         {/* Role Access Warning Banner */}
         {unauthorized === 'clinical_doctor_required' && (
           <div className="mb-6 p-4 bg-amber-50 border border-amber-300 rounded-xl flex items-center justify-between gap-3 text-amber-900 shadow-2xs animate-in fade-in">

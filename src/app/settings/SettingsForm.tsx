@@ -1165,6 +1165,16 @@ export default function SettingsForm({
                 Restricted file permissions (<code className="font-mono text-slate-700">chmod 600</code>) on SQLite databases and snapshots prevent unauthorized OS users from reading patient tables. Anti-cache headers prevent disk residue.
               </p>
             </div>
+
+            <div className="p-3.5 rounded-xl border border-rose-200 bg-rose-50/50 space-y-1 md:col-span-2">
+              <div className="font-semibold text-rose-950 flex items-center gap-1.5">
+                <ShieldAlert className="w-4 h-4 text-rose-600" />
+                Autonomous Threat Sentinel & Doctor Notification Engine
+              </div>
+              <p className="text-[11px] text-rose-900 leading-relaxed">
+                Continuously analyzes internal audit logs in real-time. Automatically flags brute-force lockouts, off-hours bulk exports, emergency break-glass triage access, and prescription HMAC-SHA256 seal tampering. Alerts the doctor through the persistent navigation alert bell and dashboard emergency banners.
+              </p>
+            </div>
           </div>
 
           {/* Real-time Audit Trail Log */}

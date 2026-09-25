@@ -8,6 +8,7 @@ import { eq } from "drizzle-orm";
 import { Patient, Prescription } from "@/types";
 import { requireRole, getSecurityConfig } from "@/lib/auth";
 import { LockDeskButton } from "@/components/LockDeskButton";
+import { SecurityAlertBell } from "@/components/SecurityAlertBell";
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -80,6 +81,7 @@ export default async function NewPrescriptionPage({
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <SecurityAlertBell />
             <Link href="/settings">
               <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
                 <Settings className="w-3.5 h-3.5" /> Clinic Settings

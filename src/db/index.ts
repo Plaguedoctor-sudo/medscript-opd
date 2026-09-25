@@ -66,6 +66,23 @@ sqlite.exec(`
 
   CREATE INDEX IF NOT EXISTS idx_audit_logs_timestamp ON audit_logs(timestamp);
   CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON audit_logs(action);
+
+  CREATE TABLE IF NOT EXISTS security_alerts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    severity TEXT NOT NULL,
+    category TEXT NOT NULL,
+    title TEXT NOT NULL,
+    description TEXT NOT NULL,
+    ip_address TEXT,
+    metadata TEXT,
+    created_at INTEGER,
+    acknowledged_at INTEGER,
+    acknowledged_by TEXT
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_security_alerts_acknowledged ON security_alerts(acknowledged_at);
+  CREATE INDEX IF NOT EXISTS idx_security_alerts_created_at ON security_alerts(created_at);
+  CREATE INDEX IF NOT EXISTS idx_security_alerts_category ON security_alerts(category);
 `);
 
 // Auto-migrate newly added columns if existing DB
