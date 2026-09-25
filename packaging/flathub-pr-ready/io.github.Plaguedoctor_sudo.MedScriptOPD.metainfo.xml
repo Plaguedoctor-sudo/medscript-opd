@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <component type="desktop-application">
-  <id>io.github.medscript.MedScriptOPD</id>
+  <id>io.github.Plaguedoctor_sudo.MedScriptOPD</id>
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>MIT</project_license>
   <name>MedScript OPD</name>
@@ -21,7 +21,7 @@
     </ul>
   </description>
 
-  <launchable type="desktop-id">io.github.medscript.MedScriptOPD.desktop</launchable>
+  <launchable type="desktop-id">io.github.Plaguedoctor_sudo.MedScriptOPD.desktop</launchable>
 
   <screenshots>
     <screenshot type="default">

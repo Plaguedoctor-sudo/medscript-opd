@@ -37,11 +37,11 @@ BUILD_DIR="$DIR/.flatpak-build"
 REPO_DIR="$DIR/.flatpak-repo"
 
 echo "Building Flatpak package..."
-flatpak-builder --user --install --force-clean "$BUILD_DIR" packaging/flatpak/io.github.medscript.MedScriptOPD.yml
+flatpak-builder --user --install --force-clean "$BUILD_DIR" packaging/flatpak/io.github.Plaguedoctor_sudo.MedScriptOPD.yml
 
 echo ""
 echo "================================================================="
 echo "✅ Flatpak successfully built and installed for current user!"
-echo "   Run the app using: flatpak run io.github.medscript.MedScriptOPD"
+echo "   Run the app using: flatpak run io.github.Plaguedoctor_sudo.MedScriptOPD"
 echo "   Or launch 'MedScript OPD' from your Linux desktop application menu."
 echo "================================================================="
