@@ -1,8 +1,8 @@
 'use client';
 
 import { saveSettings, seedDemoData } from "./actions";
-import { updateSecuritySettings } from "@/app/login/actions";
-import { createManualBackupSnapshot, BackupItem } from "./backup-actions";
+import { updateSecuritySettings, runDatabaseDiagnostics } from "@/app/login/actions";
+import { createManualBackupSnapshot, BackupItem, exportAuditLogsCsvAction } from "./backup-actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -31,6 +31,8 @@ import {
   CheckCircle2,
   Plus,
   Trash2,
+  Activity,
+  Users,
 } from "lucide-react";
 import { ClinicSettings } from "@/types";
 import { AuditLogItem } from "@/lib/audit";
@@ -40,6 +42,8 @@ interface SettingsFormProps {
   securityConfig: {
     securityEnabled: boolean;
     pinConfigured: boolean;
+    staffPinConfigured?: boolean;
+    rbacEnabled?: boolean;
     doctorName: string;
     clinicName: string;
     autoLockMinutes?: number;
@@ -169,7 +173,23 @@ export default function SettingsForm({
   const [autoLockMinutes, setAutoLockMinutes] = useState<number>(securityConfig.autoLockMinutes ?? 15);
   const [pin, setPin] = useState("");
   const [confirmPin, setConfirmPin] = useState("");
+  const [rbacEnabled, setRbacEnabled] = useState(Boolean(securityConfig.rbacEnabled));
+  const [staffPin, setStaffPin] = useState("");
+  const [confirmStaffPin, setConfirmStaffPin] = useState("");
   const [isSavingSecurity, startSecurityTransition] = useTransition();
+
+  // Diagnostics & Forensic Audit State
+  const [diagResult, setDiagResult] = useState<{
+    healthy: boolean;
+    integrityResult: string;
+    foreignKeyResult: string;
+    journalMode: string;
+    pageSize: number;
+    pageCount: number;
+    totalSizeBytes: number;
+  } | null>(null);
+  const [isRunningDiagnostics, startDiagnosticsTransition] = useTransition();
+  const [isExportingAudit, startAuditExportTransition] = useTransition();
 
   // Backup State
   const [backups, setBackups] = useState<BackupItem[]>(initialBackups);
@@ -236,7 +256,15 @@ export default function SettingsForm({
   function handleSaveSecurity(e: React.FormEvent) {
     e.preventDefault();
     startSecurityTransition(async () => {
-      const res = await updateSecuritySettings(securityEnabled, pin, confirmPin, autoLockMinutes);
+      const res = await updateSecuritySettings(
+        securityEnabled,
+        pin,
+        confirmPin,
+        autoLockMinutes,
+        staffPin,
+        confirmStaffPin,
+        rbacEnabled
+      );
       if (res.success) {
         toast.show({
           title: "Security Settings Updated",
@@ -245,11 +273,61 @@ export default function SettingsForm({
         });
         setPin("");
         setConfirmPin("");
+        setStaffPin("");
+        setConfirmStaffPin("");
         router.refresh();
       } else {
         toast.show({
           title: "Security Update Failed",
           description: res.message,
+          type: "error",
+        });
+      }
+    });
+  }
+
+  function handleRunDiagnostics() {
+    startDiagnosticsTransition(async () => {
+      const result = await runDatabaseDiagnostics();
+      setDiagResult(result);
+      if (result.healthy) {
+        toast.show({
+          title: "Integrity Verified",
+          description: `SQLite DB is 100% healthy. Integrity: ${result.integrityResult}, FK: ${result.foreignKeyResult}`,
+          type: "success",
+        });
+      } else {
+        toast.show({
+          title: "Diagnostic Alert",
+          description: `Integrity check reported issues: ${result.integrityResult}`,
+          type: "error",
+        });
+      }
+    });
+  }
+
+  function handleExportAuditLogs() {
+    startAuditExportTransition(async () => {
+      const res = await exportAuditLogsCsvAction();
+      if (res.success && res.csv) {
+        const blob = new Blob([res.csv], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `medscript-audit-log-${new Date().toISOString().split("T")[0]}.csv`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        toast.show({
+          title: "Audit Trail Exported",
+          description: "Clinical audit log downloaded as CSV.",
+          type: "success",
+        });
+      } else {
+        toast.show({
+          title: "Export Failed",
+          description: res.error || "Could not export audit log.",
           type: "error",
         });
       }
@@ -581,38 +659,113 @@ export default function SettingsForm({
               </div>
             )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="pin" className="text-xs font-medium">
-                  {securityConfig.pinConfigured ? "Change PIN (4 to 8 digits)" : "Set New PIN (4 to 8 digits) *"}
-                </Label>
-                <Input
-                  id="pin"
-                  type="password"
-                  inputMode="numeric"
-                  maxLength={8}
-                  value={pin}
-                  onChange={(e) => setPin(e.target.value.replace(/[^\d]/g, ''))}
-                  placeholder={securityConfig.pinConfigured ? "Leave blank to keep current PIN" : "e.g. 1234"}
-                  className="font-mono text-center tracking-widest"
+            <div className="space-y-3">
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-800">
+                <Stethoscope className="w-3.5 h-3.5 text-indigo-600" />
+                <span>Doctor Master PIN (Full Clinical Prescribing Authority)</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="pin" className="text-xs font-medium">
+                    {securityConfig.pinConfigured ? "Change Doctor PIN (4 to 8 digits)" : "Set Doctor PIN (4 to 8 digits) *"}
+                  </Label>
+                  <Input
+                    id="pin"
+                    type="password"
+                    inputMode="numeric"
+                    maxLength={8}
+                    value={pin}
+                    onChange={(e) => setPin(e.target.value.replace(/[^\d]/g, ''))}
+                    placeholder={securityConfig.pinConfigured ? "Leave blank to keep current PIN" : "e.g. 1234"}
+                    className="font-mono text-center tracking-widest"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="confirmPin" className="text-xs font-medium">
+                    Confirm Doctor PIN
+                  </Label>
+                  <Input
+                    id="confirmPin"
+                    type="password"
+                    inputMode="numeric"
+                    maxLength={8}
+                    value={confirmPin}
+                    onChange={(e) => setConfirmPin(e.target.value.replace(/[^\d]/g, ''))}
+                    placeholder="Repeat Doctor PIN"
+                    className="font-mono text-center tracking-widest"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Multi-Role Staff Access Control (RBAC) */}
+            <div className="pt-2 border-t border-slate-200 space-y-3">
+              <div className="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+                <div className="space-y-0.5">
+                  <div className="text-sm font-semibold text-slate-900 flex items-center gap-1.5">
+                    <Users className="w-4 h-4 text-amber-600" />
+                    Role-Based Access Control (Front Desk / Receptionist PIN)
+                  </div>
+                  <div className="text-xs text-slate-500">
+                    Enables a dedicated PIN for front desk staff to register patients and search demographics without clinical prescribing rights.
+                  </div>
+                </div>
+                <input
+                  type="checkbox"
+                  id="rbacToggle"
+                  checked={rbacEnabled}
+                  onChange={(e) => setRbacEnabled(e.target.checked)}
+                  className="w-5 h-5 accent-indigo-600 cursor-pointer rounded"
                 />
               </div>
 
-              <div className="space-y-1.5">
-                <Label htmlFor="confirmPin" className="text-xs font-medium">
-                  Confirm PIN
-                </Label>
-                <Input
-                  id="confirmPin"
-                  type="password"
-                  inputMode="numeric"
-                  maxLength={8}
-                  value={confirmPin}
-                  onChange={(e) => setConfirmPin(e.target.value.replace(/[^\d]/g, ''))}
-                  placeholder="Repeat PIN"
-                  className="font-mono text-center tracking-widest"
-                />
-              </div>
+              {rbacEnabled && (
+                <div className="space-y-3 p-4 rounded-xl border border-amber-200 bg-amber-50/40 animate-in fade-in">
+                  {securityConfig.staffPinConfigured && (
+                    <div className="text-xs text-amber-900 bg-amber-100/70 border border-amber-300/80 rounded-lg p-2.5 flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 shrink-0 text-amber-700" />
+                      <span>A Staff PIN is currently configured. Enter a new PIN below only if you wish to change it.</span>
+                    </div>
+                  )}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="staffPin" className="text-xs font-medium">
+                        {securityConfig.staffPinConfigured ? "Change Staff PIN (4 to 8 digits)" : "Set Staff PIN (4 to 8 digits) *"}
+                      </Label>
+                      <Input
+                        id="staffPin"
+                        type="password"
+                        inputMode="numeric"
+                        maxLength={8}
+                        value={staffPin}
+                        onChange={(e) => setStaffPin(e.target.value.replace(/[^\d]/g, ''))}
+                        placeholder={securityConfig.staffPinConfigured ? "Leave blank to keep" : "e.g. 5678"}
+                        className="font-mono text-center tracking-widest bg-white"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label htmlFor="confirmStaffPin" className="text-xs font-medium">
+                        Confirm Staff PIN
+                      </Label>
+                      <Input
+                        id="confirmStaffPin"
+                        type="password"
+                        inputMode="numeric"
+                        maxLength={8}
+                        value={confirmStaffPin}
+                        onChange={(e) => setConfirmStaffPin(e.target.value.replace(/[^\d]/g, ''))}
+                        placeholder="Repeat Staff PIN"
+                        className="font-mono text-center tracking-widest bg-white"
+                      />
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-amber-800">
+                    Front desk staff logging in with this PIN can register new patients and search records, but are blocked from creating prescriptions or altering clinic settings.
+                  </p>
+                </div>
+              )}
             </div>
 
             <div className="space-y-1.5 pt-1">
@@ -701,6 +854,61 @@ export default function SettingsForm({
                 </>
               )}
             </Button>
+          </div>
+
+          {/* Forensic Database Diagnostics */}
+          <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-4 space-y-3 shadow-2xs">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h4 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                  <Activity className="w-4 h-4 text-emerald-600" />
+                  SQLite Forensic Health & Integrity Diagnostics
+                </h4>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  Run live cryptographic PRAGMA checks to verify B-tree structure, foreign key relations, and WAL journaling.
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleRunDiagnostics}
+                disabled={isRunningDiagnostics}
+                className="text-xs gap-1.5 h-8 bg-white shrink-0 font-medium border-slate-300 hover:border-slate-400"
+              >
+                {isRunningDiagnostics ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-600" />
+                ) : (
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                )}
+                Run Integrity Diagnostic
+              </Button>
+            </div>
+
+            {diagResult && (
+              <div className={`p-3 rounded-lg border text-xs grid grid-cols-2 sm:grid-cols-4 gap-3 animate-in fade-in ${
+                diagResult.healthy ? 'bg-emerald-50/90 border-emerald-200 text-emerald-950' : 'bg-red-50 border-red-200 text-red-950'
+              }`}>
+                <div>
+                  <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Integrity</p>
+                  <p className="font-mono font-bold text-emerald-700">{diagResult.integrityResult}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Foreign Keys</p>
+                  <p className="font-mono font-bold text-slate-800">{diagResult.foreignKeyResult}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Journal Mode</p>
+                  <p className="font-mono font-bold text-indigo-700">{diagResult.journalMode}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Pages & Size</p>
+                  <p className="font-mono font-bold text-slate-800">
+                    {diagResult.pageCount} pages ({(diagResult.totalSizeBytes / 1024).toFixed(1)} KB)
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Local Snapshots History */}
@@ -823,12 +1031,29 @@ export default function SettingsForm({
 
           {/* Real-time Audit Trail Log */}
           <div className="space-y-3 pt-2">
-            <div className="flex items-center justify-between text-xs font-semibold text-slate-700 pb-1 border-b">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between text-xs font-semibold text-slate-700 pb-2 border-b gap-2">
               <span className="flex items-center gap-1.5">
                 <History className="w-3.5 h-3.5 text-slate-500" />
                 Recent Clinical Access & Security Events ({initialAuditLogs.length})
               </span>
-              <span className="text-slate-400 font-normal">Immutable local audit log</span>
+              <div className="flex items-center gap-3">
+                <span className="text-slate-400 font-normal text-[11px] hidden sm:inline">Immutable local audit trail</span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleExportAuditLogs}
+                  disabled={isExportingAudit}
+                  className="h-7 text-[11px] gap-1.5 border-slate-300 hover:border-slate-400 text-slate-700"
+                >
+                  {isExportingAudit ? (
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                  ) : (
+                    <Download className="w-3 h-3 text-blue-600" />
+                  )}
+                  Export Audit Trail CSV
+                </Button>
+              </div>
             </div>
 
             {initialAuditLogs.length === 0 ? (
@@ -854,6 +1079,19 @@ export default function SettingsForm({
                       >
                         {log.action}
                       </span>
+                      {log.actorRole && (
+                        <span
+                          className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-mono font-bold shrink-0 ${
+                            log.actorRole === 'DOCTOR'
+                              ? 'bg-indigo-100 text-indigo-800'
+                              : log.actorRole === 'RECEPTIONIST'
+                              ? 'bg-amber-100 text-amber-900'
+                              : 'bg-slate-100 text-slate-700'
+                          }`}
+                        >
+                          {log.actorRole}
+                        </span>
+                      )}
                       <span className="text-slate-700 truncate">{log.details || 'Event logged'}</span>
                     </div>
                     <div className="flex items-center gap-3 shrink-0 text-slate-400 text-[11px] self-end sm:self-auto font-mono">

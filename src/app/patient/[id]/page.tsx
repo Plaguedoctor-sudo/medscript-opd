@@ -11,15 +11,21 @@ import { Medication, Patient, Prescription } from "@/types";
 import { EditPatientModal } from "./EditPatientModal";
 import { PatientVitalsAnalytics } from "./PatientVitalsAnalytics";
 import { formatDate } from "@/lib/utils";
-import { requireAuth, getSecurityConfig } from "@/lib/auth";
+import { requireAuth, getSecurityConfig, getCurrentUserRole } from "@/lib/auth";
 import { LockDeskButton } from "@/components/LockDeskButton";
+import { PrivacyShield } from "@/components/PrivacyShield";
+import { UserRoleBadge } from "@/components/UserRoleBadge";
+import { MaskedIdentifier } from "@/components/MaskedIdentifier";
 
 export const dynamic = 'force-dynamic';
 
 export default async function PatientProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   await requireAuth(`/patient/${id}`);
-  const { securityEnabled } = await getSecurityConfig();
+  const [{ securityEnabled }, role] = await Promise.all([
+    getSecurityConfig(),
+    getCurrentUserRole(),
+  ]);
   const patientId = parseInt(id, 10);
 
   const patient = await db.query.patients.findFirst({
@@ -48,13 +54,17 @@ export default async function PatientProfilePage({ params }: { params: Promise<{
             </Link>
             <h1 className="text-xl font-bold text-slate-900">Patient Profile</h1>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
+            <UserRoleBadge role={role} securityEnabled={securityEnabled} />
+            <PrivacyShield />
             <EditPatientModal patient={typedPatient} />
-            <Link href={`/prescription/new?patientId=${typedPatient.id}`}>
-              <Button size="sm" className="gap-1.5">
-                <PlusCircle className="w-4 h-4" /> New Consultation
-              </Button>
-            </Link>
+            {role === 'doctor' && (
+              <Link href={`/prescription/new?patientId=${typedPatient.id}`}>
+                <Button size="sm" className="gap-1.5 shadow-xs">
+                  <PlusCircle className="w-4 h-4" /> New Consultation
+                </Button>
+              </Link>
+            )}
             {securityEnabled && <LockDeskButton />}
           </div>
         </div>
@@ -83,14 +93,18 @@ export default async function PatientProfilePage({ params }: { params: Promise<{
                     <Calendar className="w-4 h-4 text-slate-400" /> {typedPatient.age} years / {typedPatient.gender}
                   </span>
                   {typedPatient.phone && (
-                    <span className="flex items-center gap-1">
-                      <Phone className="w-4 h-4 text-slate-400" /> {typedPatient.phone}
-                    </span>
+                    <MaskedIdentifier
+                      value={typedPatient.phone}
+                      type="phone"
+                      icon={<Phone className="w-3.5 h-3.5 text-slate-400" />}
+                    />
                   )}
                   {typedPatient.abhaId && (
-                    <span className="flex items-center gap-1">
-                      <Fingerprint className="w-4 h-4 text-slate-400" /> ABHA: {typedPatient.abhaId}
-                    </span>
+                    <MaskedIdentifier
+                      value={typedPatient.abhaId}
+                      type="abha"
+                      icon={<Fingerprint className="w-3.5 h-3.5 text-slate-400" />}
+                    />
                   )}
                 </div>
               </div>

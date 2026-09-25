@@ -1,12 +1,17 @@
 'use server'
 
 import { db } from "@/db";
-import { patients, prescriptions } from "@/db/schema";
+import { patients, prescriptions, clinicSettings } from "@/db/schema";
 import { revalidatePath } from "next/cache";
 import { or, like, eq } from "drizzle-orm";
 import { Medication, Patient } from "@/types";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, requireRole } from "@/lib/auth";
 import { logAuditEvent } from "@/lib/audit";
+import {
+  generatePrescriptionSignature,
+  verifyPrescriptionIntegrity,
+  formatDigitalSealCode,
+} from "@/lib/prescription-security";
 
 export interface PrescriptionFormData {
   patientId?: number | string;
@@ -112,7 +117,7 @@ function sanitizeMedications(meds: unknown): Medication[] {
 }
 
 export async function createPrescription(formData: PrescriptionFormData) {
-  await requireAuth('/prescription/new');
+  await requireRole(['doctor'], '/prescription/new');
   let patientId = formData.patientId ? Number(formData.patientId) : null;
   let isNewPatient = false;
 
@@ -143,6 +148,7 @@ export async function createPrescription(formData: PrescriptionFormData) {
 
     await logAuditEvent({
       action: 'PATIENT_CREATED',
+      actorRole: 'DOCTOR',
       details: `New patient registered: ${newPatient.name} (Reg: ${newPatient.regNo || newPatient.id})`,
       status: 'SUCCESS',
     });
@@ -167,9 +173,29 @@ export async function createPrescription(formData: PrescriptionFormData) {
 
   const [prescription] = await db.insert(prescriptions).values(prescriptionData).returning();
 
+  // 3. Compute Cryptographic Digital Seal & Tamper-Evidence Signature
+  const [patientRecord] = await db.select().from(patients).where(eq(patients.id, Number(patientId)));
+  const clinic = await db.query.clinicSettings.findFirst({ where: eq(clinicSettings.id, 1) });
+
+  const signatureHash = generatePrescriptionSignature({
+    id: prescription.id,
+    patientId: Number(patientId),
+    regNo: patientRecord?.regNo,
+    doctorRegNo: clinic?.regNumber,
+    diagnosis: prescriptionData.diagnosis,
+    medications: prescriptionData.medications,
+    createdAt: prescription.createdAt,
+  });
+
+  await db
+    .update(prescriptions)
+    .set({ signatureHash })
+    .where(eq(prescriptions.id, prescription.id));
+
   await logAuditEvent({
     action: 'PRESCRIPTION_CREATED',
-    details: `Prescription #${prescription.id} issued for patient ID #${patientId}${isNewPatient ? ' (new registration)' : ''}`,
+    actorRole: 'DOCTOR',
+    details: `Prescription #${prescription.id} digitally signed & sealed for patient ID #${patientId}${isNewPatient ? ' (new registration)' : ''}`,
     status: 'SUCCESS',
   });
 
@@ -184,7 +210,7 @@ export async function createPrescription(formData: PrescriptionFormData) {
 }
 
 export async function updatePrescription(id: number, formData: PrescriptionFormData) {
-  await requireAuth(`/prescription/${id}`);
+  await requireRole(['doctor'], `/prescription/${id}/edit`);
 
   const prescriptionData = {
     weight: sanitizeString(formData.weight, 20),
@@ -201,30 +227,45 @@ export async function updatePrescription(id: number, formData: PrescriptionFormD
     followUpDate: sanitizeString(formData.followUpDate, 30),
   };
 
-  await db.update(prescriptions)
-    .set(prescriptionData)
-    .where(eq(prescriptions.id, id));
-
   const [existing] = await db.select().from(prescriptions).where(eq(prescriptions.id, id));
+  if (!existing) {
+    throw new Error("Prescription not found");
+  }
+
+  const [patientRecord] = await db.select().from(patients).where(eq(patients.id, existing.patientId));
+  const clinic = await db.query.clinicSettings.findFirst({ where: eq(clinicSettings.id, 1) });
+
+  const signatureHash = generatePrescriptionSignature({
+    id,
+    patientId: existing.patientId,
+    regNo: patientRecord?.regNo,
+    doctorRegNo: clinic?.regNumber,
+    diagnosis: prescriptionData.diagnosis,
+    medications: prescriptionData.medications,
+    createdAt: existing.createdAt,
+  });
+
+  await db.update(prescriptions)
+    .set({ ...prescriptionData, signatureHash })
+    .where(eq(prescriptions.id, id));
 
   await logAuditEvent({
     action: 'PRESCRIPTION_UPDATED',
-    details: `Prescription #${id} updated`,
+    actorRole: 'DOCTOR',
+    details: `Prescription #${id} updated and cryptographically re-sealed`,
     status: 'SUCCESS',
   });
 
   revalidatePath("/");
   revalidatePath("/patients");
-  if (existing) {
-    revalidatePath(`/patient/${existing.patientId}`);
-  }
+  revalidatePath(`/patient/${existing.patientId}`);
   revalidatePath(`/prescription/${id}`);
 
   return { success: true, prescriptionId: id };
 }
 
 export async function deletePrescription(id: number) {
-  await requireAuth();
+  await requireRole(['doctor']);
 
   const [existing] = await db.select().from(prescriptions).where(eq(prescriptions.id, id));
   if (!existing) {
@@ -235,6 +276,7 @@ export async function deletePrescription(id: number) {
 
   await logAuditEvent({
     action: 'PRESCRIPTION_DELETED',
+    actorRole: 'DOCTOR',
     details: `Prescription #${id} permanently deleted (Patient ID: ${existing.patientId})`,
     status: 'WARNING',
   });
@@ -242,8 +284,24 @@ export async function deletePrescription(id: number) {
   revalidatePath("/");
   revalidatePath("/patients");
   revalidatePath(`/patient/${existing.patientId}`);
+}
 
-  return { success: true, patientId: existing.patientId };
+export async function verifyPrescriptionIntegrityAction(id: number) {
+  const rx = await db.query.prescriptions.findFirst({
+    where: eq(prescriptions.id, id),
+  });
+  if (!rx) throw new Error("Prescription not found");
+
+  const [patient] = await db.select().from(patients).where(eq(patients.id, rx.patientId));
+  const clinic = await db.query.clinicSettings.findFirst({ where: eq(clinicSettings.id, 1) });
+
+  const result = verifyPrescriptionIntegrity(rx, clinic?.regNumber, patient?.regNo);
+
+  return {
+    ...result,
+    sealCode: formatDigitalSealCode(result.signature),
+    doctorRegNo: clinic?.regNumber || 'N/A',
+  };
 }
 
 export async function updatePatient(

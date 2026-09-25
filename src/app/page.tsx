@@ -8,8 +8,10 @@ import Link from "next/link";
 import { PlusCircle, Settings, Users, FileText, AlertCircle, Edit, ExternalLink, Calendar, BarChart3 } from "lucide-react";
 import { DashboardSearch } from "@/components/DashboardSearch";
 import { formatDate } from "@/lib/utils";
-import { requireAuth, getSecurityConfig } from "@/lib/auth";
+import { requireAuth, getSecurityConfig, getCurrentUserRole } from "@/lib/auth";
 import { LockDeskButton } from "@/components/LockDeskButton";
+import { PrivacyShield } from "@/components/PrivacyShield";
+import { UserRoleBadge } from "@/components/UserRoleBadge";
 
 interface ConsultationRow {
   id: number;
@@ -27,10 +29,19 @@ interface ConsultationRow {
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string; unauthorized?: string }>;
+}) {
   await requireAuth('/');
-  const { securityEnabled } = await getSecurityConfig();
-  const query = (await searchParams)?.q;
+  const [{ securityEnabled }, role, resolvedParams] = await Promise.all([
+    getSecurityConfig(),
+    getCurrentUserRole(),
+    searchParams,
+  ]);
+  const query = resolvedParams?.q;
+  const unauthorized = resolvedParams?.unauthorized;
   const clean = query ? query.trim() : "";
   let hyphenated = clean;
   if (/^\d{9,}$/.test(clean)) {
@@ -97,6 +108,8 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
             </div>
           </Link>
           <div className="flex items-center gap-2.5">
+            <UserRoleBadge role={role} securityEnabled={securityEnabled} />
+            <PrivacyShield />
             <Link href="/patients">
               <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
                 <Users className="w-4 h-4" /> Patients
@@ -112,17 +125,45 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
                 <Settings className="w-4 h-4" /> Settings
               </Button>
             </Link>
-            <Link href="/prescription/new">
-              <Button size="sm" className="gap-1.5 text-xs">
-                <PlusCircle className="w-4 h-4" /> New Consultation
-              </Button>
-            </Link>
+            {role === 'doctor' ? (
+              <Link href="/prescription/new">
+                <Button size="sm" className="gap-1.5 text-xs shadow-xs">
+                  <PlusCircle className="w-4 h-4" /> New Consultation
+                </Button>
+              </Link>
+            ) : (
+              <Link href="/patients">
+                <Button size="sm" variant="outline" className="gap-1.5 text-xs text-amber-800 border-amber-300 bg-amber-50 hover:bg-amber-100">
+                  <Users className="w-4 h-4" /> Patient Intake
+                </Button>
+              </Link>
+            )}
             {securityEnabled && <LockDeskButton />}
           </div>
         </div>
       </nav>
 
       <main className="container mx-auto px-4 py-8 max-w-6xl">
+        {/* Role Access Warning Banner */}
+        {unauthorized === 'clinical_doctor_required' && (
+          <div className="mb-6 p-4 bg-amber-50 border border-amber-300 rounded-xl flex items-center justify-between gap-3 text-amber-900 shadow-2xs animate-in fade-in">
+            <div className="flex items-center gap-3">
+              <AlertCircle className="w-5 h-5 text-amber-600 shrink-0" />
+              <div>
+                <p className="font-semibold text-sm">Doctor Authorization Required</p>
+                <p className="text-xs text-amber-800 mt-0.5">
+                  Creating, modifying, or deleting clinical prescriptions is restricted to the Doctor role. Front desk staff can search patients and handle registration.
+                </p>
+              </div>
+            </div>
+            <Link href="/login?redirect=/prescription/new">
+              <Button size="sm" className="bg-amber-600 hover:bg-amber-700 text-white text-xs shrink-0">
+                Unlock as Doctor
+              </Button>
+            </Link>
+          </div>
+        )}
+
         {/* Setup Banner if Settings are Empty */}
         {!settings && (
           <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-amber-900">

@@ -7,12 +7,14 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Settings, Stethoscope } from "lucide-react";
 import { Patient, Prescription } from "@/types";
+import { requireRole } from "@/lib/auth";
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 export default async function EditPrescriptionPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  await requireRole(['doctor'], `/prescription/${id}/edit`);
   const prescriptionId = parseInt(id, 10);
 
   const prescription = await db.query.prescriptions.findFirst({

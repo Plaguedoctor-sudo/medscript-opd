@@ -23,10 +23,13 @@ export type AuditAction =
 
 export type AuditStatus = 'SUCCESS' | 'FAILURE' | 'WARNING';
 
+export type ActorRole = 'DOCTOR' | 'RECEPTIONIST' | 'SYSTEM';
+
 export interface AuditLogItem {
   id: number;
   timestamp: Date | null;
   action: string;
+  actorRole?: string | null;
   details: string | null;
   ipAddress: string | null;
   status: string;
@@ -34,11 +37,13 @@ export interface AuditLogItem {
 
 export async function logAuditEvent({
   action,
+  actorRole = 'DOCTOR',
   details,
   status = 'SUCCESS',
   ipAddress,
 }: {
   action: AuditAction;
+  actorRole?: ActorRole;
   details?: string;
   status?: AuditStatus;
   ipAddress?: string;
@@ -49,6 +54,7 @@ export async function logAuditEvent({
     await db.insert(auditLogs).values({
       timestamp: new Date(),
       action,
+      actorRole,
       details: details ? details.slice(0, 1000) : null,
       ipAddress: ip,
       status,
@@ -71,6 +77,7 @@ export async function getRecentAuditLogs(limit = 20): Promise<AuditLogItem[]> {
       id: r.id,
       timestamp: r.timestamp,
       action: r.action,
+      actorRole: r.actorRole,
       details: r.details,
       ipAddress: r.ipAddress,
       status: r.status,

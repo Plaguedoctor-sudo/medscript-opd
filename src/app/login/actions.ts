@@ -1,7 +1,7 @@
 'use server';
 
 import { cookies } from 'next/headers';
-import { db } from '@/db';
+import { db, sqlite } from '@/db';
 import { clinicSettings } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { redirect } from 'next/navigation';
@@ -12,6 +12,7 @@ import {
   createSessionToken,
   SESSION_COOKIE_NAME,
   getSecurityConfig,
+  UserRole,
 } from '@/lib/auth';
 import {
   getClientIp,
@@ -25,6 +26,7 @@ export interface LoginResult {
   success: boolean;
   error?: string;
   redirectUrl?: string;
+  role?: UserRole;
 }
 
 export async function loginWithPin(
@@ -61,10 +63,16 @@ export async function loginWithPin(
     return { success: false, error: 'No PIN has been configured in Clinic Settings.' };
   }
 
-  // 2. Constant-time PIN verification to prevent timing attacks
-  const isValid = verifyPinHash(trimmedPin, settings.pinHash);
+  // 2. Check Doctor PIN vs Staff PIN (Multi-Role Access Control)
+  let userRole: UserRole | null = null;
 
-  if (!isValid) {
+  if (verifyPinHash(trimmedPin, settings.pinHash)) {
+    userRole = 'doctor';
+  } else if (settings.staffPinHash && verifyPinHash(trimmedPin, settings.staffPinHash)) {
+    userRole = 'receptionist';
+  }
+
+  if (!userRole) {
     const failedResult = recordFailedPinAttempt(clientIp);
 
     await logAuditEvent({
@@ -92,13 +100,16 @@ export async function loginWithPin(
 
   await logAuditEvent({
     action: 'AUTH_LOGIN_SUCCESS',
-    details: 'Consultation desk successfully unlocked',
+    actorRole: userRole === 'doctor' ? 'DOCTOR' : 'RECEPTIONIST',
+    details: userRole === 'doctor'
+      ? 'Doctor authenticated with full clinical prescribing authority'
+      : 'Front desk staff authenticated with triage and patient intake role',
     status: 'SUCCESS',
     ipAddress: clientIp,
   });
 
-  // Create session token and set secure HTTP-only cookie
-  const token = createSessionToken();
+  // 4. Create cryptographically signed role session token and set secure HTTP-only cookie
+  const token = createSessionToken(userRole);
   const cookieStore = await cookies();
 
   cookieStore.set(SESSION_COOKIE_NAME, token, {
@@ -113,14 +124,14 @@ export async function loginWithPin(
     ? targetRedirect
     : '/';
 
-  return { success: true, redirectUrl: destination };
+  return { success: true, redirectUrl: destination, role: userRole };
 }
 
 export async function lockDeskAction(): Promise<void> {
   const clientIp = await getClientIp();
   await logAuditEvent({
     action: 'AUTH_LOGOUT',
-    details: 'Consultation desk locked',
+    details: 'Consultation desk screen locked by user',
     status: 'SUCCESS',
     ipAddress: clientIp,
   });
@@ -128,6 +139,32 @@ export async function lockDeskAction(): Promise<void> {
   const cookieStore = await cookies();
   cookieStore.delete(SESSION_COOKIE_NAME);
   redirect('/login');
+}
+
+/**
+ * Emergency Break-Glass access for life-threatening triage
+ */
+export async function breakGlassEmergencyAction(reason?: string): Promise<{ success: boolean; redirectUrl: string }> {
+  const clientIp = await getClientIp();
+  await logAuditEvent({
+    action: 'AUTH_LOGIN_SUCCESS',
+    actorRole: 'SYSTEM',
+    details: `⚠️ EMERGENCY BREAK-GLASS TRIGGERED: Reason: ${reason || 'Immediate Emergency Care / Triage'}. Direct patient history view granted.`,
+    status: 'WARNING',
+    ipAddress: clientIp,
+  });
+
+  const token = createSessionToken('receptionist');
+  const cookieStore = await cookies();
+  cookieStore.set(SESSION_COOKIE_NAME, token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/',
+    maxAge: 30 * 60, // 30-minute emergency access window
+  });
+
+  return { success: true, redirectUrl: '/patients' };
 }
 
 export interface SecurityUpdateResult {
@@ -139,125 +176,145 @@ export async function updateSecuritySettings(
   enabled: boolean,
   pin?: string,
   confirmPin?: string,
-  autoLockMinutes?: number
+  autoLockMinutes?: number,
+  staffPin?: string,
+  confirmStaffPin?: string,
+  rbacEnabled?: boolean
 ): Promise<SecurityUpdateResult> {
   const { pinConfigured } = await getSecurityConfig();
   const validAutoLock = autoLockMinutes !== undefined && [0, 5, 10, 15, 30, 60].includes(autoLockMinutes)
     ? autoLockMinutes
     : 15;
 
-  // If enabling security or changing PIN:
+  const updatePayload: {
+    securityEnabled: boolean;
+    autoLockMinutes: number;
+    rbacEnabled: boolean;
+    pinHash?: string;
+    staffPinHash?: string;
+  } = {
+    securityEnabled: enabled,
+    autoLockMinutes: validAutoLock,
+    rbacEnabled: Boolean(rbacEnabled),
+  };
+
+  // If setting/updating Doctor Master PIN:
   if (pin && pin.trim().length > 0) {
     const cleanPin = pin.trim();
 
     if (cleanPin.length < 4 || cleanPin.length > 8) {
-      return {
-        success: false,
-        message: 'PIN must be between 4 and 8 digits.',
-      };
+      return { success: false, message: 'Doctor PIN must be between 4 and 8 digits.' };
     }
-
     if (!/^\d+$/.test(cleanPin)) {
-      return {
-        success: false,
-        message: 'PIN should contain only numbers (0–9).',
-      };
+      return { success: false, message: 'Doctor PIN must contain only digits (0–9).' };
     }
-
     if (cleanPin !== confirmPin?.trim()) {
-      return {
-        success: false,
-        message: 'PIN and Confirm PIN do not match.',
-      };
+      return { success: false, message: 'Doctor PIN and Confirm PIN do not match.' };
     }
 
-    const hashed = hashPin(cleanPin);
+    updatePayload.pinHash = hashPin(cleanPin);
+  }
 
-    await db
-      .update(clinicSettings)
-      .set({
-        pinHash: hashed,
-        securityEnabled: enabled,
-        autoLockMinutes: validAutoLock,
-      })
-      .where(eq(clinicSettings.id, 1));
+  // If setting/updating Staff / Receptionist PIN:
+  if (staffPin && staffPin.trim().length > 0) {
+    const cleanStaffPin = staffPin.trim();
 
-    await logAuditEvent({
-      action: 'SECURITY_SETTINGS_UPDATED',
-      details: `PIN updated. Protection: ${enabled ? 'Enabled' : 'Disabled'}, AutoLock: ${validAutoLock}min`,
-      status: 'SUCCESS',
-    });
-
-    // Also auto-login the current session so doctor isn't locked out immediately
-    if (enabled) {
-      const token = createSessionToken();
-      const cookieStore = await cookies();
-      cookieStore.set(SESSION_COOKIE_NAME, token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        path: '/',
-        maxAge: 24 * 60 * 60,
-      });
+    if (cleanStaffPin.length < 4 || cleanStaffPin.length > 8) {
+      return { success: false, message: 'Staff PIN must be between 4 and 8 digits.' };
+    }
+    if (!/^\d+$/.test(cleanStaffPin)) {
+      return { success: false, message: 'Staff PIN must contain only digits (0–9).' };
+    }
+    if (cleanStaffPin !== confirmStaffPin?.trim()) {
+      return { success: false, message: 'Staff PIN and Confirm Staff PIN do not match.' };
     }
 
-    revalidatePath('/', 'layout');
+    updatePayload.staffPinHash = hashPin(cleanStaffPin);
+  }
+
+  // Ensure Doctor PIN is configured before enabling security
+  if (enabled && !pinConfigured && !updatePayload.pinHash) {
     return {
-      success: true,
-      message: enabled
-        ? 'PIN protection enabled successfully! Your consultation desk is secured.'
-        : 'PIN updated successfully.',
+      success: false,
+      message: 'Please set a Doctor PIN before enabling consultation desk security.',
     };
   }
 
-  // Enabling without setting a new PIN:
-  if (enabled) {
-    if (!pinConfigured) {
-      return {
-        success: false,
-        message: 'Please set a 4 to 8 digit PIN before enabling protection.',
-      };
-    }
-
-    await db
-      .update(clinicSettings)
-      .set({
-        securityEnabled: true,
-        autoLockMinutes: validAutoLock,
-      })
-      .where(eq(clinicSettings.id, 1));
-
-    await logAuditEvent({
-      action: 'SECURITY_SETTINGS_UPDATED',
-      details: `PIN protection enabled. AutoLock: ${validAutoLock}min`,
-      status: 'SUCCESS',
-    });
-
-    revalidatePath('/', 'layout');
-    return {
-      success: true,
-      message: 'PIN protection is now active.',
-    };
-  }
-
-  // Disabling security
   await db
     .update(clinicSettings)
-    .set({
-      securityEnabled: false,
-      autoLockMinutes: validAutoLock,
-    })
+    .set(updatePayload)
     .where(eq(clinicSettings.id, 1));
 
   await logAuditEvent({
     action: 'SECURITY_SETTINGS_UPDATED',
-    details: 'PIN protection disabled. Direct access restored.',
-    status: 'WARNING',
+    actorRole: 'DOCTOR',
+    details: `Security updated: Active: ${enabled}, RBAC: ${Boolean(rbacEnabled)}, AutoLock: ${validAutoLock}m`,
+    status: 'SUCCESS',
   });
+
+  // Keep current active session authenticated as doctor
+  if (enabled) {
+    const token = createSessionToken('doctor');
+    const cookieStore = await cookies();
+    cookieStore.set(SESSION_COOKIE_NAME, token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 24 * 60 * 60,
+    });
+  }
 
   revalidatePath('/', 'layout');
   return {
     success: true,
-    message: 'PIN protection has been disabled. Direct access is restored.',
+    message: enabled
+      ? 'Medical security settings saved! Multi-Role protection is active.'
+      : 'PIN protection disabled. Direct clinic access restored.',
   };
+}
+
+/**
+ * Runs SQLite live integrity verification diagnostics
+ */
+export async function runDatabaseDiagnostics(): Promise<{
+  healthy: boolean;
+  integrityResult: string;
+  foreignKeyResult: string;
+  journalMode: string;
+  pageSize: number;
+  pageCount: number;
+  totalSizeBytes: number;
+}> {
+  try {
+    const integrity = sqlite.pragma('integrity_check') as { integrity_check?: string }[];
+    const foreignKeys = sqlite.pragma('foreign_key_check') as unknown[];
+    const journalMode = sqlite.pragma('journal_mode') as { journal_mode?: string }[];
+    const pageSize = sqlite.pragma('page_size', { simple: true }) as number;
+    const pageCount = sqlite.pragma('page_count', { simple: true }) as number;
+
+    const integrityText = integrity && integrity.length > 0 ? String(integrity[0].integrity_check) : 'ok';
+    const isHealthy = integrityText.toLowerCase() === 'ok' && foreignKeys.length === 0;
+
+    return {
+      healthy: isHealthy,
+      integrityResult: integrityText,
+      foreignKeyResult: foreignKeys.length === 0 ? 'OK (0 violations)' : `${foreignKeys.length} FK violations`,
+      journalMode: journalMode && journalMode.length > 0 ? String(journalMode[0].journal_mode).toUpperCase() : 'WAL',
+      pageSize: Number(pageSize) || 4096,
+      pageCount: Number(pageCount) || 0,
+      totalSizeBytes: (Number(pageSize) || 4096) * (Number(pageCount) || 0),
+    };
+  } catch (err: unknown) {
+    const errorMsg = err instanceof Error ? err.message : 'Error running check';
+    return {
+      healthy: false,
+      integrityResult: errorMsg,
+      foreignKeyResult: 'Error',
+      journalMode: 'UNKNOWN',
+      pageSize: 4096,
+      pageCount: 0,
+      totalSizeBytes: 0,
+    };
+  }
 }

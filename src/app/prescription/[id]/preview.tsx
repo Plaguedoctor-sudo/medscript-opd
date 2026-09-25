@@ -11,6 +11,7 @@ import { deletePrescription } from '@/app/prescription/new/actions';
 import { toast } from '@/components/ui/toast';
 import { ClinicSettings, Patient, Prescription, Medication } from '@/types';
 import { formatDate } from '@/lib/utils';
+import { DigitalRxSeal } from '@/components/DigitalRxSeal';
 
 interface PrescriptionPreviewProps {
   prescription: Prescription;
@@ -172,8 +173,13 @@ export default function PrescriptionPreview({ prescription, patient, settings, i
 
       {/* PDF Canvas View - Screen Only */}
       <div className="flex-1 p-4 md:p-8 print:hidden">
-        <div className="max-w-5xl mx-auto h-full bg-white shadow-lg rounded-xl overflow-hidden border">
-          {isClient ? (
+        <div className="max-w-5xl mx-auto space-y-4">
+          <DigitalRxSeal
+            prescriptionId={prescription.id}
+            initialSignatureHash={prescription.signatureHash}
+          />
+          <div className="h-[750px] bg-white shadow-lg rounded-xl overflow-hidden border">
+            {isClient ? (
             <PDFViewer
               key={`${prescription.id}-${settings?.doctorName}-${settings?.clinicName}-${settings?.logoUrl || 'nologo'}`}
               width="100%"
@@ -191,6 +197,7 @@ export default function PrescriptionPreview({ prescription, patient, settings, i
           )}
         </div>
       </div>
+    </div>
 
       {/* Printable Letterhead HTML Sheet (hidden on screen, active for window.print()) */}
       <div className="hidden print:block print:p-8 bg-white text-slate-900 font-sans text-xs">
@@ -315,7 +322,13 @@ export default function PrescriptionPreview({ prescription, patient, settings, i
         </div>
 
         {/* Signature Line */}
-        <div className="mt-12 flex justify-end">
+        <div className="mt-12 flex justify-between items-end">
+          <div className="text-[10px] text-slate-500 font-mono">
+            <p className="font-semibold text-slate-700">
+              Digital Seal: {prescription.signatureHash ? `MS-${prescription.signatureHash.slice(0, 4).toUpperCase()}-${prescription.signatureHash.slice(4, 8).toUpperCase()}-${prescription.signatureHash.slice(8, 12).toUpperCase()}` : `RX-${prescription.id}`}
+            </p>
+            <p>MedScript OPD • Computer-generated valid electronic prescription</p>
+          </div>
           <div className="text-center w-48 border-t border-slate-400 pt-1">
             <p className="font-bold text-slate-800">{settings.doctorName}</p>
             <p className="text-[10px] text-slate-500">Authorized Signature</p>

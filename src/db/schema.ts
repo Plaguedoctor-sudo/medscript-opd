@@ -41,6 +41,7 @@ export const prescriptions = sqliteTable("prescriptions", {
   advice: text("advice"),
   labTests: text("lab_tests"),
   followUpDate: text("follow_up_date"),
+  signatureHash: text("signature_hash"), // HMAC-SHA256 tamper-evident digital seal
   
   createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
 });
@@ -62,6 +63,8 @@ export const clinicSettings = sqliteTable("clinic_settings", {
   contact: text("contact").notNull(),
   logoUrl: text("logo_url"),
   pinHash: text("pin_hash"),
+  staffPinHash: text("staff_pin_hash"), // Staff / Receptionist PIN for triage and registration
+  rbacEnabled: integer("rbac_enabled", { mode: "boolean" }).$defaultFn(() => false),
   securityEnabled: integer("security_enabled", { mode: "boolean" }).$defaultFn(() => false),
   autoLockMinutes: integer("auto_lock_minutes").default(15),
 });
@@ -70,6 +73,7 @@ export const auditLogs = sqliteTable("audit_logs", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   timestamp: integer("timestamp", { mode: "timestamp" }).$defaultFn(() => new Date()),
   action: text("action").notNull(),
+  actorRole: text("actor_role").default("DOCTOR"), // 'DOCTOR' | 'RECEPTIONIST' | 'SYSTEM'
   details: text("details"),
   ipAddress: text("ip_address"),
   status: text("status").notNull().default("SUCCESS"), // 'SUCCESS' | 'FAILURE' | 'WARNING'

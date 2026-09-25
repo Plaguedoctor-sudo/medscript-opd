@@ -6,7 +6,7 @@ import { db } from "@/db";
 import { prescriptions, patients } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { Patient, Prescription } from "@/types";
-import { requireAuth, getSecurityConfig } from "@/lib/auth";
+import { requireRole, getSecurityConfig } from "@/lib/auth";
 import { LockDeskButton } from "@/components/LockDeskButton";
 
 export const dynamic = 'force-dynamic';
@@ -23,7 +23,7 @@ export default async function NewPrescriptionPage({
     : patientId
     ? `/prescription/new?patientId=${patientId}`
     : '/prescription/new';
-  await requireAuth(redirectTarget);
+  await requireRole(['doctor'], redirectTarget);
   const { securityEnabled } = await getSecurityConfig();
   const settings = await db.query.clinicSettings.findFirst();
   const backHref = patientId ? `/patient/${patientId}` : "/";

@@ -8,14 +8,20 @@ import Link from "next/link";
 import { Users, PlusCircle, ArrowLeft, Phone, Fingerprint, BarChart3, FileSpreadsheet } from "lucide-react";
 import { DashboardSearch } from "@/components/DashboardSearch";
 import { Patient } from "@/types";
-import { requireAuth, getSecurityConfig } from "@/lib/auth";
+import { requireAuth, getSecurityConfig, getCurrentUserRole } from "@/lib/auth";
 import { LockDeskButton } from "@/components/LockDeskButton";
+import { PrivacyShield } from "@/components/PrivacyShield";
+import { UserRoleBadge } from "@/components/UserRoleBadge";
+import { MaskedIdentifier } from "@/components/MaskedIdentifier";
 
 export const dynamic = 'force-dynamic';
 
 export default async function PatientsPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   await requireAuth('/patients');
-  const { securityEnabled } = await getSecurityConfig();
+  const [{ securityEnabled }, role] = await Promise.all([
+    getSecurityConfig(),
+    getCurrentUserRole(),
+  ]);
   const query = (await searchParams)?.q;
   const clean = query ? query.trim() : "";
   let hyphenated = clean;
@@ -75,16 +81,20 @@ export default async function PatientsPage({ searchParams }: { searchParams: Pro
             </div>
           </div>
           <div className="flex items-center gap-2.5">
+            <UserRoleBadge role={role} securityEnabled={securityEnabled} />
+            <PrivacyShield />
             <Link href="/reports">
               <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
                 <BarChart3 className="w-4 h-4 text-blue-600" /> Reports & Export
               </Button>
             </Link>
-            <Link href="/prescription/new">
-              <Button size="sm" className="gap-1.5 text-xs">
-                <PlusCircle className="w-4 h-4" /> New Consultation
-              </Button>
-            </Link>
+            {role === 'doctor' && (
+              <Link href="/prescription/new">
+                <Button size="sm" className="gap-1.5 text-xs shadow-xs">
+                  <PlusCircle className="w-4 h-4" /> New Consultation
+                </Button>
+              </Link>
+            )}
             {securityEnabled && <LockDeskButton />}
           </div>
         </div>
@@ -156,24 +166,18 @@ export default async function PatientsPage({ searchParams }: { searchParams: Pro
                           {patient.age}y / {patient.gender}
                         </TableCell>
                         <TableCell className="text-slate-600">
-                          {patient.phone ? (
-                            <span className="flex items-center gap-1.5 text-xs">
-                              <Phone className="w-3.5 h-3.5 text-slate-400" />
-                              {patient.phone}
-                            </span>
-                          ) : (
-                            <span className="text-slate-400 text-xs">—</span>
-                          )}
+                          <MaskedIdentifier
+                            value={patient.phone}
+                            type="phone"
+                            icon={<Phone className="w-3.5 h-3.5 text-slate-400" />}
+                          />
                         </TableCell>
                         <TableCell className="text-slate-600">
-                          {patient.abhaId ? (
-                            <span className="flex items-center gap-1.5 text-xs">
-                              <Fingerprint className="w-3.5 h-3.5 text-slate-400" />
-                              {patient.abhaId}
-                            </span>
-                          ) : (
-                            <span className="text-slate-400 text-xs">—</span>
-                          )}
+                          <MaskedIdentifier
+                            value={patient.abhaId}
+                            type="abha"
+                            icon={<Fingerprint className="w-3.5 h-3.5 text-slate-400" />}
+                          />
                         </TableCell>
                         <TableCell className="text-center">
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-800">
@@ -187,11 +191,13 @@ export default async function PatientsPage({ searchParams }: { searchParams: Pro
                                 History
                               </Button>
                             </Link>
-                            <Link href={`/prescription/new?patientId=${patient.id}`}>
-                              <Button size="sm" className="h-8 gap-1">
-                                <PlusCircle className="w-3.5 h-3.5" /> Consult
-                              </Button>
-                            </Link>
+                            {role === 'doctor' && (
+                              <Link href={`/prescription/new?patientId=${patient.id}`}>
+                                <Button size="sm" className="h-8 gap-1 shadow-2xs">
+                                  <PlusCircle className="w-3.5 h-3.5" /> Consult
+                                </Button>
+                              </Link>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>

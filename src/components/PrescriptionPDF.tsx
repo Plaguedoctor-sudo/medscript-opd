@@ -457,7 +457,9 @@ export const PrescriptionPDF = ({ prescription, patient, settings }: Prescriptio
 
         {/* Footer */}
         <View style={styles.footer}>
-          <Text>MedScript OPD System • Computer-generated valid electronic prescription</Text>
+          <Text>
+            {`MedScript OPD • Digital Rx Seal: ${prescription.signatureHash ? `MS-${prescription.signatureHash.slice(0, 4).toUpperCase()}-${prescription.signatureHash.slice(4, 8).toUpperCase()}-${prescription.signatureHash.slice(8, 12).toUpperCase()}` : `RX-${prescription.id}`} • Valid Electronic Prescription`}
+          </Text>
           <Text>Page 1 of 1</Text>
         </View>
       </Page>

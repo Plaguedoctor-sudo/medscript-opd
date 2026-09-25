@@ -84,6 +84,26 @@ try {
   // Column already exists
 }
 try {
+  sqlite.exec('ALTER TABLE clinic_settings ADD COLUMN staff_pin_hash TEXT;');
+} catch {
+  // Column already exists
+}
+try {
+  sqlite.exec('ALTER TABLE clinic_settings ADD COLUMN rbac_enabled INTEGER DEFAULT 0;');
+} catch {
+  // Column already exists
+}
+try {
+  sqlite.exec('ALTER TABLE prescriptions ADD COLUMN signature_hash TEXT;');
+} catch {
+  // Column already exists
+}
+try {
+  sqlite.exec("ALTER TABLE audit_logs ADD COLUMN actor_role TEXT DEFAULT 'DOCTOR';");
+} catch {
+  // Column already exists
+}
+try {
   sqlite.exec('ALTER TABLE patients ADD COLUMN reg_no TEXT;');
 } catch {
   // Column already exists

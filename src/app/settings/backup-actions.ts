@@ -89,3 +89,55 @@ export async function getLocalBackupSnapshots(): Promise<BackupItem[]> {
     return [];
   }
 }
+
+export async function exportAuditLogsCsvAction(): Promise<{ success: boolean; csv?: string; error?: string }> {
+  const authed = await isAuthenticated();
+  if (!authed) {
+    return { success: false, error: 'Unauthorized. Please unlock the desk first.' };
+  }
+
+  try {
+    interface SqliteAuditRow {
+      id: number;
+      timestamp: number | string | null;
+      action: string;
+      actor_role?: string | null;
+      details?: string | null;
+      ip_address?: string | null;
+      status?: string | null;
+    }
+
+    const logs = sqlite
+      .prepare('SELECT id, timestamp, action, actor_role, details, ip_address, status FROM audit_logs ORDER BY timestamp DESC')
+      .all() as SqliteAuditRow[];
+
+    const escapeCsv = (str: string | null | undefined) => {
+      if (!str) return '""';
+      const clean = String(str).replace(/"/g, '""');
+      return `"${clean}"`;
+    };
+
+    const header = 'ID,Timestamp,Action,Role,Status,Details,IP Address\n';
+    const rows = logs.map((l) => [
+      l.id,
+      l.timestamp ? new Date(l.timestamp).toISOString() : '',
+      escapeCsv(l.action),
+      escapeCsv(l.actor_role || 'DOCTOR'),
+      escapeCsv(l.status || 'SUCCESS'),
+      escapeCsv(l.details),
+      escapeCsv(l.ip_address || '127.0.0.1'),
+    ].join(',')).join('\n');
+
+    await logAuditEvent({
+      action: 'DATA_EXPORT_CONSULTATIONS',
+      actorRole: 'DOCTOR',
+      details: `Clinical audit trail exported (${logs.length} events)`,
+      status: 'SUCCESS',
+    });
+
+    return { success: true, csv: header + rows };
+  } catch (err: unknown) {
+    const errorMsg = err instanceof Error ? err.message : 'Export error';
+    return { success: false, error: errorMsg };
+  }
+}

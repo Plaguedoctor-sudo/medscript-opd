@@ -35,6 +35,7 @@ export interface Prescription {
   advice: string | null;
   labTests: string | null;
   followUpDate: string | null;
+  signatureHash?: string | null;
   createdAt: Date | null;
 }
 
@@ -52,6 +53,9 @@ export interface ClinicSettings {
   contact: string;
   logoUrl?: string | null;
   pinHash?: string | null;
+  staffPinHash?: string | null;
+  rbacEnabled?: boolean | null;
   securityEnabled?: boolean | null;
+  autoLockMinutes?: number | null;
 }
 

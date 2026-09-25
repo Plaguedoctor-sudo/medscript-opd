@@ -3,20 +3,23 @@ import SettingsForm from "./SettingsForm";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Settings, BarChart3 } from "lucide-react";
-import { requireAuth, getSecurityConfig } from "@/lib/auth";
+import { requireRole, getSecurityConfig, getCurrentUserRole } from "@/lib/auth";
 import { getLocalBackupSnapshots } from "./backup-actions";
 import { LockDeskButton } from "@/components/LockDeskButton";
 import { getRecentAuditLogs } from "@/lib/audit";
+import { PrivacyShield } from "@/components/PrivacyShield";
+import { UserRoleBadge } from "@/components/UserRoleBadge";
 
 export const dynamic = 'force-dynamic';
 
 export default async function SettingsPage() {
-  await requireAuth('/settings');
-  const [settings, securityConfig, backupSnapshots, recentAuditLogs] = await Promise.all([
+  await requireRole(['doctor'], '/settings');
+  const [settings, securityConfig, backupSnapshots, recentAuditLogs, role] = await Promise.all([
     getSettings(),
     getSecurityConfig(),
     getLocalBackupSnapshots(),
     getRecentAuditLogs(20),
+    getCurrentUserRole(),
   ]);
 
   return (
@@ -37,6 +40,8 @@ export default async function SettingsPage() {
             </div>
           </div>
           <div className="flex items-center gap-2.5">
+            <UserRoleBadge role={role} securityEnabled={securityConfig.securityEnabled} />
+            <PrivacyShield />
             <Link href="/reports">
               <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
                 <BarChart3 className="w-4 h-4 text-blue-600" /> Reports & Audit
