@@ -5,6 +5,8 @@ import { patients, prescriptions } from "@/db/schema";
 import { revalidatePath } from "next/cache";
 import { or, like, eq } from "drizzle-orm";
 import { Medication, Patient } from "@/types";
+import { requireAuth } from "@/lib/auth";
+import { logAuditEvent } from "@/lib/audit";
 
 export interface PrescriptionFormData {
   patientId?: number | string;
@@ -110,7 +112,9 @@ function sanitizeMedications(meds: unknown): Medication[] {
 }
 
 export async function createPrescription(formData: PrescriptionFormData) {
+  await requireAuth('/prescription/new');
   let patientId = formData.patientId ? Number(formData.patientId) : null;
+  let isNewPatient = false;
 
   // 1. Create or Find Patient
   if (!patientId) {
@@ -135,6 +139,13 @@ export async function createPrescription(formData: PrescriptionFormData) {
 
     const [newPatient] = await db.insert(patients).values(patientData).returning();
     patientId = newPatient.id;
+    isNewPatient = true;
+
+    await logAuditEvent({
+      action: 'PATIENT_CREATED',
+      details: `New patient registered: ${newPatient.name} (Reg: ${newPatient.regNo || newPatient.id})`,
+      status: 'SUCCESS',
+    });
   }
 
   // 2. Create Prescription
@@ -156,6 +167,12 @@ export async function createPrescription(formData: PrescriptionFormData) {
 
   const [prescription] = await db.insert(prescriptions).values(prescriptionData).returning();
 
+  await logAuditEvent({
+    action: 'PRESCRIPTION_CREATED',
+    details: `Prescription #${prescription.id} issued for patient ID #${patientId}${isNewPatient ? ' (new registration)' : ''}`,
+    status: 'SUCCESS',
+  });
+
   revalidatePath("/");
   revalidatePath("/patients");
   revalidatePath(`/patient/${patientId}`);
@@ -167,6 +184,8 @@ export async function createPrescription(formData: PrescriptionFormData) {
 }
 
 export async function updatePrescription(id: number, formData: PrescriptionFormData) {
+  await requireAuth(`/prescription/${id}`);
+
   const prescriptionData = {
     weight: sanitizeString(formData.weight, 20),
     bp: sanitizeString(formData.bp, 20),
@@ -188,6 +207,12 @@ export async function updatePrescription(id: number, formData: PrescriptionFormD
 
   const [existing] = await db.select().from(prescriptions).where(eq(prescriptions.id, id));
 
+  await logAuditEvent({
+    action: 'PRESCRIPTION_UPDATED',
+    details: `Prescription #${id} updated`,
+    status: 'SUCCESS',
+  });
+
   revalidatePath("/");
   revalidatePath("/patients");
   if (existing) {
@@ -199,12 +224,20 @@ export async function updatePrescription(id: number, formData: PrescriptionFormD
 }
 
 export async function deletePrescription(id: number) {
+  await requireAuth();
+
   const [existing] = await db.select().from(prescriptions).where(eq(prescriptions.id, id));
   if (!existing) {
     throw new Error("Prescription not found");
   }
 
   await db.delete(prescriptions).where(eq(prescriptions.id, id));
+
+  await logAuditEvent({
+    action: 'PRESCRIPTION_DELETED',
+    details: `Prescription #${id} permanently deleted (Patient ID: ${existing.patientId})`,
+    status: 'WARNING',
+  });
 
   revalidatePath("/");
   revalidatePath("/patients");
@@ -223,6 +256,8 @@ export async function updatePatient(
     abhaId?: string | null;
   }
 ) {
+  await requireAuth(`/patient/${id}`);
+
   const rawName = sanitizeString(data.name, 100);
   const rawAge = parseInt(String(data.age), 10);
   const rawGender = sanitizeString(data.gender, 20);
@@ -242,6 +277,12 @@ export async function updatePatient(
     })
     .where(eq(patients.id, id));
 
+  await logAuditEvent({
+    action: 'PATIENT_UPDATED',
+    details: `Patient #${id} profile modified: ${rawName}`,
+    status: 'SUCCESS',
+  });
+
   revalidatePath("/");
   revalidatePath("/patients");
   revalidatePath(`/patient/${id}`);
@@ -250,6 +291,8 @@ export async function updatePatient(
 }
 
 export async function deletePatient(id: number) {
+  await requireAuth();
+
   const patient = await db.query.patients.findFirst({
     where: eq(patients.id, id),
   });
@@ -261,6 +304,12 @@ export async function deletePatient(id: number) {
   await db.delete(prescriptions).where(eq(prescriptions.patientId, id));
   // Delete patient
   await db.delete(patients).where(eq(patients.id, id));
+
+  await logAuditEvent({
+    action: 'PATIENT_DELETED',
+    details: `Patient #${id} (${patient.name}) and all associated clinical encounters deleted`,
+    status: 'WARNING',
+  });
 
   revalidatePath("/");
   revalidatePath("/patients");

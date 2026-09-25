@@ -5,6 +5,8 @@ import { clinicSettings, patients, prescriptions } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { ClinicSettings } from "@/types";
+import { requireAuth } from "@/lib/auth";
+import { logAuditEvent } from "@/lib/audit";
 
 export async function getSettings(): Promise<ClinicSettings | null> {
   const settings = await db.query.clinicSettings.findFirst();
@@ -12,6 +14,7 @@ export async function getSettings(): Promise<ClinicSettings | null> {
 }
 
 export async function saveSettings(formData: FormData): Promise<ClinicSettings> {
+  await requireAuth('/settings');
   const existing = await getSettings();
 
   const removeLogo = formData.get("removeLogo") === "true";
@@ -81,6 +84,12 @@ export async function saveSettings(formData: FormData): Promise<ClinicSettings> 
     await db.insert(clinicSettings).values({ id: 1, ...data });
   }
 
+  await logAuditEvent({
+    action: 'SETTINGS_SAVED',
+    details: `Updated clinic profile: ${data.clinicName} (Dr. ${data.doctorName})`,
+    status: 'SUCCESS',
+  });
+
   revalidatePath("/", "layout");
   revalidatePath("/settings");
   revalidatePath("/");
@@ -93,6 +102,7 @@ export async function saveSettings(formData: FormData): Promise<ClinicSettings> 
 }
 
 export async function seedDemoData(): Promise<void> {
+  await requireAuth('/settings');
   const clinicData = {
     doctorName: "Dr. Rajesh Sharma",
     qualifications: "MBBS, MD (General Medicine)",
@@ -108,6 +118,12 @@ export async function seedDemoData(): Promise<void> {
   } else {
     await db.insert(clinicSettings).values({ id: 1, ...clinicData });
   }
+
+  await logAuditEvent({
+    action: 'SETTINGS_SAVED',
+    details: 'Sample clinic data and patient records seeded',
+    status: 'SUCCESS',
+  });
 
   const existingPatients = await db.select().from(patients).limit(1);
   if (existingPatients.length === 0) {

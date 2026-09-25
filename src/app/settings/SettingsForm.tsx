@@ -19,8 +19,11 @@ import {
   Sparkles,
   Lock,
   KeyRound,
+  Shield,
   ShieldCheck,
   ShieldAlert,
+  Fingerprint,
+  History,
   Database,
   Download,
   Clock,
@@ -30,6 +33,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { ClinicSettings } from "@/types";
+import { AuditLogItem } from "@/lib/audit";
 
 interface SettingsFormProps {
   settings: ClinicSettings | null;
@@ -38,14 +42,17 @@ interface SettingsFormProps {
     pinConfigured: boolean;
     doctorName: string;
     clinicName: string;
+    autoLockMinutes?: number;
   };
   initialBackups: BackupItem[];
+  initialAuditLogs?: AuditLogItem[];
 }
 
 export default function SettingsForm({
   settings,
   securityConfig,
   initialBackups,
+  initialAuditLogs = [],
 }: SettingsFormProps) {
   const router = useRouter();
 
@@ -159,6 +166,7 @@ export default function SettingsForm({
 
   // Security State
   const [securityEnabled, setSecurityEnabled] = useState(securityConfig.securityEnabled);
+  const [autoLockMinutes, setAutoLockMinutes] = useState<number>(securityConfig.autoLockMinutes ?? 15);
   const [pin, setPin] = useState("");
   const [confirmPin, setConfirmPin] = useState("");
   const [isSavingSecurity, startSecurityTransition] = useTransition();
@@ -228,7 +236,7 @@ export default function SettingsForm({
   function handleSaveSecurity(e: React.FormEvent) {
     e.preventDefault();
     startSecurityTransition(async () => {
-      const res = await updateSecuritySettings(securityEnabled, pin, confirmPin);
+      const res = await updateSecuritySettings(securityEnabled, pin, confirmPin, autoLockMinutes);
       if (res.success) {
         toast.show({
           title: "Security Settings Updated",
@@ -237,6 +245,7 @@ export default function SettingsForm({
         });
         setPin("");
         setConfirmPin("");
+        router.refresh();
       } else {
         toast.show({
           title: "Security Update Failed",
@@ -606,6 +615,29 @@ export default function SettingsForm({
               </div>
             </div>
 
+            <div className="space-y-1.5 pt-1">
+              <Label htmlFor="autoLockMinutes" className="text-xs font-medium flex items-center justify-between">
+                <span>Inactivity Screen Auto-Lock</span>
+                <span className="text-[11px] text-slate-500 font-normal">Locks desk if no keyboard or mouse activity</span>
+              </Label>
+              <select
+                id="autoLockMinutes"
+                value={autoLockMinutes}
+                onChange={(e) => setAutoLockMinutes(Number(e.target.value))}
+                className="w-full h-10 px-3 py-2 text-xs rounded-md border border-slate-200 bg-white text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value={5}>5 minutes (High Security / Fast Auto-Lock)</option>
+                <option value={10}>10 minutes</option>
+                <option value={15}>15 minutes (Standard Clinical OPD Practice)</option>
+                <option value={30}>30 minutes</option>
+                <option value={60}>60 minutes</option>
+                <option value={0}>Disabled (Manual Lock Desk button only)</option>
+              </select>
+              <p className="text-[11px] text-slate-500">
+                Prevents patients or visitors from viewing confidential charts and vitals when you step away from your desk.
+              </p>
+            </div>
+
             <Button
               type="submit"
               disabled={isSavingSecurity}
@@ -721,6 +753,119 @@ export default function SettingsForm({
               <br />
               On Windows: Schedule a daily task in Windows Task Scheduler pointing to <code className="text-slate-200">backup-task.bat</code>.
             </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* 4. CLINICAL DATA SECURITY & AUDIT TRAIL */}
+      <Card className="border-slate-200 shadow-sm">
+        <CardHeader>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-blue-50 text-blue-600 rounded-lg">
+                <Shield className="w-5 h-5" />
+              </div>
+              <div>
+                <CardTitle className="text-xl">Medical Data Security & Clinical Audit Trail</CardTitle>
+                <CardDescription className="text-xs">
+                  Defense-in-depth protection and forensic traceability for outpatient electronic health records (EHR/PHI).
+                </CardDescription>
+              </div>
+            </div>
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 self-start sm:self-auto">
+              <ShieldCheck className="w-3.5 h-3.5" /> Healthcare Standards Active
+            </span>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Security Safeguards Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+            <div className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/70 space-y-1">
+              <div className="font-semibold text-slate-900 flex items-center gap-1.5">
+                <Fingerprint className="w-4 h-4 text-indigo-600" />
+                Anti-Brute Force Rate Limiting
+              </div>
+              <p className="text-[11px] text-slate-600 leading-relaxed">
+                Consultation desk PIN is protected by intelligent rate limiting. Max 5 failed attempts trigger an automatic 5-minute lockout to block dictionary attacks.
+              </p>
+            </div>
+
+            <div className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/70 space-y-1">
+              <div className="font-semibold text-slate-900 flex items-center gap-1.5">
+                <Clock className="w-4 h-4 text-amber-600" />
+                Inactivity Screen Auto-Lock
+              </div>
+              <p className="text-[11px] text-slate-600 leading-relaxed">
+                Automatically obscures and locks the screen after {autoLockMinutes > 0 ? `${autoLockMinutes} minutes` : 'configured duration'} of idle time to prevent shoulder surfing in unattended consultation rooms.
+              </p>
+            </div>
+
+            <div className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/70 space-y-1">
+              <div className="font-semibold text-slate-900 flex items-center gap-1.5">
+                <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                HTTP Security Headers & Anti-Sniffing
+              </div>
+              <p className="text-[11px] text-slate-600 leading-relaxed">
+                Enforces <code className="font-mono text-slate-700">X-Frame-Options: DENY</code>, Content Security Policy (CSP), anti-MIME sniffing, and strict referrer policies to stop clickjacking and cross-origin leakage.
+              </p>
+            </div>
+
+            <div className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/70 space-y-1">
+              <div className="font-semibold text-slate-900 flex items-center gap-1.5">
+                <Lock className="w-4 h-4 text-blue-600" />
+                POSIX File Security & Anti-Caching
+              </div>
+              <p className="text-[11px] text-slate-600 leading-relaxed">
+                Restricted file permissions (<code className="font-mono text-slate-700">chmod 600</code>) on SQLite databases and snapshots prevent unauthorized OS users from reading patient tables. Anti-cache headers prevent disk residue.
+              </p>
+            </div>
+          </div>
+
+          {/* Real-time Audit Trail Log */}
+          <div className="space-y-3 pt-2">
+            <div className="flex items-center justify-between text-xs font-semibold text-slate-700 pb-1 border-b">
+              <span className="flex items-center gap-1.5">
+                <History className="w-3.5 h-3.5 text-slate-500" />
+                Recent Clinical Access & Security Events ({initialAuditLogs.length})
+              </span>
+              <span className="text-slate-400 font-normal">Immutable local audit log</span>
+            </div>
+
+            {initialAuditLogs.length === 0 ? (
+              <p className="text-xs text-slate-400 py-4 text-center">
+                No security audit events recorded yet. Authentication and patient data actions will appear here automatically.
+              </p>
+            ) : (
+              <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                {initialAuditLogs.map((log) => (
+                  <div
+                    key={log.id}
+                    className="flex flex-col sm:flex-row sm:items-center justify-between p-2.5 rounded-lg bg-slate-50 border border-slate-200 text-xs gap-2"
+                  >
+                    <div className="flex items-start sm:items-center gap-2 min-w-0">
+                      <span
+                        className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold shrink-0 ${
+                          log.status === 'SUCCESS'
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : log.status === 'WARNING'
+                            ? 'bg-amber-100 text-amber-800'
+                            : 'bg-red-100 text-red-800'
+                        }`}
+                      >
+                        {log.action}
+                      </span>
+                      <span className="text-slate-700 truncate">{log.details || 'Event logged'}</span>
+                    </div>
+                    <div className="flex items-center gap-3 shrink-0 text-slate-400 text-[11px] self-end sm:self-auto font-mono">
+                      <span>{log.ipAddress || 'local'}</span>
+                      <span>
+                        {log.timestamp ? new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : ''}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

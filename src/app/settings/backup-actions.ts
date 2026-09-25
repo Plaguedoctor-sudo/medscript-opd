@@ -2,6 +2,7 @@
 
 import { isAuthenticated } from '@/lib/auth';
 import { sqlite } from '@/db';
+import { logAuditEvent } from '@/lib/audit';
 import fs from 'fs';
 import path from 'path';
 import { revalidatePath } from 'next/cache';
@@ -21,7 +22,7 @@ export async function createManualBackupSnapshot(): Promise<{ success: boolean; 
   try {
     const backupsDir = path.join(process.cwd(), 'backups');
     if (!fs.existsSync(backupsDir)) {
-      fs.mkdirSync(backupsDir, { recursive: true });
+      fs.mkdirSync(backupsDir, { recursive: true, mode: 0o700 });
     }
 
     const now = new Date();
@@ -30,6 +31,20 @@ export async function createManualBackupSnapshot(): Promise<{ success: boolean; 
     const targetPath = path.join(backupsDir, `medscript-backup-${timestamp}.db`);
 
     await sqlite.backup(targetPath);
+
+    // Enforce POSIX 0600 (owner read-write only)
+    try {
+      fs.chmodSync(targetPath, 0o600);
+    } catch {
+      // Ignore if on non-POSIX filesystem
+    }
+
+    await logAuditEvent({
+      action: 'BACKUP_SNAPSHOT_CREATED',
+      details: `Created snapshot: medscript-backup-${timestamp}.db`,
+      status: 'SUCCESS',
+    });
+
     revalidatePath('/settings');
 
     return {

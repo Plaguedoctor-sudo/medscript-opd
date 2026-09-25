@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toast";
+import { IdleAutoLock } from "@/components/IdleAutoLock";
+import { getSecurityConfig } from "@/lib/auth";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -18,11 +20,13 @@ export const metadata: Metadata = {
   description: "Prescription Management System",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const securityConfig = await getSecurityConfig();
+
   return (
     <html lang="en">
       <body
@@ -31,6 +35,10 @@ export default function RootLayout({
         <Toaster>
           {children}
         </Toaster>
+        <IdleAutoLock
+          autoLockMinutes={securityConfig.autoLockMinutes}
+          enabled={securityConfig.securityEnabled}
+        />
       </body>
     </html>
   );

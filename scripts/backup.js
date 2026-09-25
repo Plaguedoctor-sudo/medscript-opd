@@ -20,7 +20,7 @@ async function performBackup() {
   }
 
   if (!fs.existsSync(backupsDir)) {
-    fs.mkdirSync(backupsDir, { recursive: true });
+    fs.mkdirSync(backupsDir, { recursive: true, mode: 0o700 });
     console.log(`Created backup directory: ${backupsDir}`);
   }
 
@@ -36,11 +36,17 @@ async function performBackup() {
     // better-sqlite3 native async backup
     await db.backup(targetBackupPath);
 
+    try {
+      fs.chmodSync(targetBackupPath, 0o600);
+    } catch {
+      // Ignore if non-POSIX
+    }
+
     const stats = fs.statSync(targetBackupPath);
     const sizeKb = (stats.size / 1024).toFixed(1);
     const durationMs = Date.now() - startTime;
 
-    console.log(`✓ Backup successfully created! (${sizeKb} KB in ${durationMs}ms)`);
+    console.log(`✓ Backup successfully created with secure permissions! (${sizeKb} KB in ${durationMs}ms)`);
 
     // Prune old backups if count > MAX_BACKUPS
     const backupFiles = fs

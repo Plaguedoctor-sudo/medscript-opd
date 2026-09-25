@@ -50,8 +50,21 @@ sqlite.exec(`
     contact TEXT NOT NULL,
     logo_url TEXT,
     pin_hash TEXT,
-    security_enabled INTEGER DEFAULT 0
+    security_enabled INTEGER DEFAULT 0,
+    auto_lock_minutes INTEGER DEFAULT 15
   );
+
+  CREATE TABLE IF NOT EXISTS audit_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    timestamp INTEGER,
+    action TEXT NOT NULL,
+    details TEXT,
+    ip_address TEXT,
+    status TEXT DEFAULT 'SUCCESS'
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_audit_logs_timestamp ON audit_logs(timestamp);
+  CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON audit_logs(action);
 `);
 
 // Auto-migrate newly added columns if existing DB
@@ -62,6 +75,11 @@ try {
 }
 try {
   sqlite.exec('ALTER TABLE clinic_settings ADD COLUMN security_enabled INTEGER DEFAULT 0;');
+} catch {
+  // Column already exists
+}
+try {
+  sqlite.exec('ALTER TABLE clinic_settings ADD COLUMN auto_lock_minutes INTEGER DEFAULT 15;');
 } catch {
   // Column already exists
 }

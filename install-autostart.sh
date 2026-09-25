@@ -29,6 +29,13 @@ fi
 # Ensure systemd user directory exists
 mkdir -p "$SERVICE_DIR"
 
+# Enforce secure POSIX file permissions on medical data
+echo "🔒 Enforcing secure permissions on medical database and backups..."
+chmod -f 600 "$DIR"/sqlite.db* 2>/dev/null || true
+mkdir -p "$DIR/backups"
+chmod -f 700 "$DIR/backups" 2>/dev/null || true
+chmod -f 600 "$DIR"/backups/*.db 2>/dev/null || true
+
 # Write service definition with dynamic paths
 cat <<EOF > "$SERVICE_FILE"
 [Unit]

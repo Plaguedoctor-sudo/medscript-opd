@@ -8,10 +8,18 @@ import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import {
   hashPin,
+  verifyPinHash,
   createSessionToken,
   SESSION_COOKIE_NAME,
   getSecurityConfig,
 } from '@/lib/auth';
+import {
+  getClientIp,
+  checkPinRateLimit,
+  recordFailedPinAttempt,
+  resetPinRateLimit,
+} from '@/lib/rate-limiter';
+import { logAuditEvent } from '@/lib/audit';
 
 export interface LoginResult {
   success: boolean;
@@ -24,9 +32,25 @@ export async function loginWithPin(
   targetRedirect?: string
 ): Promise<LoginResult> {
   const trimmedPin = pin.trim();
+  const clientIp = await getClientIp();
 
   if (!trimmedPin) {
     return { success: false, error: 'Please enter your consultation desk PIN.' };
+  }
+
+  // 1. Check rate limit
+  const rateLimitStatus = checkPinRateLimit(clientIp);
+  if (!rateLimitStatus.allowed) {
+    await logAuditEvent({
+      action: 'AUTH_LOCKOUT',
+      details: `Rate limit triggered: IP locked out for ${rateLimitStatus.retryAfterSeconds}s`,
+      status: 'WARNING',
+      ipAddress: clientIp,
+    });
+    return {
+      success: false,
+      error: `Consultation desk temporarily locked due to repeated incorrect attempts. Please retry in ${rateLimitStatus.retryAfterSeconds} seconds.`,
+    };
   }
 
   const settings = await db.query.clinicSettings.findFirst({
@@ -37,11 +61,41 @@ export async function loginWithPin(
     return { success: false, error: 'No PIN has been configured in Clinic Settings.' };
   }
 
-  const hashedInput = hashPin(trimmedPin);
+  // 2. Constant-time PIN verification to prevent timing attacks
+  const isValid = verifyPinHash(trimmedPin, settings.pinHash);
 
-  if (hashedInput !== settings.pinHash) {
-    return { success: false, error: 'Incorrect PIN. Please try again.' };
+  if (!isValid) {
+    const failedResult = recordFailedPinAttempt(clientIp);
+
+    await logAuditEvent({
+      action: 'AUTH_LOGIN_FAILURE',
+      details: `Failed PIN entry attempt. Remaining attempts: ${failedResult.remainingAttempts}`,
+      status: 'FAILURE',
+      ipAddress: clientIp,
+    });
+
+    if (failedResult.isLocked) {
+      return {
+        success: false,
+        error: `Consultation desk locked for 5 minutes due to 5 consecutive incorrect PIN attempts.`,
+      };
+    }
+
+    return {
+      success: false,
+      error: `Incorrect PIN. ${failedResult.remainingAttempts} attempt(s) remaining before 5-minute lockout.`,
+    };
   }
+
+  // 3. Reset failed attempts counter on success
+  resetPinRateLimit(clientIp);
+
+  await logAuditEvent({
+    action: 'AUTH_LOGIN_SUCCESS',
+    details: 'Consultation desk successfully unlocked',
+    status: 'SUCCESS',
+    ipAddress: clientIp,
+  });
 
   // Create session token and set secure HTTP-only cookie
   const token = createSessionToken();
@@ -63,6 +117,14 @@ export async function loginWithPin(
 }
 
 export async function lockDeskAction(): Promise<void> {
+  const clientIp = await getClientIp();
+  await logAuditEvent({
+    action: 'AUTH_LOGOUT',
+    details: 'Consultation desk locked',
+    status: 'SUCCESS',
+    ipAddress: clientIp,
+  });
+
   const cookieStore = await cookies();
   cookieStore.delete(SESSION_COOKIE_NAME);
   redirect('/login');
@@ -76,9 +138,13 @@ export interface SecurityUpdateResult {
 export async function updateSecuritySettings(
   enabled: boolean,
   pin?: string,
-  confirmPin?: string
+  confirmPin?: string,
+  autoLockMinutes?: number
 ): Promise<SecurityUpdateResult> {
   const { pinConfigured } = await getSecurityConfig();
+  const validAutoLock = autoLockMinutes !== undefined && [0, 5, 10, 15, 30, 60].includes(autoLockMinutes)
+    ? autoLockMinutes
+    : 15;
 
   // If enabling security or changing PIN:
   if (pin && pin.trim().length > 0) {
@@ -112,8 +178,15 @@ export async function updateSecuritySettings(
       .set({
         pinHash: hashed,
         securityEnabled: enabled,
+        autoLockMinutes: validAutoLock,
       })
       .where(eq(clinicSettings.id, 1));
+
+    await logAuditEvent({
+      action: 'SECURITY_SETTINGS_UPDATED',
+      details: `PIN updated. Protection: ${enabled ? 'Enabled' : 'Disabled'}, AutoLock: ${validAutoLock}min`,
+      status: 'SUCCESS',
+    });
 
     // Also auto-login the current session so doctor isn't locked out immediately
     if (enabled) {
@@ -148,8 +221,17 @@ export async function updateSecuritySettings(
 
     await db
       .update(clinicSettings)
-      .set({ securityEnabled: true })
+      .set({
+        securityEnabled: true,
+        autoLockMinutes: validAutoLock,
+      })
       .where(eq(clinicSettings.id, 1));
+
+    await logAuditEvent({
+      action: 'SECURITY_SETTINGS_UPDATED',
+      details: `PIN protection enabled. AutoLock: ${validAutoLock}min`,
+      status: 'SUCCESS',
+    });
 
     revalidatePath('/', 'layout');
     return {
@@ -161,8 +243,17 @@ export async function updateSecuritySettings(
   // Disabling security
   await db
     .update(clinicSettings)
-    .set({ securityEnabled: false })
+    .set({
+      securityEnabled: false,
+      autoLockMinutes: validAutoLock,
+    })
     .where(eq(clinicSettings.id, 1));
+
+  await logAuditEvent({
+    action: 'SECURITY_SETTINGS_UPDATED',
+    details: 'PIN protection disabled. Direct access restored.',
+    status: 'WARNING',
+  });
 
   revalidatePath('/', 'layout');
   return {

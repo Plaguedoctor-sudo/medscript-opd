@@ -1,12 +1,18 @@
 import { NextResponse } from 'next/server';
 import { isAuthenticated } from '@/lib/auth';
 import { sqlite } from '@/db';
+import { logAuditEvent } from '@/lib/audit';
 import fs from 'fs';
 import path from 'path';
 
 export async function GET() {
   const authed = await isAuthenticated();
   if (!authed) {
+    await logAuditEvent({
+      action: 'BACKUP_SNAPSHOT_DOWNLOADED',
+      details: 'Unauthorized download attempt blocked',
+      status: 'FAILURE',
+    });
     return new NextResponse('Unauthorized: Please unlock the consultation desk first.', {
       status: 401,
     });
@@ -21,7 +27,7 @@ export async function GET() {
   try {
     const backupsDir = path.join(process.cwd(), 'backups');
     if (!fs.existsSync(backupsDir)) {
-      fs.mkdirSync(backupsDir, { recursive: true });
+      fs.mkdirSync(backupsDir, { recursive: true, mode: 0o700 });
     }
 
     // Perform atomic snapshot using SQLite's backup API to ensure 0 corruption with WAL
@@ -38,6 +44,12 @@ export async function GET() {
 
     const today = new Date().toISOString().split('T')[0];
     const filename = `medscript-backup-${today}.db`;
+
+    await logAuditEvent({
+      action: 'BACKUP_SNAPSHOT_DOWNLOADED',
+      details: `Live database backup downloaded (${(fileBuffer.length / 1024).toFixed(1)} KB)`,
+      status: 'SUCCESS',
+    });
 
     return new NextResponse(fileBuffer, {
       status: 200,

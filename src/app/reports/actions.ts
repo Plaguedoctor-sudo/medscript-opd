@@ -4,6 +4,8 @@ import { db } from "@/db";
 import { prescriptions, patients } from "@/db/schema";
 import { desc, eq, and, gte, lte } from "drizzle-orm";
 import { ConsultationExportItem, PatientExportItem, DiagnosisSummaryItem, MedicationSummaryItem } from "@/lib/csv-export";
+import { requireAuth } from "@/lib/auth";
+import { logAuditEvent } from "@/lib/audit";
 
 export interface ReportFilterOptions {
   range: "today" | "week" | "month" | "year" | "all" | "custom";
@@ -38,7 +40,17 @@ export interface ReportsDataResult {
   };
 }
 
+export async function logExportEvent(type: 'consultations' | 'patients', count: number): Promise<void> {
+  await requireAuth('/reports');
+  await logAuditEvent({
+    action: type === 'consultations' ? 'DATA_EXPORT_CONSULTATIONS' : 'DATA_EXPORT_PATIENTS',
+    details: `Exported ${count} ${type} records to CSV`,
+    status: 'SUCCESS',
+  });
+}
+
 export async function getReportsData(filter: ReportFilterOptions = { range: "month" }): Promise<ReportsDataResult> {
+  await requireAuth('/reports');
   const now = new Date();
   let fromDate: Date | undefined;
   let toDate: Date | undefined;

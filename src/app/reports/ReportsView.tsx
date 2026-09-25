@@ -21,7 +21,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import Link from "next/link";
 import { toast } from "@/components/ui/toast";
-import { ReportsDataResult, getReportsData, ReportFilterOptions } from "./actions";
+import { ReportsDataResult, getReportsData, ReportFilterOptions, logExportEvent } from "./actions";
 import {
   downloadCsvFile,
   generateConsultationRegisterCsv,
@@ -106,6 +106,7 @@ export default function ReportsView({ initialData }: ReportsViewProps) {
     const dateStamp = new Date().toISOString().split("T")[0];
     const filename = `medscript-opd-register-${range}-${dateStamp}.csv`;
     downloadCsvFile(filename, csv);
+    logExportEvent('consultations', data.consultations.length);
     toast.show({
       title: "Consultation Register Exported",
       description: `Downloaded ${data.consultations.length} consultation records as CSV.`,
@@ -126,6 +127,7 @@ export default function ReportsView({ initialData }: ReportsViewProps) {
     const dateStamp = new Date().toISOString().split("T")[0];
     const filename = `medscript-patient-directory-${dateStamp}.csv`;
     downloadCsvFile(filename, csv);
+    logExportEvent('patients', data.patientsDirectory.length);
     toast.show({
       title: "Patient Directory Exported",
       description: `Downloaded ${data.patientsDirectory.length} patient master records as CSV.`,

@@ -6,15 +6,17 @@ import { ArrowLeft, Settings, BarChart3 } from "lucide-react";
 import { requireAuth, getSecurityConfig } from "@/lib/auth";
 import { getLocalBackupSnapshots } from "./backup-actions";
 import { LockDeskButton } from "@/components/LockDeskButton";
+import { getRecentAuditLogs } from "@/lib/audit";
 
 export const dynamic = 'force-dynamic';
 
 export default async function SettingsPage() {
   await requireAuth('/settings');
-  const [settings, securityConfig, backupSnapshots] = await Promise.all([
+  const [settings, securityConfig, backupSnapshots, recentAuditLogs] = await Promise.all([
     getSettings(),
     getSecurityConfig(),
     getLocalBackupSnapshots(),
+    getRecentAuditLogs(20),
   ]);
 
   return (
@@ -50,6 +52,7 @@ export default async function SettingsPage() {
           settings={settings}
           securityConfig={securityConfig}
           initialBackups={backupSnapshots}
+          initialAuditLogs={recentAuditLogs}
         />
       </main>
     </div>

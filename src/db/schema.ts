@@ -63,4 +63,14 @@ export const clinicSettings = sqliteTable("clinic_settings", {
   logoUrl: text("logo_url"),
   pinHash: text("pin_hash"),
   securityEnabled: integer("security_enabled", { mode: "boolean" }).$defaultFn(() => false),
+  autoLockMinutes: integer("auto_lock_minutes").default(15),
+});
+
+export const auditLogs = sqliteTable("audit_logs", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  timestamp: integer("timestamp", { mode: "timestamp" }).$defaultFn(() => new Date()),
+  action: text("action").notNull(),
+  details: text("details"),
+  ipAddress: text("ip_address"),
+  status: text("status").notNull().default("SUCCESS"), // 'SUCCESS' | 'FAILURE' | 'WARNING'
 });

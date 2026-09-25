@@ -16,6 +16,22 @@ export function hashPin(pin: string): string {
     .digest('hex');
 }
 
+/**
+ * Constant-time comparison between input PIN and stored hash to prevent timing attacks
+ */
+export function verifyPinHash(inputPin: string, storedHash: string): boolean {
+  if (!inputPin || !storedHash) return false;
+  const inputHash = hashPin(inputPin);
+  const bufferA = Buffer.from(inputHash, 'utf8');
+  const bufferB = Buffer.from(storedHash, 'utf8');
+
+  if (bufferA.length !== bufferB.length) {
+    return false;
+  }
+
+  return crypto.timingSafeEqual(bufferA, bufferB);
+}
+
 export function createSessionToken(): string {
   const timestamp = Date.now().toString();
   const signature = crypto
@@ -56,6 +72,7 @@ export async function getSecurityConfig(): Promise<{
   pinConfigured: boolean;
   doctorName: string;
   clinicName: string;
+  autoLockMinutes: number;
 }> {
   try {
     const settings = await db.query.clinicSettings.findFirst({
@@ -67,6 +84,7 @@ export async function getSecurityConfig(): Promise<{
       pinConfigured: Boolean(settings?.pinHash),
       doctorName: settings?.doctorName || 'Doctor',
       clinicName: settings?.clinicName || 'MedScript OPD',
+      autoLockMinutes: settings?.autoLockMinutes ?? 15,
     };
   } catch {
     return {
@@ -74,6 +92,7 @@ export async function getSecurityConfig(): Promise<{
       pinConfigured: false,
       doctorName: 'Doctor',
       clinicName: 'MedScript OPD',
+      autoLockMinutes: 15,
     };
   }
 }
