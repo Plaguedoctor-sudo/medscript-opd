@@ -105,6 +105,12 @@ export async function getSecurityConfig(): Promise<{
   pinConfigured: boolean;
   staffPinConfigured: boolean;
   rbacEnabled: boolean;
+  mfaEnabled: boolean;
+  pinExpired: boolean;
+  daysSincePinUpdate: number;
+  rotationDays: number;
+  minPinLength: number;
+  enforceComplexity: boolean;
   doctorName: string;
   clinicName: string;
   autoLockMinutes: number;
@@ -114,11 +120,22 @@ export async function getSecurityConfig(): Promise<{
       where: eq(clinicSettings.id, 1),
     });
 
+    const pinUpdatedAt = settings?.pinUpdatedAt ? new Date(settings.pinUpdatedAt).getTime() : Date.now();
+    const daysSincePinUpdate = Math.floor((Date.now() - pinUpdatedAt) / (86400 * 1000));
+    const rotationDays = settings?.rotationDays ?? 90;
+    const pinExpired = Boolean(settings?.pinHash && daysSincePinUpdate >= rotationDays);
+
     return {
       securityEnabled: Boolean(settings?.securityEnabled && settings?.pinHash),
       pinConfigured: Boolean(settings?.pinHash),
       staffPinConfigured: Boolean(settings?.staffPinHash),
       rbacEnabled: Boolean(settings?.rbacEnabled && settings?.staffPinHash),
+      mfaEnabled: Boolean(settings?.mfaEnabled && settings?.mfaSecret),
+      pinExpired,
+      daysSincePinUpdate,
+      rotationDays,
+      minPinLength: settings?.minPinLength ?? 4,
+      enforceComplexity: Boolean(settings?.enforceComplexity),
       doctorName: settings?.doctorName || 'Doctor',
       clinicName: settings?.clinicName || 'MedScript OPD',
       autoLockMinutes: settings?.autoLockMinutes ?? 15,
@@ -129,6 +146,12 @@ export async function getSecurityConfig(): Promise<{
       pinConfigured: false,
       staffPinConfigured: false,
       rbacEnabled: false,
+      mfaEnabled: false,
+      pinExpired: false,
+      daysSincePinUpdate: 0,
+      rotationDays: 90,
+      minPinLength: 4,
+      enforceComplexity: false,
       doctorName: 'Doctor',
       clinicName: 'MedScript OPD',
       autoLockMinutes: 15,

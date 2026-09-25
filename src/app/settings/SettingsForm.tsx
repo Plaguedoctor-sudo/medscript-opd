@@ -33,9 +33,12 @@ import {
   Trash2,
   Activity,
   Users,
+  Smartphone,
+  AlertTriangle,
 } from "lucide-react";
 import { ClinicSettings } from "@/types";
 import { AuditLogItem } from "@/lib/audit";
+import { MfaSetupModal } from "@/components/MfaSetupModal";
 
 interface SettingsFormProps {
   settings: ClinicSettings | null;
@@ -44,6 +47,12 @@ interface SettingsFormProps {
     pinConfigured: boolean;
     staffPinConfigured?: boolean;
     rbacEnabled?: boolean;
+    mfaEnabled?: boolean;
+    pinExpired?: boolean;
+    daysSincePinUpdate?: number;
+    rotationDays?: number;
+    minPinLength?: number;
+    enforceComplexity?: boolean;
     doctorName: string;
     clinicName: string;
     autoLockMinutes?: number;
@@ -176,6 +185,11 @@ export default function SettingsForm({
   const [rbacEnabled, setRbacEnabled] = useState(Boolean(securityConfig.rbacEnabled));
   const [staffPin, setStaffPin] = useState("");
   const [confirmStaffPin, setConfirmStaffPin] = useState("");
+  const [rotationDays, setRotationDays] = useState<number>(securityConfig.rotationDays ?? 90);
+  const [minPinLength, setMinPinLength] = useState<number>(securityConfig.minPinLength ?? 4);
+  const [enforceComplexity, setEnforceComplexity] = useState<boolean>(Boolean(securityConfig.enforceComplexity));
+  const [mfaEnabled, setMfaEnabled] = useState<boolean>(Boolean(securityConfig.mfaEnabled));
+  const [isMfaModalOpen, setIsMfaModalOpen] = useState(false);
   const [isSavingSecurity, startSecurityTransition] = useTransition();
 
   // Diagnostics & Forensic Audit State
@@ -263,7 +277,10 @@ export default function SettingsForm({
         autoLockMinutes,
         staffPin,
         confirmStaffPin,
-        rbacEnabled
+        rbacEnabled,
+        rotationDays,
+        minPinLength,
+        enforceComplexity
       );
       if (res.success) {
         toast.show({
@@ -607,19 +624,29 @@ export default function SettingsForm({
       {/* 2. SECURITY & CONSULTATION DESK PIN LOCK */}
       <Card className="border-slate-200 shadow-sm">
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <div className="p-2.5 bg-indigo-50 text-indigo-600 rounded-lg">
                 <Lock className="w-5 h-5" />
               </div>
               <div>
-                <CardTitle className="text-xl">Consultation Desk PIN Lock</CardTitle>
+                <CardTitle className="text-xl">Consultation Desk Security & Governance</CardTitle>
                 <CardDescription className="text-xs">
-                  Protect patient records and prescription history when stepping away from the clinic PC.
+                  Protect patient records, restrict clinical rights, enforce MFA, and govern password rotation.
                 </CardDescription>
               </div>
             </div>
-            <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              {mfaEnabled && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                  <Smartphone className="w-3.5 h-3.5 text-indigo-600" /> 2FA Active
+                </span>
+              )}
+              {securityConfig.pinExpired && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-300">
+                  <AlertTriangle className="w-3.5 h-3.5 text-amber-600" /> PIN Expired
+                </span>
+              )}
               {securityConfig.securityEnabled ? (
                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
                   <ShieldCheck className="w-3.5 h-3.5" /> Desk Protected
@@ -634,6 +661,18 @@ export default function SettingsForm({
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSaveSecurity} className="space-y-5">
+            {securityConfig.pinExpired && (
+              <div className="text-xs text-amber-900 bg-amber-50 border border-amber-300 rounded-xl p-3.5 flex items-start gap-2.5 animate-in fade-in">
+                <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                <div className="space-y-0.5">
+                  <p className="font-bold text-amber-950">Mandatory PIN Rotation Due</p>
+                  <p className="text-[11px] text-amber-800 leading-relaxed">
+                    Doctor Master PIN has reached the {rotationDays}-day mandatory rotation threshold ({securityConfig.daysSincePinUpdate ?? 0} days active). Please set a new PIN below to remain compliant.
+                  </p>
+                </div>
+              </div>
+            )}
+
             <div className="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 border border-slate-200">
               <div className="space-y-0.5">
                 <div className="text-sm font-semibold text-slate-900">
@@ -653,9 +692,14 @@ export default function SettingsForm({
             </div>
 
             {securityConfig.pinConfigured && (
-              <div className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg p-3 flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
-                <span>A PIN is currently configured for this clinic. Enter a new PIN below only if you wish to change it.</span>
+              <div className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg p-3 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
+                  <span>Doctor PIN is active. Enter a new PIN below only if you wish to change or rotate it.</span>
+                </div>
+                <span className="text-[11px] text-emerald-800 font-mono shrink-0">
+                  Rotated {securityConfig.daysSincePinUpdate ?? 0}d ago
+                </span>
               </div>
             )}
 
@@ -667,7 +711,9 @@ export default function SettingsForm({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <Label htmlFor="pin" className="text-xs font-medium">
-                    {securityConfig.pinConfigured ? "Change Doctor PIN (4 to 8 digits)" : "Set Doctor PIN (4 to 8 digits) *"}
+                    {securityConfig.pinConfigured
+                      ? `Change Doctor PIN (${minPinLength} to 8 digits)`
+                      : `Set Doctor PIN (${minPinLength} to 8 digits) *`}
                   </Label>
                   <Input
                     id="pin"
@@ -676,7 +722,7 @@ export default function SettingsForm({
                     maxLength={8}
                     value={pin}
                     onChange={(e) => setPin(e.target.value.replace(/[^\d]/g, ''))}
-                    placeholder={securityConfig.pinConfigured ? "Leave blank to keep current PIN" : "e.g. 1234"}
+                    placeholder={securityConfig.pinConfigured ? "Leave blank to keep current PIN" : `e.g. ${'123456'.slice(0, minPinLength)}`}
                     className="font-mono text-center tracking-widest"
                   />
                 </div>
@@ -696,6 +742,98 @@ export default function SettingsForm({
                     className="font-mono text-center tracking-widest"
                   />
                 </div>
+              </div>
+            </div>
+
+            {/* Multi-Factor Authentication (MFA / 2FA) */}
+            <div className="pt-2 border-t border-slate-200 space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 rounded-xl bg-indigo-50/50 border border-indigo-100 gap-3">
+                <div className="space-y-0.5">
+                  <div className="text-sm font-semibold text-slate-900 flex items-center gap-1.5">
+                    <Smartphone className="w-4 h-4 text-indigo-600" />
+                    Multi-Factor Authentication (RFC 6238 TOTP 2FA)
+                  </div>
+                  <div className="text-xs text-slate-500">
+                    Two-step verification requiring your Doctor PIN plus a 6-digit Authenticator App code (or offline emergency backup codes).
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+                  <Button
+                    type="button"
+                    variant={mfaEnabled ? "outline" : "default"}
+                    size="sm"
+                    onClick={() => setIsMfaModalOpen(true)}
+                    className={mfaEnabled ? "text-xs border-indigo-200 text-indigo-700 hover:bg-indigo-50" : "text-xs bg-indigo-600 hover:bg-indigo-700 text-white"}
+                  >
+                    {mfaEnabled ? (
+                      <>
+                        <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" /> Manage 2FA / Emergency Codes
+                      </>
+                    ) : (
+                      <>
+                        <Shield className="w-3.5 h-3.5" /> Set Up Two-Factor (2FA)
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            {/* Credential Governance & Password Policies */}
+            <div className="pt-2 border-t border-slate-200 space-y-3">
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-800">
+                <ShieldCheck className="w-3.5 h-3.5 text-indigo-600" />
+                <span>Password & Credential Governance Policies</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="rotationDays" className="text-xs font-medium flex items-center justify-between">
+                    <span>Mandatory PIN Rotation Interval</span>
+                    <span className="text-[10px] text-slate-400 font-normal">
+                      Last rotated {securityConfig.daysSincePinUpdate ?? 0}d ago
+                    </span>
+                  </Label>
+                  <select
+                    id="rotationDays"
+                    value={rotationDays}
+                    onChange={(e) => setRotationDays(Number(e.target.value))}
+                    className="w-full h-9 px-3 py-1.5 text-xs rounded-md border border-slate-200 bg-white text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+                  >
+                    <option value={60}>Mandatory rotation every 60 days</option>
+                    <option value={90}>Mandatory rotation every 90 days (Healthcare EMR Standard)</option>
+                    <option value={180}>Mandatory rotation every 180 days (6 Months)</option>
+                    <option value={365}>Mandatory rotation every 365 days (1 Year)</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="minPinLength" className="text-xs font-medium">
+                    Enforced Minimum PIN Length
+                  </Label>
+                  <select
+                    id="minPinLength"
+                    value={minPinLength}
+                    onChange={(e) => setMinPinLength(Number(e.target.value))}
+                    className="w-full h-9 px-3 py-1.5 text-xs rounded-md border border-slate-200 bg-white text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+                  >
+                    <option value={4}>Minimum 4 digits (Standard)</option>
+                    <option value={6}>Minimum 6 digits (Enhanced Security Recommended)</option>
+                    <option value={8}>Minimum 8 digits (Maximum Security)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2.5 p-3 rounded-lg bg-slate-50 border border-slate-200 text-xs">
+                <input
+                  type="checkbox"
+                  id="complexityToggle"
+                  checked={enforceComplexity}
+                  onChange={(e) => setEnforceComplexity(e.target.checked)}
+                  className="w-4 h-4 accent-indigo-600 cursor-pointer rounded"
+                />
+                <label htmlFor="complexityToggle" className="cursor-pointer text-slate-700">
+                  <span className="font-semibold text-slate-900">Enforce PIN Character Complexity</span>: Disallows predictable sequential patterns (e.g. 1234, 4321) and repetitive digits (e.g. 1111, 0000).
+                </label>
               </div>
             </div>
 
@@ -731,7 +869,7 @@ export default function SettingsForm({
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-1.5">
                       <Label htmlFor="staffPin" className="text-xs font-medium">
-                        {securityConfig.staffPinConfigured ? "Change Staff PIN (4 to 8 digits)" : "Set Staff PIN (4 to 8 digits) *"}
+                        {securityConfig.staffPinConfigured ? `Change Staff PIN (${minPinLength} to 8 digits)` : `Set Staff PIN (${minPinLength} to 8 digits) *`}
                       </Label>
                       <Input
                         id="staffPin"
@@ -740,7 +878,7 @@ export default function SettingsForm({
                         maxLength={8}
                         value={staffPin}
                         onChange={(e) => setStaffPin(e.target.value.replace(/[^\d]/g, ''))}
-                        placeholder={securityConfig.staffPinConfigured ? "Leave blank to keep" : "e.g. 5678"}
+                        placeholder={securityConfig.staffPinConfigured ? "Leave blank to keep" : `e.g. ${'567890'.slice(0, minPinLength)}`}
                         className="font-mono text-center tracking-widest bg-white"
                       />
                     </div>
@@ -762,7 +900,7 @@ export default function SettingsForm({
                     </div>
                   </div>
                   <p className="text-[11px] text-amber-800">
-                    Front desk staff logging in with this PIN can register new patients and search records, but are blocked from creating prescriptions or altering clinic settings.
+                    Front desk staff logging in with this PIN can register new patients and search records, but are strictly blocked from creating prescriptions or altering clinic settings.
                   </p>
                 </div>
               )}
@@ -794,7 +932,7 @@ export default function SettingsForm({
             <Button
               type="submit"
               disabled={isSavingSecurity}
-              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold gap-2"
+              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold gap-2 shadow-xs"
             >
               {isSavingSecurity ? (
                 <>
@@ -1107,6 +1245,17 @@ export default function SettingsForm({
           </div>
         </CardContent>
       </Card>
+
+      {/* RFC 6238 Multi-Factor Authentication (2FA) Modal */}
+      <MfaSetupModal
+        isOpen={isMfaModalOpen}
+        onClose={() => setIsMfaModalOpen(false)}
+        mfaEnabled={mfaEnabled}
+        onStatusChange={(newStatus) => {
+          setMfaEnabled(newStatus);
+          router.refresh();
+        }}
+      />
     </div>
   );
 }

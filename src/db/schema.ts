@@ -67,6 +67,13 @@ export const clinicSettings = sqliteTable("clinic_settings", {
   rbacEnabled: integer("rbac_enabled", { mode: "boolean" }).$defaultFn(() => false),
   securityEnabled: integer("security_enabled", { mode: "boolean" }).$defaultFn(() => false),
   autoLockMinutes: integer("auto_lock_minutes").default(15),
+  mfaEnabled: integer("mfa_enabled", { mode: "boolean" }).$defaultFn(() => false),
+  mfaSecret: text("mfa_secret"), // Base32 RFC 6238 TOTP Secret
+  mfaBackupCodes: text("mfa_backup_codes"), // JSON array of SHA-256 hashed single-use recovery codes
+  pinUpdatedAt: integer("pin_updated_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+  rotationDays: integer("rotation_days").default(90), // 60 or 90 days mandatory password rotation
+  minPinLength: integer("min_pin_length").default(4), // Minimum length requirement (4-12)
+  enforceComplexity: integer("enforce_complexity", { mode: "boolean" }).$defaultFn(() => false),
 });
 
 export const auditLogs = sqliteTable("audit_logs", {

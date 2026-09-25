@@ -1,0 +1,74 @@
+# ==============================================================================
+# MedScript-OPD: Automated TLS 1.3 Reverse Proxy (Caddy Server)
+# ==============================================================================
+# Compliance Standard: HIPAA § 164.312(e)(2)(ii) Encryption in Transit
+# Purpose: Terminates TLS 1.3 on port 443 with automated SSL/TLS certificates
+#          and proxies traffic to MedScript-OPD on 127.0.0.1:3000.
+# ==============================================================================
+
+# Option 1: Local Clinic Network / Intranet with Internal CA (Zero Configuration)
+# Use this when running inside the clinic without a public domain name.
+# Access via: https://clinic.local or https://localhost:8443
+clinic.local, localhost:8443 {
+    tls internal
+
+    # Proxy to MedScript-OPD Next.js server
+    reverse_proxy 127.0.0.1:3000 {
+        header_up Host {host}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-Proto https
+        header_up X-Forwarded-For {remote_host}
+    }
+
+    # Enforce Security Headers
+    header {
+        Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+        X-Frame-Options "DENY"
+        X-Content-Type-Options "nosniff"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
+        Cross-Origin-Opener-Policy "same-origin"
+        Cross-Origin-Resource-Policy "same-origin"
+        -Server
+    }
+
+    # Log clinical network access for audit trails
+    log {
+        output file /var/log/caddy/medscript-access.log {
+            roll_size 10MB
+            roll_keep 30
+        }
+    }
+}
+
+# Option 2: Production Domain with Automated Public Let's Encrypt TLS
+# (Uncomment and replace with your verified medical practice domain)
+#
+# opd.yourclinic.com {
+#     encode zstd gzip
+#
+#     reverse_proxy 127.0.0.1:3000 {
+#         header_up Host {host}
+#         header_up X-Real-IP {remote_host}
+#         header_up X-Forwarded-Proto https
+#         header_up X-Forwarded-For {remote_host}
+#     }
+#
+#     header {
+#         Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+#         X-Frame-Options "DENY"
+#         X-Content-Type-Options "nosniff"
+#         Referrer-Policy "strict-origin-when-cross-origin"
+#         Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
+#         Cross-Origin-Opener-Policy "same-origin"
+#         Cross-Origin-Resource-Policy "same-origin"
+#         -Server
+#     }
+#
+#     log {
+#         output file /var/log/caddy/medscript-access.log {
+#             roll_size 20MB
+#             roll_keep 90
+#         }
+#     }
+# }

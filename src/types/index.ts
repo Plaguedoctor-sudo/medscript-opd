@@ -57,5 +57,12 @@ export interface ClinicSettings {
   rbacEnabled?: boolean | null;
   securityEnabled?: boolean | null;
   autoLockMinutes?: number | null;
+  mfaEnabled?: boolean | null;
+  mfaSecret?: string | null;
+  mfaBackupCodes?: string | null;
+  pinUpdatedAt?: Date | null;
+  rotationDays?: number | null;
+  minPinLength?: number | null;
+  enforceComplexity?: boolean | null;
 }
 

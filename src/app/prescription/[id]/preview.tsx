@@ -12,17 +12,25 @@ import { toast } from '@/components/ui/toast';
 import { ClinicSettings, Patient, Prescription, Medication } from '@/types';
 import { formatDate } from '@/lib/utils';
 import { DigitalRxSeal } from '@/components/DigitalRxSeal';
+import { logClinicalAuditAction } from '@/app/login/actions';
 
 interface PrescriptionPreviewProps {
   prescription: Prescription;
   patient: Patient;
   settings: ClinicSettings;
   isDefaultSettings?: boolean;
+  userRole?: 'doctor' | 'receptionist';
 }
 
 const emptySubscribe = () => () => {};
 
-export default function PrescriptionPreview({ prescription, patient, settings, isDefaultSettings }: PrescriptionPreviewProps) {
+export default function PrescriptionPreview({
+  prescription,
+  patient,
+  settings,
+  isDefaultSettings,
+  userRole = 'doctor',
+}: PrescriptionPreviewProps) {
   const router = useRouter();
   const isClient = useSyncExternalStore(emptySubscribe, () => true, () => false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -52,6 +60,21 @@ export default function PrescriptionPreview({ prescription, patient, settings, i
   };
 
   const fileName = `Prescription_${patient.name.replace(/\s+/g, '_')}_#${prescription.id}.pdf`;
+
+  const handlePrintAudit = () => {
+    logClinicalAuditAction(
+      'PRESCRIPTION_PRINTED',
+      `Prescription #${prescription.id} printed for patient ${patient.name}`
+    ).catch(() => {});
+    window.print();
+  };
+
+  const handleDownloadPdfAudit = () => {
+    logClinicalAuditAction(
+      'PRESCRIPTION_PDF_DOWNLOADED',
+      `Prescription #${prescription.id} PDF downloaded for patient ${patient.name}`
+    ).catch(() => {});
+  };
 
   let medications: Medication[] = [];
   try {
@@ -93,6 +116,7 @@ export default function PrescriptionPreview({ prescription, patient, settings, i
             <PDFDownloadLink
               document={<PrescriptionPDF prescription={prescription} patient={patient} settings={settings} />}
               fileName={fileName}
+              onClick={handleDownloadPdfAudit}
             >
               {({ loading }) => (
                 <Button variant="outline" size="sm" disabled={loading} className="gap-1.5">
@@ -103,30 +127,38 @@ export default function PrescriptionPreview({ prescription, patient, settings, i
             </PDFDownloadLink>
           )}
 
-          <Button variant="outline" size="sm" onClick={() => window.print()} className="gap-1.5">
+          <Button variant="outline" size="sm" onClick={handlePrintAudit} className="gap-1.5">
             <Printer className="w-4 h-4" /> Print Page
           </Button>
 
-          <Link href={`/prescription/${prescription.id}/edit`}>
-            <Button variant="outline" size="sm" className="gap-1.5">
-              <Edit className="w-4 h-4" /> Edit
-            </Button>
-          </Link>
+          {userRole !== 'receptionist' ? (
+            <>
+              <Link href={`/prescription/${prescription.id}/edit`}>
+                <Button variant="outline" size="sm" className="gap-1.5">
+                  <Edit className="w-4 h-4" /> Edit
+                </Button>
+              </Link>
 
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleDelete}
-            disabled={isDeleting}
-            className="text-red-600 hover:bg-red-50 hover:text-red-700 gap-1.5"
-          >
-            {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-            Delete
-          </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleDelete}
+                disabled={isDeleting}
+                className="text-red-600 hover:bg-red-50 hover:text-red-700 gap-1.5"
+              >
+                {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                Delete
+              </Button>
 
-          <Link href={`/prescription/new?patientId=${patient.id}`}>
-            <Button size="sm">New Consultation</Button>
-          </Link>
+              <Link href={`/prescription/new?patientId=${patient.id}`}>
+                <Button size="sm">New Consultation</Button>
+              </Link>
+            </>
+          ) : (
+            <span className="text-[11px] font-medium text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-md">
+              Receptionist View Only (Clinical Edits Restricted)
+            </span>
+          )}
         </div>
       </div>
 

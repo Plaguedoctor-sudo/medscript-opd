@@ -2,6 +2,7 @@ import { drizzle } from 'drizzle-orm/better-sqlite3';
 import Database from 'better-sqlite3';
 import * as schema from './schema';
 import path from 'path';
+import fs from 'fs';
 
 const dbPath = process.env.DATABASE_PATH || path.resolve(process.cwd(), 'sqlite.db');
 export const sqlite = new Database(dbPath);
@@ -107,6 +108,50 @@ try {
   sqlite.exec('ALTER TABLE patients ADD COLUMN reg_no TEXT;');
 } catch {
   // Column already exists
+}
+try {
+  sqlite.exec('ALTER TABLE clinic_settings ADD COLUMN mfa_enabled INTEGER DEFAULT 0;');
+} catch {
+  // Column already exists
+}
+try {
+  sqlite.exec('ALTER TABLE clinic_settings ADD COLUMN mfa_secret TEXT;');
+} catch {
+  // Column already exists
+}
+try {
+  sqlite.exec('ALTER TABLE clinic_settings ADD COLUMN mfa_backup_codes TEXT;');
+} catch {
+  // Column already exists
+}
+try {
+  sqlite.exec('ALTER TABLE clinic_settings ADD COLUMN pin_updated_at INTEGER;');
+} catch {
+  // Column already exists
+}
+try {
+  sqlite.exec('ALTER TABLE clinic_settings ADD COLUMN rotation_days INTEGER DEFAULT 90;');
+} catch {
+  // Column already exists
+}
+try {
+  sqlite.exec('ALTER TABLE clinic_settings ADD COLUMN min_pin_length INTEGER DEFAULT 4;');
+} catch {
+  // Column already exists
+}
+try {
+  sqlite.exec('ALTER TABLE clinic_settings ADD COLUMN enforce_complexity INTEGER DEFAULT 0;');
+} catch {
+  // Column already exists
+}
+
+// Enforce POSIX 0600 file permissions on database at rest
+try {
+  if (fs.existsSync(/*turbopackIgnore: true*/ dbPath)) fs.chmodSync(dbPath, 0o600);
+  if (fs.existsSync(/*turbopackIgnore: true*/ `${dbPath}-wal`)) fs.chmodSync(`${dbPath}-wal`, 0o600);
+  if (fs.existsSync(/*turbopackIgnore: true*/ `${dbPath}-shm`)) fs.chmodSync(`${dbPath}-shm`, 0o600);
+} catch {
+  // Ignore on non-POSIX filesystems
 }
 
 // Auto-backfill reg_no for any existing patients without one (YYYYMMDD-1, YYYYMMDD-2...)

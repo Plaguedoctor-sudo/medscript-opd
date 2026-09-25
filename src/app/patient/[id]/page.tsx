@@ -12,6 +12,7 @@ import { EditPatientModal } from "./EditPatientModal";
 import { PatientVitalsAnalytics } from "./PatientVitalsAnalytics";
 import { formatDate } from "@/lib/utils";
 import { requireAuth, getSecurityConfig, getCurrentUserRole } from "@/lib/auth";
+import { logAuditEvent } from "@/lib/audit";
 import { LockDeskButton } from "@/components/LockDeskButton";
 import { PrivacyShield } from "@/components/PrivacyShield";
 import { UserRoleBadge } from "@/components/UserRoleBadge";
@@ -33,6 +34,14 @@ export default async function PatientProfilePage({ params }: { params: Promise<{
   });
 
   if (!patient) notFound();
+
+  // Log clinical audit trail for record viewing
+  await logAuditEvent({
+    action: 'PATIENT_VIEWED',
+    actorRole: role === 'doctor' ? 'DOCTOR' : 'RECEPTIONIST',
+    details: `Patient medical profile viewed: ${patient.name} (Patient ID: ${patient.id}, Reg: ${patient.regNo || 'N/A'})`,
+    status: 'SUCCESS',
+  });
 
   const patientPrescriptions = await db.query.prescriptions.findMany({
     where: eq(prescriptions.patientId, patientId),
