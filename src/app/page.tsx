@@ -25,6 +25,7 @@ interface ConsultationRow {
 }
 
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   await requireAuth('/');

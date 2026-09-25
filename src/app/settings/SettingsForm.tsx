@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/components/ui/toast";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import {
@@ -25,6 +26,7 @@ import {
   Clock,
   HardDrive,
   CheckCircle2,
+  Plus,
 } from "lucide-react";
 import { ClinicSettings } from "@/types";
 
@@ -59,6 +61,7 @@ export default function SettingsForm({
 
   const [isPending, setIsPending] = useState(false);
   const [isSeeding, setIsSeeding] = useState(false);
+  const [savedRecently, setSavedRecently] = useState(false);
 
   // Security State
   const [securityEnabled, setSecurityEnabled] = useState(securityConfig.securityEnabled);
@@ -114,6 +117,7 @@ export default function SettingsForm({
         description: `Doctor profile updated for ${updated?.doctorName || profile.doctorName}. Changes will reflect on all prescriptions.`,
         type: "success",
       });
+      setSavedRecently(true);
       router.refresh();
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to save settings. Please try again.";
@@ -314,7 +318,44 @@ export default function SettingsForm({
               </div>
             </div>
 
-            <Button type="submit" size="lg" className="w-full gap-2 font-semibold" disabled={isPending || isSeeding}>
+            {/* Live Letterhead Preview */}
+            <div className="rounded-xl border border-blue-200 bg-linear-to-r from-blue-50/50 via-white to-slate-50 p-4 space-y-3 shadow-2xs">
+              <div className="flex items-center justify-between text-xs font-semibold text-blue-900 border-b border-blue-100 pb-2">
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse"></span>
+                  Live Letterhead Preview (as shown on New Prescriptions & Printouts)
+                </span>
+                <span className="text-[11px] text-slate-500 font-normal hidden sm:inline">Auto-updates as you type</span>
+              </div>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  {profile.logoUrl ? (
+                    <div className="w-12 h-12 rounded-lg border border-slate-200 bg-white p-1 flex items-center justify-center shrink-0 shadow-2xs">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={profile.logoUrl} alt="Logo Preview" className="max-w-full max-h-full object-contain" />
+                    </div>
+                  ) : (
+                    <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600 shrink-0">
+                      <Building className="w-5 h-5" />
+                    </div>
+                  )}
+                  <div>
+                    <h3 className="font-bold text-slate-900 text-sm sm:text-base">
+                      {profile.clinicName || "Clinic / Hospital Name"}
+                    </h3>
+                    <p className="text-xs text-slate-500">{profile.address || "Clinic Address"}</p>
+                    <p className="text-xs text-slate-500">Contact: {profile.contact || "+91 Contact Number"}</p>
+                  </div>
+                </div>
+                <div className="sm:text-right border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-100 shrink-0">
+                  <p className="font-bold text-blue-700 text-sm sm:text-base">{profile.doctorName || "Dr. Name"}</p>
+                  <p className="text-xs font-medium text-slate-700">{profile.qualifications || "Degrees / Qualifications"}</p>
+                  <p className="text-[11px] text-slate-500 font-mono">Reg: {profile.regNumber || "REG-PENDING"}</p>
+                </div>
+              </div>
+            </div>
+
+            <Button type="submit" size="lg" className="w-full gap-2 font-semibold shadow-xs" disabled={isPending || isSeeding}>
               {isPending ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" /> Saving Settings...
@@ -325,6 +366,25 @@ export default function SettingsForm({
                 </>
               )}
             </Button>
+
+            {savedRecently && (
+              <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-emerald-900 animate-in fade-in slide-in-from-top-1 shadow-2xs">
+                <div className="flex items-center gap-2.5">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <div>
+                    <p className="font-semibold text-emerald-950">Letterhead Profile Saved Successfully!</p>
+                    <p className="text-[11px] text-emerald-800">
+                      Active: {profile.doctorName} • {profile.clinicName}. Your new letterhead is active on all new prescriptions.
+                    </p>
+                  </div>
+                </div>
+                <Link href="/prescription/new">
+                  <Button size="sm" type="button" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 shrink-0 shadow-2xs">
+                    <Plus className="w-3.5 h-3.5" /> Open New Prescription Desk
+                  </Button>
+                </Link>
+              </div>
+            )}
 
             <div className="pt-4 border-t border-slate-200 flex flex-col items-center gap-2">
               <Button

@@ -72,6 +72,9 @@ export async function saveSettings(formData: FormData): Promise<ClinicSettings> 
   revalidatePath("/", "layout");
   revalidatePath("/settings");
   revalidatePath("/");
+  revalidatePath("/prescription/new");
+  revalidatePath("/prescription", "layout");
+  revalidatePath("/patients");
 
   const updated = await getSettings();
   return updated!;
@@ -303,5 +306,7 @@ export async function seedDemoData(): Promise<void> {
   revalidatePath("/");
   revalidatePath("/patients");
   revalidatePath("/settings");
+  revalidatePath("/prescription/new");
+  revalidatePath("/prescription", "layout");
 }
 

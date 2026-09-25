@@ -1,7 +1,7 @@
 import NewPrescriptionForm from "./form";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Stethoscope } from "lucide-react";
+import { ArrowLeft, Stethoscope, Settings } from "lucide-react";
 import { db } from "@/db";
 import { prescriptions, patients } from "@/db/schema";
 import { eq } from "drizzle-orm";
@@ -10,6 +10,7 @@ import { requireAuth, getSecurityConfig } from "@/lib/auth";
 import { LockDeskButton } from "@/components/LockDeskButton";
 
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export default async function NewPrescriptionPage({
   searchParams,
@@ -62,16 +63,30 @@ export default async function NewPrescriptionPage({
                 <ArrowLeft className="w-5 h-5" />
               </Button>
             </Link>
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center shadow-xs">
                 <Stethoscope className="text-white w-4 h-4" />
               </div>
-              <span className="text-xl font-bold text-slate-900 tracking-tight">
-                {cloneFromId ? `Repeat Consultation (from Rx #${cloneFromId})` : "New Consultation"}
-              </span>
+              <div>
+                <span className="text-xl font-bold text-slate-900 tracking-tight block leading-tight">
+                  {cloneFromId ? `Repeat Consultation (from Rx #${cloneFromId})` : "New Consultation"}
+                </span>
+                {settings?.doctorName && (
+                  <span className="text-[11px] text-slate-500 font-medium block leading-none mt-0.5">
+                    {settings.doctorName} {settings.clinicName ? `• ${settings.clinicName}` : ''}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
-          {securityEnabled && <LockDeskButton />}
+          <div className="flex items-center gap-3">
+            <Link href="/settings">
+              <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
+                <Settings className="w-3.5 h-3.5" /> Clinic Settings
+              </Button>
+            </Link>
+            {securityEnabled && <LockDeskButton />}
+          </div>
         </div>
       </nav>
 

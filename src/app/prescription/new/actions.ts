@@ -157,6 +157,9 @@ export async function createPrescription(formData: PrescriptionFormData) {
   revalidatePath("/");
   revalidatePath("/patients");
   revalidatePath(`/patient/${patientId}`);
+  revalidatePath("/prescription/new");
+  revalidatePath("/prescription", "layout");
+  revalidatePath(`/prescription/${prescription.id}`);
 
   return { success: true, prescriptionId: prescription.id };
 }

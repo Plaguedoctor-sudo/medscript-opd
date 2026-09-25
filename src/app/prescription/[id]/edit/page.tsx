@@ -5,10 +5,11 @@ import { notFound } from "next/navigation";
 import NewPrescriptionForm from "@/app/prescription/new/form";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Settings, Stethoscope } from "lucide-react";
 import { Patient, Prescription } from "@/types";
 
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export default async function EditPrescriptionPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -38,8 +39,25 @@ export default async function EditPrescriptionPage({ params }: { params: Promise
                 <ArrowLeft className="w-5 h-5" />
               </Button>
             </Link>
-            <span className="font-semibold text-slate-800">Edit Prescription #{prescriptionId}</span>
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center shadow-xs">
+                <Stethoscope className="text-white w-4 h-4" />
+              </div>
+              <div>
+                <span className="font-bold text-slate-900 block leading-tight">Edit Prescription #{prescriptionId}</span>
+                {settings?.doctorName && (
+                  <span className="text-[11px] text-slate-500 font-medium block leading-none mt-0.5">
+                    {settings.doctorName} {settings.clinicName ? `• ${settings.clinicName}` : ''}
+                  </span>
+                )}
+              </div>
+            </div>
           </div>
+          <Link href="/settings">
+            <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
+              <Settings className="w-3.5 h-3.5" /> Clinic Settings
+            </Button>
+          </Link>
         </div>
       </nav>
 
