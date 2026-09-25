@@ -5,7 +5,7 @@ import { clinicSettings, patients, prescriptions } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { ClinicSettings } from "@/types";
-import { requireAuth } from "@/lib/auth";
+import { requireRole } from "@/lib/auth";
 import { logAuditEvent } from "@/lib/audit";
 
 export async function getSettings(): Promise<ClinicSettings | null> {
@@ -14,7 +14,7 @@ export async function getSettings(): Promise<ClinicSettings | null> {
 }
 
 export async function saveSettings(formData: FormData): Promise<ClinicSettings> {
-  await requireAuth('/settings');
+  await requireRole(['doctor'], '/settings');
   const existing = await getSettings();
 
   const removeLogo = formData.get("removeLogo") === "true";
@@ -102,7 +102,7 @@ export async function saveSettings(formData: FormData): Promise<ClinicSettings> 
 }
 
 export async function seedDemoData(): Promise<void> {
-  await requireAuth('/settings');
+  await requireRole(['doctor'], '/settings');
   const clinicData = {
     doctorName: "Dr. Rajesh Sharma",
     qualifications: "MBBS, MD (General Medicine)",

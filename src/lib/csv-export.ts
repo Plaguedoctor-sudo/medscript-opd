@@ -2,12 +2,19 @@ import type { Medication } from "@/types";
 
 /**
  * Escapes a single field value for RFC 4180 CSV compliance
+ * and neutralizes CSV Formula Injection (CWE-1236)
  */
 export function escapeCsvField(val: unknown): string {
   if (val === null || val === undefined) {
     return '""';
   }
-  const str = String(val);
+  let str = String(val);
+
+  // Neutralize CSV formula injection: if cell starts with =, +, -, @, \t, or \r, prepend a single quote
+  if (/^[=+\-@\t\r]/.test(str)) {
+    str = `'${str}`;
+  }
+
   // If string contains comma, quote, or newline, escape quotes by doubling them and enclose in quotes
   if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
     return `"${str.replace(/"/g, '""')}"`;

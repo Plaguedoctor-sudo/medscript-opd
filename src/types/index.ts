@@ -64,5 +64,6 @@ export interface ClinicSettings {
   rotationDays?: number | null;
   minPinLength?: number | null;
   enforceComplexity?: boolean | null;
+  sessionSecret?: string | null;
 }
 

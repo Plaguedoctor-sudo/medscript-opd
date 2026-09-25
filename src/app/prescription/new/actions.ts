@@ -349,7 +349,7 @@ export async function updatePatient(
 }
 
 export async function deletePatient(id: number) {
-  await requireAuth();
+  await requireRole(['doctor']);
 
   const patient = await db.query.patients.findFirst({
     where: eq(patients.id, id),
@@ -365,6 +365,7 @@ export async function deletePatient(id: number) {
 
   await logAuditEvent({
     action: 'PATIENT_DELETED',
+    actorRole: 'DOCTOR',
     details: `Patient #${id} (${patient.name}) and all associated clinical encounters deleted`,
     status: 'WARNING',
   });

@@ -1,6 +1,6 @@
 'use server';
 
-import { isAuthenticated } from '@/lib/auth';
+import { isAuthenticated, getCurrentUserRole } from '@/lib/auth';
 import { sqlite } from '@/db';
 import { logAuditEvent } from '@/lib/audit';
 import fs from 'fs';
@@ -15,8 +15,9 @@ export interface BackupItem {
 
 export async function createManualBackupSnapshot(): Promise<{ success: boolean; message: string }> {
   const authed = await isAuthenticated();
-  if (!authed) {
-    return { success: false, message: 'Unauthorized. Please unlock the desk first.' };
+  const role = await getCurrentUserRole();
+  if (!authed || role !== 'doctor') {
+    return { success: false, message: 'Forbidden: Only verified Doctor accounts can create database snapshots.' };
   }
 
   try {
@@ -92,8 +93,9 @@ export async function getLocalBackupSnapshots(): Promise<BackupItem[]> {
 
 export async function exportAuditLogsCsvAction(): Promise<{ success: boolean; csv?: string; error?: string }> {
   const authed = await isAuthenticated();
-  if (!authed) {
-    return { success: false, error: 'Unauthorized. Please unlock the desk first.' };
+  const role = await getCurrentUserRole();
+  if (!authed || role !== 'doctor') {
+    return { success: false, error: 'Forbidden: Only verified Doctor accounts can export clinical audit trails.' };
   }
 
   try {
@@ -113,7 +115,11 @@ export async function exportAuditLogsCsvAction(): Promise<{ success: boolean; cs
 
     const escapeCsv = (str: string | null | undefined) => {
       if (!str) return '""';
-      const clean = String(str).replace(/"/g, '""');
+      let clean = String(str).replace(/"/g, '""');
+      // Neutralize CSV formula injection (CWE-1236): prepend single quote if formula trigger
+      if (/^[=+\-@\t\r]/.test(clean)) {
+        clean = `'${clean}`;
+      }
       return `"${clean}"`;
     };
 

@@ -74,6 +74,7 @@ export const clinicSettings = sqliteTable("clinic_settings", {
   rotationDays: integer("rotation_days").default(90), // 60 or 90 days mandatory password rotation
   minPinLength: integer("min_pin_length").default(4), // Minimum length requirement (4-12)
   enforceComplexity: integer("enforce_complexity", { mode: "boolean" }).$defaultFn(() => false),
+  sessionSecret: text("session_secret"), // Cryptographically generated dynamic session secret
 });
 
 export const auditLogs = sqliteTable("audit_logs", {

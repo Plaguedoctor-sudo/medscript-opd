@@ -20,6 +20,8 @@ import {
   checkPinRateLimit,
   recordFailedPinAttempt,
   resetPinRateLimit,
+  checkBreakGlassRateLimit,
+  recordBreakGlassAttempt,
 } from '@/lib/rate-limiter';
 import { logAuditEvent, AuditAction, AuditStatus } from '@/lib/audit';
 import {
@@ -216,14 +218,42 @@ export async function lockDeskAction(): Promise<void> {
 }
 
 /**
- * Emergency Break-Glass access for life-threatening triage
+ * Emergency Break-Glass access for life-threatening triage (CWE-306 Hardened)
  */
-export async function breakGlassEmergencyAction(reason?: string): Promise<{ success: boolean; redirectUrl: string }> {
+export async function breakGlassEmergencyAction(reason?: string): Promise<{ success: boolean; redirectUrl?: string; error?: string }> {
   const clientIp = await getClientIp();
+  const cleanReason = (reason || '').trim();
+
+  // Enforce mandatory documented justification
+  if (cleanReason.length < 15) {
+    return {
+      success: false,
+      error: 'Emergency break-glass access requires a documented clinical justification (minimum 15 characters).',
+    };
+  }
+
+  // Enforce rate limiting: maximum 2 uses per 60 minutes
+  const rateLimit = checkBreakGlassRateLimit(clientIp);
+  if (!rateLimit.allowed) {
+    await logAuditEvent({
+      action: 'AUTH_LOCKOUT',
+      actorRole: 'SYSTEM',
+      details: `Emergency break-glass rate limit exceeded from ${clientIp}. Access blocked.`,
+      status: 'WARNING',
+      ipAddress: clientIp,
+    });
+    return {
+      success: false,
+      error: `Emergency break-glass limit reached. Retry after ${rateLimit.retryAfterMinutes} minutes or authenticate with Doctor PIN.`,
+    };
+  }
+
+  recordBreakGlassAttempt(clientIp);
+
   await logAuditEvent({
     action: 'AUTH_LOGIN_SUCCESS',
     actorRole: 'SYSTEM',
-    details: `⚠️ EMERGENCY BREAK-GLASS TRIGGERED: Reason: ${reason || 'Immediate Emergency Care / Triage'}. Direct patient history view granted.`,
+    details: `⚠️ EMERGENCY BREAK-GLASS TRIGGERED: Reason: "${cleanReason}". Direct patient history view granted for 30 minutes.`,
     status: 'WARNING',
     ipAddress: clientIp,
   });

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { isAuthenticated } from '@/lib/auth';
+import { isAuthenticated, getCurrentUserRole } from '@/lib/auth';
 import { sqlite } from '@/db';
 import { logAuditEvent } from '@/lib/audit';
 import fs from 'fs';
@@ -7,14 +7,17 @@ import path from 'path';
 
 export async function GET() {
   const authed = await isAuthenticated();
-  if (!authed) {
+  const role = await getCurrentUserRole();
+
+  if (!authed || role !== 'doctor') {
     await logAuditEvent({
       action: 'BACKUP_SNAPSHOT_DOWNLOADED',
-      details: 'Unauthorized download attempt blocked',
+      actorRole: role === 'doctor' ? 'DOCTOR' : 'RECEPTIONIST',
+      details: 'Unauthorized raw database download attempt blocked (Doctor role required)',
       status: 'FAILURE',
     });
-    return new NextResponse('Unauthorized: Please unlock the consultation desk first.', {
-      status: 401,
+    return new NextResponse('Forbidden: Only verified Doctor accounts have authority to export the raw clinical database.', {
+      status: 403,
     });
   }
 
