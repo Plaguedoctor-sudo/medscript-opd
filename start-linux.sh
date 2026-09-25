@@ -11,10 +11,15 @@ echo "                MEDSCRIPT OPD - CLINIC EMR LAUNCHER"
 echo "================================================================="
 echo ""
 
-# 1. Check Node.js
+# 1. Check Node.js (use bundled portable runtime if present)
+if [ -x "$DIR/runtime/node/bin/node" ]; then
+    export PATH="$DIR/runtime/node/bin:$PATH"
+fi
+
 if ! command -v node &> /dev/null; then
     echo "[ERROR] Node.js is not installed."
     echo "Please install Node.js 18+ or 20+ from https://nodejs.org"
+    echo "Or run the installer provided in the 'Installers-Prerequisites' folder on this USB."
     exit 1
 fi
 
