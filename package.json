@@ -3,10 +3,15 @@
   "version": "1.0.0",
   "description": "Offline-First Outpatient Prescription & Electronic Medical Records (EMR) System",
   "license": "MIT",
+  "author": "Dr. Nitin Sonare <sonarenitin3@gmail.com>",
   "repository": {
     "type": "git",
-    "url": "https://github.com/medscript/medscript-opd.git"
+    "url": "https://github.com/Plaguedoctor-sudo/medscript-opd.git"
   },
+  "bugs": {
+    "url": "https://github.com/Plaguedoctor-sudo/medscript-opd/issues"
+  },
+  "homepage": "https://github.com/Plaguedoctor-sudo/medscript-opd#readme",
   "keywords": [
     "medical",
     "prescription",

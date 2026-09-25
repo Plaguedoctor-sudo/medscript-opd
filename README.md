@@ -157,7 +157,7 @@ Access the desk at `http://localhost:3000`. Database and backups persist in `./d
 
 ```bash
 # Clone the repository
-git clone https://github.com/medscript/medscript-opd.git
+git clone https://github.com/Plaguedoctor-sudo/medscript-opd.git
 cd medscript-opd
 
 # Install dependencies

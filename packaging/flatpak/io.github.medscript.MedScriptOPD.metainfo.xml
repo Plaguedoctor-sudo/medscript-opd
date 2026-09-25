@@ -34,12 +34,12 @@
     </screenshot>
   </screenshots>
 
-  <url type="homepage">https://github.com/medscript/medscript-opd</url>
-  <url type="bugtracker">https://github.com/medscript/medscript-opd/issues</url>
-  <url type="vcs-browser">https://github.com/medscript/medscript-opd</url>
+  <url type="homepage">https://github.com/Plaguedoctor-sudo/medscript-opd</url>
+  <url type="bugtracker">https://github.com/Plaguedoctor-sudo/medscript-opd/issues</url>
+  <url type="vcs-browser">https://github.com/Plaguedoctor-sudo/medscript-opd</url>
 
-  <developer id="io.github.medscript">
-    <name>MedScript OPD Open Source Community</name>
+  <developer id="io.github.Plaguedoctor-sudo">
+    <name>Dr. Nitin Sonare</name>
   </developer>
 
   <provides>
