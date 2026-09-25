@@ -98,7 +98,9 @@ function sanitizeMedications(meds: unknown): Medication[] {
   return meds
     .filter((m): m is Medication => typeof m === "object" && m !== null && typeof m.name === "string" && m.name.trim().length > 0)
     .map((m) => ({
+      prefix: m.prefix ? m.prefix.trim().slice(0, 20) : undefined,
       name: m.name.trim().slice(0, 100),
+      genericName: m.genericName ? m.genericName.trim().slice(0, 150) : undefined,
       strength: (m.strength || "").trim().slice(0, 50),
       dosage: (m.dosage || "").trim().slice(0, 50),
       timing: (m.timing || "").trim().slice(0, 50),

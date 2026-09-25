@@ -53,7 +53,10 @@ export function PatientVitalsAnalytics({ prescriptions, patientName }: VitalsAna
 
       const weightNum = p.weight ? parseFloat(p.weight.replace(/[^\d.]/g, '')) : null;
       const pulseNum = p.pulse ? parseInt(p.pulse.replace(/[^\d]/g, ''), 10) : null;
-      const tempNum = p.temp ? parseFloat(p.temp.replace(/[^\d.]/g, '')) : null;
+      const rawTempNum = p.temp ? parseFloat(p.temp.replace(/[^\d.]/g, '')) : null;
+      const tempNum = rawTempNum !== null && !isNaN(rawTempNum)
+        ? (rawTempNum > 50 ? parseFloat(((rawTempNum - 32) * 5 / 9).toFixed(1)) : parseFloat(rawTempNum.toFixed(1)))
+        : null;
       const spo2Num = p.spo2 ? parseInt(p.spo2.replace(/[^\d]/g, ''), 10) : null;
 
       return {
@@ -291,10 +294,10 @@ export function PatientVitalsAnalytics({ prescriptions, patientName }: VitalsAna
             </div>
             <div className="text-lg font-bold text-slate-900">
               {latestTempVisit?.temp ? `${latestTempVisit.temp}` : '—'}
-              <span className="text-[11px] font-normal text-slate-400 ml-1">°F</span>
+              <span className="text-[11px] font-normal text-slate-400 ml-1">°C</span>
             </div>
             <div className="text-[11px] text-slate-400 mt-0.5">
-              {latestTempVisit?.temp && latestTempVisit.temp > 99.5 ? (
+              {latestTempVisit?.temp && latestTempVisit.temp > 37.5 ? (
                 <span className="text-amber-600 font-medium">Elevated / Febrile</span>
               ) : (
                 <span className="text-slate-500">Afebrile</span>
@@ -825,9 +828,9 @@ export function PatientVitalsAnalytics({ prescriptions, patientName }: VitalsAna
           <div>
             <div className="flex items-center justify-between mb-3 text-xs">
               <span className="flex items-center gap-1.5 font-medium text-amber-700">
-                <span className="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block" /> Body Temp (°F)
+                <span className="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block" /> Body Temp (°C)
               </span>
-              <div className="text-slate-400 text-[11px]">Normal afebrile: 97.5°F – 99.0°F</div>
+              <div className="text-slate-400 text-[11px]">Normal afebrile: 36.5°C – 37.5°C</div>
             </div>
 
             <div className="relative w-full overflow-x-auto">
@@ -841,8 +844,8 @@ export function PatientVitalsAnalytics({ prescriptions, patientName }: VitalsAna
                   );
                 }
 
-                const minTemp = 96.5;
-                const maxTemp = 104.0;
+                const minTemp = 35.5;
+                const maxTemp = 40.5;
                 const getY = (t: number) => padding.top + plotHeight - ((t - minTemp) / (maxTemp - minTemp)) * plotHeight;
 
                 const points = tempVisits.map((v, i) => ({
@@ -859,27 +862,27 @@ export function PatientVitalsAnalytics({ prescriptions, patientName }: VitalsAna
 
                 return (
                   <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-56 select-none">
-                    {/* Fever threshold at 99.5 */}
+                    {/* Fever threshold at 37.5°C */}
                     <line
                       x1={padding.left}
-                      y1={getY(99.5)}
+                      y1={getY(37.5)}
                       x2={width - padding.right}
-                      y2={getY(99.5)}
+                      y2={getY(37.5)}
                       stroke="#ef4444"
                       strokeDasharray="4 3"
                       strokeWidth="1"
                     />
                     <text
                       x={width - padding.right}
-                      y={getY(99.5) - 4}
+                      y={getY(37.5) - 4}
                       fontSize="8"
                       fill="#ef4444"
                       textAnchor="end"
                     >
-                      Fever line (99.5°F)
+                      Fever line (37.5°C)
                     </text>
 
-                    {[98.0, 99.0, 100.0, 102.0].map((tick) => {
+                    {[36.0, 37.0, 38.0, 39.0, 40.0].map((tick) => {
                       const yPos = getY(tick);
                       return (
                         <g key={tick}>
@@ -899,7 +902,7 @@ export function PatientVitalsAnalytics({ prescriptions, patientName }: VitalsAna
                             fill="#94a3b8"
                             textAnchor="end"
                           >
-                            {tick}°F
+                            {tick.toFixed(1)}°C
                           </text>
                         </g>
                       );
@@ -1021,7 +1024,7 @@ export function PatientVitalsAnalytics({ prescriptions, patientName }: VitalsAna
                       )}
                     </td>
                     <td className="py-2 px-3 text-slate-700">
-                      {v.temp ? `${v.temp} °F` : <span className="text-slate-400">—</span>}
+                      {v.temp ? `${v.temp} °C` : <span className="text-slate-400">—</span>}
                     </td>
                     <td className="py-2 px-3 max-w-[180px] truncate text-slate-800 font-medium">
                       {v.diagnosis}

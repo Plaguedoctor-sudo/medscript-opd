@@ -25,6 +25,31 @@ export const DRUG_CATEGORIES = [
   "Eye & ENT",
 ] as const;
 
+export const MEDICATION_PREFIXES = [
+  "Tab.",
+  "Cap.",
+  "Syr.",
+  "Inj.",
+  "Oint.",
+  "Drops",
+  "Inh.",
+  "Sachet",
+  "Susp.",
+  "Gel",
+  "Cream",
+] as const;
+
+export const FORM_PREFIX_MAP: Record<DrugItem['form'], string> = {
+  Tablet: "Tab.",
+  Capsule: "Cap.",
+  Syrup: "Syr.",
+  Injection: "Inj.",
+  Ointment: "Oint.",
+  Drops: "Drops",
+  Inhaler: "Inh.",
+  Sachet: "Sachet",
+};
+
 export const DRUG_LIBRARY: DrugItem[] = [
   // --- PAIN & FEVER / NSAIDs ---
   {

@@ -99,7 +99,7 @@ export function generateConsultationRegisterCsv(items: ConsultationExportItem[])
     "Blood Pressure (mmHg)",
     "Weight (kg)",
     "Pulse (bpm)",
-    "Temp (°F)",
+    "Temp (°C)",
     "SpO2 (%)",
     "Chief Complaints",
     "Clinical History",
@@ -141,11 +141,11 @@ export function generateConsultationRegisterCsv(items: ConsultationExportItem[])
           medsFormatted = meds
             .map(
               (m: Partial<Medication>, idx: number) =>
-                `${idx + 1}. ${m.name || "Medicine"}${m.strength ? ` ${m.strength}` : ""} | Dose: ${
-                  m.dosage || "1-0-1"
-                } | Timing: ${m.timing || "After food"} | For: ${m.duration || "5 days"}${
-                  m.instruction ? ` (${m.instruction})` : ""
-                }`
+                `${idx + 1}. ${m.prefix ? `${m.prefix} ` : ""}${m.name || "Medicine"}${
+                  m.genericName ? ` (${m.genericName})` : ""
+                }${m.strength ? ` ${m.strength}` : ""} | Dose: ${m.dosage || "1-0-1"} | Timing: ${
+                  m.timing || "After food"
+                } | For: ${m.duration || "5 days"}${m.instruction ? ` (${m.instruction})` : ""}`
             )
             .join(" ; ");
         }
@@ -167,7 +167,7 @@ export function generateConsultationRegisterCsv(items: ConsultationExportItem[])
       escapeCsvField(item.bp || "N/A"),
       escapeCsvField(item.weight ? `${item.weight} kg` : "N/A"),
       escapeCsvField(item.pulse ? `${item.pulse} bpm` : "N/A"),
-      escapeCsvField(item.temp ? `${item.temp}°F` : "N/A"),
+      escapeCsvField(item.temp ? (item.temp.includes("°") ? item.temp : `${item.temp}°C`) : "N/A"),
       escapeCsvField(item.spo2 ? `${item.spo2}%` : "N/A"),
       escapeCsvField(item.chiefComplaints || ""),
       escapeCsvField(item.clinicalHistory || ""),

@@ -335,7 +335,7 @@ export const PrescriptionPDF = ({ prescription, patient, settings }: Prescriptio
             {prescription.temp && (
               <Text style={styles.vitalItem}>
                 <Text style={styles.vitalLabel}>Temp: </Text>
-                {prescription.temp} °F
+                {prescription.temp.includes("°") ? prescription.temp : `${prescription.temp} °C`}
               </Text>
             )}
             {prescription.spo2 && (
@@ -397,9 +397,16 @@ export const PrescriptionPDF = ({ prescription, patient, settings }: Prescriptio
               <View key={i} style={styles.rxRow}>
                 <Text style={[styles.sectionContent, styles.colNum]}>{i + 1}</Text>
                 <View style={styles.colMed}>
-                  <Text style={styles.medName}>{med.name}</Text>
-                  {med.instruction ? (
+                  <Text style={styles.medName}>
+                    {med.prefix ? `${med.prefix} ` : ''}{med.name}
+                  </Text>
+                  {med.genericName ? (
                     <Text style={{ fontSize: 7.5, color: '#475569', fontStyle: 'italic', marginTop: 1 }}>
+                      ({med.genericName})
+                    </Text>
+                  ) : null}
+                  {med.instruction ? (
+                    <Text style={{ fontSize: 7, color: '#64748b', fontStyle: 'italic', marginTop: 1 }}>
                       {med.instruction}
                     </Text>
                   ) : null}

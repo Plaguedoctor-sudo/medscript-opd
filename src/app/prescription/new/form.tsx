@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,7 +35,14 @@ import {
 } from "lucide-react";
 import { toast } from "@/components/ui/toast";
 import { Medication, Patient, Prescription, ClinicSettings } from "@/types";
-import { DRUG_LIBRARY, DRUG_CATEGORIES, DrugItem, searchDrugs } from "@/lib/drug-library";
+import {
+  DRUG_LIBRARY,
+  DRUG_CATEGORIES,
+  DrugItem,
+  searchDrugs,
+  FORM_PREFIX_MAP,
+  MEDICATION_PREFIXES,
+} from "@/lib/drug-library";
 import {
   LAB_CATEGORIES,
   INDIVIDUAL_LAB_TESTS,
@@ -102,7 +109,7 @@ const DEFAULT_STANDARD_VITALS = {
   weight: "",
   bp: "120/80",
   pulse: "72",
-  temp: "98.4",
+  temp: "37.0",
   spo2: "99",
 };
 
@@ -124,8 +131,33 @@ export default function NewPrescriptionForm({
         // fallback
       }
     }
-    return [{ name: "", strength: "", dosage: "1-0-1", timing: "After food", duration: "5 days", instruction: "" }];
+    return [
+      {
+        prefix: "Tab.",
+        name: "",
+        genericName: "",
+        strength: "",
+        dosage: "1-0-1",
+        timing: "After food",
+        duration: "5 days",
+        instruction: "",
+      },
+    ];
   });
+
+  // Focus ref management for pressing Enter in drug name box
+  const drugNameInputRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const pendingFocusIndex = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (pendingFocusIndex.current !== null) {
+      const el = drugNameInputRefs.current[pendingFocusIndex.current];
+      if (el) {
+        el.focus();
+      }
+      pendingFocusIndex.current = null;
+    }
+  }, [medications]);
 
   // Standard data prefilled in vitals (can be modified by doctor as required)
   const [vitals, setVitals] = useState({
@@ -137,7 +169,9 @@ export default function NewPrescriptionForm({
       ? initialData.pulse
       : isEditMode ? "" : DEFAULT_STANDARD_VITALS.pulse,
     temp: initialData?.temp !== undefined && initialData?.temp !== null && initialData?.temp !== ""
-      ? initialData.temp
+      ? (parseFloat(initialData.temp) > 50
+          ? ((parseFloat(initialData.temp) - 32) * 5 / 9).toFixed(1)
+          : initialData.temp)
       : isEditMode ? "" : DEFAULT_STANDARD_VITALS.temp,
     spo2: initialData?.spo2 !== undefined && initialData?.spo2 !== null && initialData?.spo2 !== ""
       ? initialData.spo2
@@ -228,7 +262,7 @@ export default function NewPrescriptionForm({
     }));
     toast.show({
       title: "Standard Vitals Prefilled",
-      description: "BP 120/80, Pulse 72, Temp 98.4°F, and SpO2 99% have been set. You can edit any value.",
+      description: "BP 120/80, Pulse 72, Temp 37.0°C, and SpO2 99% have been set. You can edit any value.",
       type: "info",
     });
   };
@@ -244,9 +278,19 @@ export default function NewPrescriptionForm({
   };
 
   const addMedication = () => {
+    pendingFocusIndex.current = medications.length;
     setMedications([
       ...medications,
-      { name: "", strength: "", dosage: "1-0-1", timing: "After food", duration: "5 days", instruction: "" },
+      {
+        prefix: "Tab.",
+        name: "",
+        genericName: "",
+        strength: "",
+        dosage: "1-0-1",
+        timing: "After food",
+        duration: "5 days",
+        instruction: "",
+      },
     ]);
   };
 
@@ -260,11 +304,15 @@ export default function NewPrescriptionForm({
     setMedications(newMedications);
   };
 
-  const selectDrugForMedication = (index: number, drug: DrugItem) => {
+  const selectDrugForMedication = (index: number, drug: DrugItem, chosenBrandName?: string) => {
     const updated = [...medications];
+    const prefix = FORM_PREFIX_MAP[drug.form] || "Tab.";
+    const brandName = chosenBrandName || (drug.brandNames.length > 0 ? drug.brandNames[0] : drug.name);
     updated[index] = {
       ...updated[index],
-      name: drug.name,
+      prefix,
+      name: brandName,
+      genericName: drug.genericName || drug.name,
       strength: drug.defaultStrength,
       dosage: drug.defaultDosage,
       timing: drug.defaultTiming,
@@ -275,15 +323,19 @@ export default function NewPrescriptionForm({
     setActiveSearchIndex(null);
     toast.show({
       title: "Drug Auto-Filled",
-      description: `${drug.name} (${drug.defaultStrength}) added with recommended schedule ${drug.defaultDosage}.`,
+      description: `${prefix} ${brandName} (${drug.genericName}) added with schedule ${drug.defaultDosage}.`,
       type: "success",
     });
   };
 
-  const addDrugFromLibrary = (drug: DrugItem) => {
+  const addDrugFromLibrary = (drug: DrugItem, chosenBrandName?: string) => {
     const last = medications[medications.length - 1];
+    const prefix = FORM_PREFIX_MAP[drug.form] || "Tab.";
+    const brandName = chosenBrandName || (drug.brandNames.length > 0 ? drug.brandNames[0] : drug.name);
     const newEntry: Medication = {
-      name: drug.name,
+      prefix,
+      name: brandName,
+      genericName: drug.genericName || drug.name,
       strength: drug.defaultStrength,
       dosage: drug.defaultDosage,
       timing: drug.defaultTiming,
@@ -299,7 +351,7 @@ export default function NewPrescriptionForm({
 
     toast.show({
       title: "Added to Prescription",
-      description: `${drug.name} (${drug.defaultStrength}) added with schedule ${drug.defaultDosage}.`,
+      description: `${prefix} ${brandName} (${drug.genericName}) added with schedule ${drug.defaultDosage}.`,
       type: "success",
     });
   };
@@ -795,19 +847,19 @@ export default function NewPrescriptionForm({
 
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <Label htmlFor="vital-temp" className="text-xs font-semibold text-slate-700">Temp (°F)</Label>
-                <span className="text-[10px] text-emerald-600 font-medium">Std: 98.4</span>
+                <Label htmlFor="vital-temp" className="text-xs font-semibold text-slate-700">Temp (°C)</Label>
+                <span className="text-[10px] text-emerald-600 font-medium">Std: 37.0</span>
               </div>
               <Input
                 id="vital-temp"
                 name="temp"
-                placeholder="98.4"
+                placeholder="37.0"
                 value={vitals.temp}
                 onChange={(e) => setVitals((v) => ({ ...v, temp: e.target.value }))}
                 className="bg-white"
               />
               <div className="flex flex-wrap gap-1 pt-0.5">
-                {["98.4", "99.0", "100.4", "101.5"].map((val) => (
+                {["36.5", "37.0", "37.5", "38.0", "38.5"].map((val) => (
                   <button
                     key={val}
                     type="button"
@@ -816,7 +868,7 @@ export default function NewPrescriptionForm({
                       vitals.temp === val ? "bg-blue-600 text-white border-blue-600 font-medium" : "bg-white text-slate-600 hover:bg-slate-100"
                     }`}
                   >
-                    {val}
+                    {val}°C
                   </button>
                 ))}
               </div>
@@ -927,10 +979,10 @@ export default function NewPrescriptionForm({
             return (
               <div key={index} className="p-4 bg-slate-50 rounded-lg border border-slate-200 space-y-3">
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-start">
-                  {/* Drug Name with Real-Time Library Autocomplete */}
-                  <div className="md:col-span-3 space-y-1 relative">
+                  {/* Drug Name: Prefix + Brand in bold + Generic below */}
+                  <div className="md:col-span-4 space-y-1.5 relative">
                     <div className="flex items-center justify-between">
-                      <Label className="text-xs font-semibold text-slate-700">Generic Drug / Brand *</Label>
+                      <Label className="text-xs font-bold text-slate-800">Brand Name (in bold) *</Label>
                       <button
                         type="button"
                         onClick={() => {
@@ -942,27 +994,104 @@ export default function NewPrescriptionForm({
                         <Search className="w-2.5 h-2.5" /> Library
                       </button>
                     </div>
-                    <Input
-                      value={med.name}
-                      onChange={(e) => {
-                        updateMedicationField(index, "name", e.target.value);
-                        setActiveSearchIndex(index);
-                      }}
-                      onFocus={() => {
-                        if (med.name.trim().length > 0) {
+
+                    {/* Prefix selector + Brand Name in bold */}
+                    <div className="flex rounded-md shadow-2xs">
+                      <select
+                        value={med.prefix || "Tab."}
+                        onChange={(e) => updateMedicationField(index, "prefix", e.target.value)}
+                        className="h-9 px-2 text-xs font-bold bg-slate-100 text-slate-800 border border-r-0 border-slate-300 rounded-l-md focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 shrink-0 cursor-pointer"
+                        title="Dosage Form Prefix (Tab., Cap., Inj., Syr., etc.)"
+                      >
+                        {MEDICATION_PREFIXES.map((p) => (
+                          <option key={p} value={p}>
+                            {p}
+                          </option>
+                        ))}
+                      </select>
+
+                      <Input
+                        ref={(el) => {
+                          drugNameInputRefs.current[index] = el;
+                        }}
+                        value={med.name}
+                        onChange={(e) => {
+                          updateMedicationField(index, "name", e.target.value);
                           setActiveSearchIndex(index);
-                        }
-                      }}
-                      onBlur={() => {
-                        setTimeout(() => {
-                          setActiveSearchIndex((curr) => (curr === index ? null : curr));
-                        }, 250);
-                      }}
-                      required
-                      placeholder="e.g. Paracetamol, Augmentin, Pan-D"
-                      list="generic-drugs"
-                      className="bg-white text-xs h-9"
-                    />
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            setActiveSearchIndex(null);
+                            if (index === medications.length - 1) {
+                              pendingFocusIndex.current = medications.length;
+                              setMedications((prev) => [
+                                ...prev,
+                                {
+                                  prefix: "Tab.",
+                                  name: "",
+                                  genericName: "",
+                                  strength: "",
+                                  dosage: "1-0-1",
+                                  timing: "After food",
+                                  duration: "5 days",
+                                  instruction: "",
+                                },
+                              ]);
+                            } else {
+                              drugNameInputRefs.current[index + 1]?.focus();
+                            }
+                          }
+                        }}
+                        onFocus={() => {
+                          if (med.name.trim().length > 0) {
+                            setActiveSearchIndex(index);
+                          }
+                        }}
+                        onBlur={() => {
+                          setTimeout(() => {
+                            setActiveSearchIndex((curr) => (curr === index ? null : curr));
+                          }, 250);
+                        }}
+                        required
+                        placeholder="Brand Name (e.g. Dolo 650, Augmentin 625)"
+                        list="generic-drugs"
+                        className="rounded-l-none font-bold text-slate-900 bg-white text-xs h-9 focus:z-10"
+                      />
+                    </div>
+
+                    {/* Generic Name / Composition input directly below Brand Name */}
+                    <div>
+                      <Input
+                        value={med.genericName || ""}
+                        onChange={(e) => updateMedicationField(index, "genericName", e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            if (index === medications.length - 1) {
+                              pendingFocusIndex.current = medications.length;
+                              setMedications((prev) => [
+                                ...prev,
+                                {
+                                  prefix: "Tab.",
+                                  name: "",
+                                  genericName: "",
+                                  strength: "",
+                                  dosage: "1-0-1",
+                                  timing: "After food",
+                                  duration: "5 days",
+                                  instruction: "",
+                                },
+                              ]);
+                            } else {
+                              drugNameInputRefs.current[index + 1]?.focus();
+                            }
+                          }
+                        }}
+                        placeholder="Generic composition (e.g. Paracetamol, Amoxicillin + Clavulanic Acid)"
+                        className="text-[11px] text-slate-600 italic bg-white/80 border-slate-200 h-7"
+                      />
+                    </div>
 
                     {/* Real-time Drug Library Autocomplete Dropdown */}
                     {activeSearchIndex === index && med.name.trim().length >= 1 && (
@@ -974,22 +1103,45 @@ export default function NewPrescriptionForm({
                         {searchDrugs(med.name).slice(0, 8).map((drug) => (
                           <div
                             key={drug.id}
-                            onMouseDown={(e) => {
-                              e.preventDefault();
-                              selectDrugForMedication(index, drug);
-                            }}
                             className="p-2 border-b border-slate-100 last:border-0 hover:bg-blue-50/80 cursor-pointer transition-colors"
                           >
-                            <div className="flex items-center justify-between gap-1">
-                              <span className="text-xs font-bold text-slate-900">{drug.name}</span>
-                              <span className="text-[10px] bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded font-medium">
+                            <div
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                                selectDrugForMedication(index, drug);
+                              }}
+                              className="flex items-center justify-between gap-1"
+                            >
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-1 py-0.5 rounded border border-blue-200">
+                                  {FORM_PREFIX_MAP[drug.form] || "Tab."}
+                                </span>
+                                <span className="text-xs font-bold text-slate-900">{drug.name}</span>
+                              </div>
+                              <span className="text-[10px] bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded font-medium">
                                 {drug.category}
                               </span>
                             </div>
+                            <p className="text-[11px] text-slate-500 mt-0.5">
+                              Generic: <span className="text-slate-700 font-medium italic">{drug.genericName}</span>
+                            </p>
                             {drug.brandNames.length > 0 && (
-                              <p className="text-[11px] text-slate-500 mt-0.5">
-                                Brands: <span className="text-slate-700 font-medium">{drug.brandNames.join(", ")}</span>
-                              </p>
+                              <div className="flex flex-wrap items-center gap-1 mt-1 text-[11px]">
+                                <span className="text-slate-400 text-[10px] font-medium">Brands:</span>
+                                {drug.brandNames.map((b) => (
+                                  <button
+                                    key={b}
+                                    type="button"
+                                    onMouseDown={(e) => {
+                                      e.preventDefault();
+                                      selectDrugForMedication(index, drug, b);
+                                    }}
+                                    className="px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 hover:bg-blue-100 font-bold text-[10px] border border-blue-200 transition-colors"
+                                  >
+                                    {b}
+                                  </button>
+                                ))}
+                              </div>
                             )}
                             <div className="flex items-center gap-1.5 text-[10px] text-emerald-700 font-medium mt-1">
                               <span>Default: {drug.defaultStrength}</span>
@@ -1012,7 +1164,7 @@ export default function NewPrescriptionForm({
                   </div>
 
                   {/* Strength */}
-                  <div className="md:col-span-2 space-y-1">
+                  <div className="md:col-span-1 space-y-1">
                     <Label className="text-xs font-semibold text-slate-700">Strength</Label>
                     <Input
                       value={med.strength}
@@ -1553,9 +1705,23 @@ export default function NewPrescriptionForm({
                           </div>
 
                           {drug.brandNames.length > 0 && (
-                            <p className="text-[11px] text-slate-600">
-                              <span className="font-medium text-slate-500">Brands:</span> {drug.brandNames.join(", ")}
-                            </p>
+                            <div className="flex flex-wrap items-center gap-1 text-[11px]">
+                              <span className="font-medium text-slate-500">Brands:</span>
+                              {drug.brandNames.map((b) => (
+                                <button
+                                  key={b}
+                                  type="button"
+                                  onClick={() => {
+                                    addDrugFromLibrary(drug, b);
+                                    setIsLibraryModalOpen(false);
+                                  }}
+                                  className="px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 hover:bg-blue-100 font-bold text-[10px] border border-blue-200 transition-colors"
+                                  title={`Add as ${b}`}
+                                >
+                                  + {b}
+                                </button>
+                              ))}
+                            </div>
                           )}
 
                           <div className="flex flex-wrap gap-1 text-[11px] pt-1">
@@ -1581,7 +1747,9 @@ export default function NewPrescriptionForm({
                         </div>
 
                         <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
-                          <span className="text-[10px] text-slate-400 font-mono">Form: {drug.form}</span>
+                          <span className="text-[10px] text-blue-700 font-semibold bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                            {FORM_PREFIX_MAP[drug.form] || "Tab."} {drug.form}
+                          </span>
                           <Button
                             type="button"
                             size="sm"
@@ -1589,9 +1757,9 @@ export default function NewPrescriptionForm({
                               addDrugFromLibrary(drug);
                               setIsLibraryModalOpen(false);
                             }}
-                            className="h-7 text-xs bg-blue-600 hover:bg-blue-700 text-white gap-1 shadow-2xs"
+                            className="h-7 text-xs bg-blue-600 hover:bg-blue-700 text-white gap-1 shadow-2xs font-semibold"
                           >
-                            <Plus className="w-3.5 h-3.5" /> Add to Prescription
+                            <Plus className="w-3.5 h-3.5" /> Add to Rx
                           </Button>
                         </div>
                       </div>

@@ -233,7 +233,11 @@ export default function PrescriptionPreview({ prescription, patient, settings, i
             {prescription.weight && <span><strong>Weight:</strong> {prescription.weight} kg</span>}
             {prescription.bp && <span><strong>BP:</strong> {prescription.bp} mmHg</span>}
             {prescription.pulse && <span><strong>Pulse:</strong> {prescription.pulse} bpm</span>}
-            {prescription.temp && <span><strong>Temp:</strong> {prescription.temp} °F</span>}
+            {prescription.temp && (
+              <span>
+                <strong>Temp:</strong> {prescription.temp.includes("°") ? prescription.temp : `${prescription.temp} °C`}
+              </span>
+            )}
             {prescription.spo2 && <span><strong>SpO2:</strong> {prescription.spo2} %</span>}
           </div>
         )}
@@ -271,8 +275,16 @@ export default function PrescriptionPreview({ prescription, patient, settings, i
                 {medications.map((m, idx) => (
                   <tr key={idx} className="border-b border-slate-100">
                     <td className="p-1.5 border border-slate-200 text-slate-500">{idx + 1}</td>
-                    <td className="p-1.5 border border-slate-200 font-bold text-slate-900">
-                      {m.name}
+                    <td className="p-1.5 border border-slate-200">
+                      <div className="font-bold text-slate-900">
+                        {m.prefix && <span className="text-slate-600 font-semibold mr-1">{m.prefix}</span>}
+                        {m.name}
+                      </div>
+                      {m.genericName && (
+                        <div className="text-[11px] text-slate-500 font-medium italic mt-0.5">
+                          ({m.genericName})
+                        </div>
+                      )}
                       {m.instruction && <div className="text-[10px] text-slate-500 font-normal mt-0.5">{m.instruction}</div>}
                     </td>
                     <td className="p-1.5 border border-slate-200">{m.strength || '-'}</td>

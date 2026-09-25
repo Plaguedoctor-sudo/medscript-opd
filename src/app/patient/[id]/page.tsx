@@ -154,7 +154,7 @@ export default async function PatientProfilePage({ params }: { params: Promise<{
                         <TableCell className="max-w-[250px]">
                           <div className="text-xs text-slate-600 truncate">
                             {medications.length > 0
-                              ? medications.map((m) => m.name).filter(Boolean).join(", ")
+                              ? medications.map((m) => `${m.prefix ? `${m.prefix} ` : ""}${m.name}`).filter(Boolean).join(", ")
                               : "None"}
                           </div>
                         </TableCell>

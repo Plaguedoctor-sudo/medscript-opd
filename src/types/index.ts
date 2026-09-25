@@ -10,7 +10,9 @@ export interface Patient {
 }
 
 export interface Medication {
-  name: string;
+  prefix?: string; // e.g. "Tab.", "Cap.", "Syr.", "Inj.", "Oint.", "Drops", "Inh."
+  name: string; // Brand Name (or drug name)
+  genericName?: string; // Generic composition / Molecule
   strength: string;
   dosage: string;
   timing: string;
