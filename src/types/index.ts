@@ -1,5 +1,6 @@
 export interface Patient {
   id: number;
+  regNo?: string | null;
   name: string;
   age: number;
   gender: string;

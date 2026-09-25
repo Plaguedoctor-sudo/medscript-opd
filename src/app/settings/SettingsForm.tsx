@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/components/ui/toast";
+import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import {
   Loader2,
@@ -43,7 +44,19 @@ export default function SettingsForm({
   securityConfig,
   initialBackups,
 }: SettingsFormProps) {
-  // Clinic Profile State
+  const router = useRouter();
+
+  // Controlled Profile State
+  const [profile, setProfile] = useState({
+    doctorName: settings?.doctorName || "",
+    qualifications: settings?.qualifications || "",
+    regNumber: settings?.regNumber || "",
+    contact: settings?.contact || "",
+    clinicName: settings?.clinicName || "",
+    address: settings?.address || "",
+    logoUrl: settings?.logoUrl || null,
+  });
+
   const [isPending, setIsPending] = useState(false);
   const [isSeeding, setIsSeeding] = useState(false);
 
@@ -79,15 +92,29 @@ export default function SettingsForm({
     }
   }
 
-  async function handleClinicSubmit(formData: FormData) {
+  async function handleClinicSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
     setIsPending(true);
     try {
-      await saveSettings(formData);
+      const formData = new FormData(e.currentTarget);
+      const updated = await saveSettings(formData);
+      if (updated) {
+        setProfile({
+          doctorName: updated.doctorName,
+          qualifications: updated.qualifications,
+          regNumber: updated.regNumber,
+          contact: updated.contact,
+          clinicName: updated.clinicName,
+          address: updated.address,
+          logoUrl: updated.logoUrl || null,
+        });
+      }
       toast.show({
         title: "Settings Saved",
-        description: "Your clinic and doctor details have been updated successfully.",
+        description: `Doctor profile updated for ${updated?.doctorName || profile.doctorName}. Changes will reflect on all prescriptions.`,
         type: "success",
       });
+      router.refresh();
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to save settings. Please try again.";
       toast.show({
@@ -156,20 +183,28 @@ export default function SettingsForm({
       {/* 1. CLINIC & DOCTOR PROFILE */}
       <Card className="border-slate-200 shadow-sm">
         <CardHeader>
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-blue-50 text-blue-600 rounded-lg">
-              <Building className="w-5 h-5" />
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-blue-50 text-blue-600 rounded-lg">
+                <Building className="w-5 h-5" />
+              </div>
+              <div>
+                <CardTitle className="text-xl">Clinic & Doctor Profile</CardTitle>
+                <CardDescription className="text-xs">
+                  These details appear on your printed and digital prescription letterheads.
+                </CardDescription>
+              </div>
             </div>
-            <div>
-              <CardTitle className="text-xl">Clinic & Doctor Profile</CardTitle>
-              <CardDescription className="text-xs">
-                These details appear on your printed and digital prescription letterheads.
-              </CardDescription>
+            <div className="flex items-center gap-2">
+              <span className="text-xs bg-blue-50 text-blue-700 border border-blue-200 px-3 py-1 rounded-full font-medium flex items-center gap-1.5">
+                <Stethoscope className="w-3.5 h-3.5 text-blue-600" />
+                Active: {profile.doctorName || "Not Set"}
+              </span>
             </div>
           </div>
         </CardHeader>
         <CardContent>
-          <form action={handleClinicSubmit} className="space-y-6">
+          <form onSubmit={handleClinicSubmit} className="space-y-6">
             <div className="space-y-4">
               <div className="flex items-center gap-2 pb-1 border-b text-sm font-semibold text-slate-700">
                 <Stethoscope className="w-4 h-4 text-blue-600" /> Doctor Details
@@ -180,7 +215,8 @@ export default function SettingsForm({
                   <Input
                     id="doctorName"
                     name="doctorName"
-                    defaultValue={settings?.doctorName || ""}
+                    value={profile.doctorName}
+                    onChange={(e) => setProfile((p) => ({ ...p, doctorName: e.target.value }))}
                     placeholder="e.g. Dr. Rajesh Sharma"
                     required
                   />
@@ -190,7 +226,8 @@ export default function SettingsForm({
                   <Input
                     id="qualifications"
                     name="qualifications"
-                    defaultValue={settings?.qualifications || ""}
+                    value={profile.qualifications}
+                    onChange={(e) => setProfile((p) => ({ ...p, qualifications: e.target.value }))}
                     placeholder="e.g. MBBS, MD (Medicine)"
                     required
                   />
@@ -200,7 +237,8 @@ export default function SettingsForm({
                   <Input
                     id="regNumber"
                     name="regNumber"
-                    defaultValue={settings?.regNumber || ""}
+                    value={profile.regNumber}
+                    onChange={(e) => setProfile((p) => ({ ...p, regNumber: e.target.value }))}
                     placeholder="e.g. MCI-12345 / State Reg"
                     required
                   />
@@ -210,7 +248,8 @@ export default function SettingsForm({
                   <Input
                     id="contact"
                     name="contact"
-                    defaultValue={settings?.contact || ""}
+                    value={profile.contact}
+                    onChange={(e) => setProfile((p) => ({ ...p, contact: e.target.value }))}
                     placeholder="e.g. +91 98101 23456"
                     required
                   />
@@ -228,7 +267,8 @@ export default function SettingsForm({
                   <Input
                     id="clinicName"
                     name="clinicName"
-                    defaultValue={settings?.clinicName || ""}
+                    value={profile.clinicName}
+                    onChange={(e) => setProfile((p) => ({ ...p, clinicName: e.target.value }))}
                     placeholder="e.g. Lifeline Family Clinic & OPD"
                     required
                   />
@@ -239,7 +279,8 @@ export default function SettingsForm({
                   <Input
                     id="address"
                     name="address"
-                    defaultValue={settings?.address || ""}
+                    value={profile.address}
+                    onChange={(e) => setProfile((p) => ({ ...p, address: e.target.value }))}
                     placeholder="e.g. Suite 104, Medicare Square, New Delhi"
                     required
                   />
@@ -248,11 +289,11 @@ export default function SettingsForm({
                 <div className="space-y-2">
                   <Label htmlFor="logo">Clinic Logo (Optional)</Label>
                   <div className="flex items-center gap-4">
-                    {settings?.logoUrl && (
+                    {profile.logoUrl && (
                       <div className="w-16 h-16 border rounded-lg overflow-hidden flex items-center justify-center bg-slate-50 shrink-0">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
-                          src={settings.logoUrl}
+                          src={profile.logoUrl}
                           alt="Clinic Logo"
                           className="max-w-full max-h-full object-contain p-1"
                         />

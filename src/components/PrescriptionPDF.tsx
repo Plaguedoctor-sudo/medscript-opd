@@ -287,6 +287,7 @@ export const PrescriptionPDF = ({ prescription, patient, settings }: Prescriptio
             <Text style={styles.patientName}>{patient.name}</Text>
             <Text style={styles.patientMeta}>
               Age: {patient.age}y &nbsp;|&nbsp; Gender: {patient.gender}
+              {patient.regNo ? ` | Reg. No: ${patient.regNo}` : ''}
               {patient.phone ? ` | Phone: ${patient.phone}` : ''}
               {patient.abhaId ? ` | ABHA ID: ${patient.abhaId}` : ''}
             </Text>

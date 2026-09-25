@@ -9,6 +9,8 @@ import { Patient, Prescription } from "@/types";
 import { requireAuth, getSecurityConfig } from "@/lib/auth";
 import { LockDeskButton } from "@/components/LockDeskButton";
 
+export const dynamic = 'force-dynamic';
+
 export default async function NewPrescriptionPage({
   searchParams,
 }: {
@@ -22,6 +24,7 @@ export default async function NewPrescriptionPage({
     : '/prescription/new';
   await requireAuth(redirectTarget);
   const { securityEnabled } = await getSecurityConfig();
+  const settings = await db.query.clinicSettings.findFirst();
   const backHref = patientId ? `/patient/${patientId}` : "/";
 
   let cloneData: (Prescription & { patient?: Patient }) | null = null;
@@ -77,6 +80,7 @@ export default async function NewPrescriptionPage({
           initialPatientId={patientId || (cloneData?.patientId ? String(cloneData.patientId) : undefined)}
           initialData={cloneData}
           cloneFromId={cloneFromId}
+          doctorSettings={settings || undefined}
         />
       </div>
     </div>

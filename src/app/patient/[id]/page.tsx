@@ -14,6 +14,8 @@ import { formatDate } from "@/lib/utils";
 import { requireAuth, getSecurityConfig } from "@/lib/auth";
 import { LockDeskButton } from "@/components/LockDeskButton";
 
+export const dynamic = 'force-dynamic';
+
 export default async function PatientProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   await requireAuth(`/patient/${id}`);
@@ -68,7 +70,14 @@ export default async function PatientProfilePage({ params }: { params: Promise<{
                 <User className="w-8 h-8" />
               </div>
               <div>
-                <CardTitle className="text-2xl text-slate-900">{typedPatient.name}</CardTitle>
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <CardTitle className="text-2xl text-slate-900">{typedPatient.name}</CardTitle>
+                  {typedPatient.regNo && (
+                    <span className="font-mono text-xs font-bold bg-blue-100 text-blue-800 border border-blue-200 px-2.5 py-0.5 rounded-full">
+                      Reg No: {typedPatient.regNo}
+                    </span>
+                  )}
+                </div>
                 <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-slate-500 text-sm">
                   <span className="flex items-center gap-1">
                     <Calendar className="w-4 h-4 text-slate-400" /> {typedPatient.age} years / {typedPatient.gender}

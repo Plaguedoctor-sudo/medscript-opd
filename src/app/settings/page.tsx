@@ -7,6 +7,8 @@ import { requireAuth, getSecurityConfig } from "@/lib/auth";
 import { getLocalBackupSnapshots } from "./backup-actions";
 import { LockDeskButton } from "@/components/LockDeskButton";
 
+export const dynamic = 'force-dynamic';
+
 export default async function SettingsPage() {
   await requireAuth('/settings');
   const [settings, securityConfig, backupSnapshots] = await Promise.all([

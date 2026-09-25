@@ -106,6 +106,20 @@ export function EditPatientModal({ patient }: { patient: Patient }) {
           </DialogHeader>
 
           <div className="space-y-4 py-4">
+            {patient.regNo && (
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <Label>Registration No.</Label>
+                  <span className="text-[10px] text-slate-400">Fixed System ID</span>
+                </div>
+                <Input
+                  value={patient.regNo}
+                  readOnly
+                  className="bg-slate-50 font-mono text-xs text-slate-700 font-semibold"
+                />
+              </div>
+            )}
+
             <div className="space-y-1.5">
               <Label htmlFor="edit-name">Full Name *</Label>
               <Input

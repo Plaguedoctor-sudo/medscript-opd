@@ -27,14 +27,55 @@ export interface PrescriptionFormData {
   followUpDate?: string;
 }
 
+export async function generatePatientRegNo(targetDate: Date = new Date()): Promise<string> {
+  const year = targetDate.getFullYear();
+  const month = String(targetDate.getMonth() + 1).padStart(2, "0");
+  const day = String(targetDate.getDate()).padStart(2, "0");
+  const datePrefix = `${year}${month}${day}`;
+
+  const existingToday = await db
+    .select({ regNo: patients.regNo })
+    .from(patients)
+    .where(like(patients.regNo, `${datePrefix}%`));
+
+  let maxSequence = 0;
+  for (const row of existingToday) {
+    if (row.regNo) {
+      const match = row.regNo.match(/^(\d{8})[-]?(\d+)$/);
+      if (match && match[1] === datePrefix) {
+        const seq = parseInt(match[2], 10);
+        if (!isNaN(seq) && seq > maxSequence) {
+          maxSequence = seq;
+        }
+      }
+    }
+  }
+
+  const nextSeq = maxSequence + 1;
+  return `${datePrefix}-${nextSeq}`;
+}
+
 export async function searchPatients(query: string): Promise<Patient[]> {
-  if (!query || query.length < 2) return [];
-  const results = await db.select().from(patients).where(
-    or(
-      like(patients.name, `%${query}%`),
-      like(patients.phone, `%${query}%`)
+  if (!query || query.trim().length < 1) return [];
+  const clean = query.trim();
+  let hyphenated = clean;
+  if (/^\d{9,}$/.test(clean)) {
+    hyphenated = `${clean.slice(0, 8)}-${clean.slice(8)}`;
+  }
+
+  const results = await db
+    .select()
+    .from(patients)
+    .where(
+      or(
+        like(patients.name, `%${clean}%`),
+        like(patients.phone, `%${clean}%`),
+        like(patients.regNo, `%${clean}%`),
+        like(patients.regNo, `%${hyphenated}%`),
+        like(patients.abhaId, `%${clean}%`)
+      )
     )
-  ).limit(5);
+    .limit(8);
 
   return results as Patient[];
 }
@@ -79,7 +120,10 @@ export async function createPrescription(formData: PrescriptionFormData) {
       throw new Error("Patient name, valid age, and gender are required.");
     }
 
+    const regNo = await generatePatientRegNo();
+
     const patientData = {
+      regNo,
       name: rawName,
       age: Math.max(0, Math.min(130, rawAge)),
       gender: ["Male", "Female", "Other"].includes(rawGender) ? rawGender : "Other",

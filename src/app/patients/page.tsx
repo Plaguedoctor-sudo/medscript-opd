@@ -11,21 +11,30 @@ import { Patient } from "@/types";
 import { requireAuth, getSecurityConfig } from "@/lib/auth";
 import { LockDeskButton } from "@/components/LockDeskButton";
 
+export const dynamic = 'force-dynamic';
+
 export default async function PatientsPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   await requireAuth('/patients');
   const { securityEnabled } = await getSecurityConfig();
   const query = (await searchParams)?.q;
+  const clean = query ? query.trim() : "";
+  let hyphenated = clean;
+  if (/^\d{9,}$/.test(clean)) {
+    hyphenated = `${clean.slice(0, 8)}-${clean.slice(8)}`;
+  }
 
   // Fetch patients, optionally filtered by search
   const patientList = await db
     .select()
     .from(patients)
     .where(
-      query
+      clean
         ? or(
-            like(patients.name, `%${query}%`),
-            like(patients.phone, `%${query}%`),
-            like(patients.abhaId, `%${query}%`)
+            like(patients.name, `%${clean}%`),
+            like(patients.phone, `%${clean}%`),
+            like(patients.abhaId, `%${clean}%`),
+            like(patients.regNo, `%${clean}%`),
+            like(patients.regNo, `%${hyphenated}%`)
           )
         : undefined
     )
@@ -107,6 +116,7 @@ export default async function PatientsPage({ searchParams }: { searchParams: Pro
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>Reg. No.</TableHead>
                     <TableHead>Patient Name</TableHead>
                     <TableHead>Age / Gender</TableHead>
                     <TableHead>Phone</TableHead>
@@ -120,6 +130,11 @@ export default async function PatientsPage({ searchParams }: { searchParams: Pro
                     const totalVisits = countMap.get(patient.id) || 0;
                     return (
                       <TableRow key={patient.id} className="hover:bg-slate-50/80">
+                        <TableCell>
+                          <span className="font-mono text-xs font-semibold bg-slate-100 text-slate-800 border border-slate-200 px-2 py-0.5 rounded">
+                            {patient.regNo || `#${patient.id}`}
+                          </span>
+                        </TableCell>
                         <TableCell className="font-semibold text-slate-900">
                           <Link href={`/patient/${patient.id}`} className="text-blue-600 hover:underline">
                             {patient.name}

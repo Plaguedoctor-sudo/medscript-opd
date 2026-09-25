@@ -7,22 +7,94 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { createPrescription, updatePrescription, searchPatients, getPatientById } from "./actions";
-import { Plus, Trash2, Search, User, X, Save, Loader2, Pill, Copy } from "lucide-react";
+import {
+  Plus,
+  Trash2,
+  Search,
+  User,
+  X,
+  Save,
+  Loader2,
+  Pill,
+  Copy,
+  Stethoscope,
+  Activity,
+  Sparkles,
+  RotateCcw,
+} from "lucide-react";
 import { toast } from "@/components/ui/toast";
-import { Medication, Patient, Prescription } from "@/types";
+import { Medication, Patient, Prescription, ClinicSettings } from "@/types";
 
 interface FormProps {
   initialPatientId?: string;
   initialData?: (Prescription & { patient?: Patient }) | null;
   cloneFromId?: number;
+  doctorSettings?: ClinicSettings;
 }
 
-const COMMON_DOSAGES = ["1-0-1", "1-1-1", "1-0-0", "0-0-1", "0-1-0", "1-0-1-1", "SOS"];
+const DOSAGE_OPTIONS = [
+  { value: "1-0-1", label: "1-0-1 (Morning & Night)" },
+  { value: "1-0-0", label: "1-0-0 (Morning only)" },
+  { value: "0-0-1", label: "0-0-1 (Night only)" },
+  { value: "0-1-0", label: "0-1-0 (Afternoon only)" },
+  { value: "1-1-1", label: "1-1-1 (Thrice daily - TDS)" },
+  { value: "1-1-1-1", label: "1-1-1-1 (Four times daily - QID)" },
+  { value: "1-0-1-0", label: "1-0-1-0 (Morning & Evening)" },
+  { value: "0.5-0-0.5", label: "0.5-0-0.5 (Half tab twice)" },
+  { value: "0.5-0-0", label: "0.5-0-0 (Half tab morning)" },
+  { value: "0-0-0.5", label: "0-0-0.5 (Half tab night)" },
+  { value: "SOS", label: "SOS (When required)" },
+  { value: "1 Stat", label: "1 Stat (Single dose immediately)" },
+  { value: "Alternate days", label: "Alternate days (QOD)" },
+  { value: "Weekly once", label: "Weekly once" },
+];
+
+const DURATION_OPTIONS = [
+  { value: "1 day", label: "1 day" },
+  { value: "2 days", label: "2 days" },
+  { value: "3 days", label: "3 days" },
+  { value: "5 days", label: "5 days" },
+  { value: "7 days", label: "7 days (1 week)" },
+  { value: "10 days", label: "10 days" },
+  { value: "14 days", label: "14 days (2 weeks)" },
+  { value: "15 days", label: "15 days" },
+  { value: "21 days", label: "21 days (3 weeks)" },
+  { value: "1 month", label: "1 month (30 days)" },
+  { value: "2 months", label: "2 months (60 days)" },
+  { value: "3 months", label: "3 months (90 days)" },
+  { value: "SOS", label: "SOS (When needed)" },
+  { value: "Continuous", label: "Continuous / Chronic" },
+];
+
+const TIMING_OPTIONS = [
+  { value: "After food", label: "After food (PC)" },
+  { value: "Before food", label: "Before food (AC)" },
+  { value: "With food", label: "With food" },
+  { value: "At bedtime", label: "At bedtime (HS)" },
+  { value: "Empty stomach", label: "Empty stomach" },
+  { value: "As needed (SOS)", label: "As needed (SOS)" },
+];
+
+const COMMON_DOSAGES = ["1-0-1", "1-1-1", "1-0-0", "0-0-1", "0-1-0", "SOS"];
 const COMMON_TIMINGS = ["After food", "Before food", "With food", "At bedtime", "Empty stomach"];
 const COMMON_DURATIONS = ["3 days", "5 days", "7 days", "10 days", "14 days", "1 month"];
 
-export default function NewPrescriptionForm({ initialPatientId, initialData, cloneFromId }: FormProps) {
+const DEFAULT_STANDARD_VITALS = {
+  weight: "",
+  bp: "120/80",
+  pulse: "72",
+  temp: "98.4",
+  spo2: "99",
+};
+
+export default function NewPrescriptionForm({
+  initialPatientId,
+  initialData,
+  cloneFromId,
+  doctorSettings,
+}: FormProps) {
   const router = useRouter();
+  const isEditMode = !!initialData?.id;
 
   const [medications, setMedications] = useState<Medication[]>(() => {
     if (initialData?.medications) {
@@ -34,6 +106,23 @@ export default function NewPrescriptionForm({ initialPatientId, initialData, clo
       }
     }
     return [{ name: "", strength: "", dosage: "1-0-1", timing: "After food", duration: "5 days", instruction: "" }];
+  });
+
+  // Standard data prefilled in vitals (can be modified by doctor as required)
+  const [vitals, setVitals] = useState({
+    weight: initialData?.weight || "",
+    bp: initialData?.bp !== undefined && initialData?.bp !== null && initialData?.bp !== ""
+      ? initialData.bp
+      : isEditMode ? "" : DEFAULT_STANDARD_VITALS.bp,
+    pulse: initialData?.pulse !== undefined && initialData?.pulse !== null && initialData?.pulse !== ""
+      ? initialData.pulse
+      : isEditMode ? "" : DEFAULT_STANDARD_VITALS.pulse,
+    temp: initialData?.temp !== undefined && initialData?.temp !== null && initialData?.temp !== ""
+      ? initialData.temp
+      : isEditMode ? "" : DEFAULT_STANDARD_VITALS.temp,
+    spo2: initialData?.spo2 !== undefined && initialData?.spo2 !== null && initialData?.spo2 !== ""
+      ? initialData.spo2
+      : isEditMode ? "" : DEFAULT_STANDARD_VITALS.spo2,
   });
 
   const [patientSearch, setPatientSearch] = useState("");
@@ -64,6 +153,31 @@ export default function NewPrescriptionForm({ initialPatientId, initialData, clo
     return () => clearTimeout(timer);
   }, [patientSearch]);
 
+  const prefillNormalVitals = () => {
+    setVitals((prev) => ({
+      ...prev,
+      bp: DEFAULT_STANDARD_VITALS.bp,
+      pulse: DEFAULT_STANDARD_VITALS.pulse,
+      temp: DEFAULT_STANDARD_VITALS.temp,
+      spo2: DEFAULT_STANDARD_VITALS.spo2,
+    }));
+    toast.show({
+      title: "Standard Vitals Prefilled",
+      description: "BP 120/80, Pulse 72, Temp 98.4°F, and SpO2 99% have been set. You can edit any value.",
+      type: "info",
+    });
+  };
+
+  const clearVitals = () => {
+    setVitals({
+      weight: "",
+      bp: "",
+      pulse: "",
+      temp: "",
+      spo2: "",
+    });
+  };
+
   const addMedication = () => {
     setMedications([
       ...medications,
@@ -81,6 +195,10 @@ export default function NewPrescriptionForm({ initialPatientId, initialData, clo
     setMedications(newMedications);
   };
 
+  const isKnownDosage = (val: string) => DOSAGE_OPTIONS.some((o) => o.value === val);
+  const isKnownDuration = (val: string) => DURATION_OPTIONS.some((o) => o.value === val);
+  const isKnownTiming = (val: string) => TIMING_OPTIONS.some((o) => o.value === val);
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -93,11 +211,11 @@ export default function NewPrescriptionForm({ initialPatientId, initialData, clo
         patientGender: formData.get("patientGender") as string,
         patientPhone: formData.get("patientPhone") as string,
         abhaId: formData.get("abhaId") as string,
-        weight: formData.get("weight") as string,
-        bp: formData.get("bp") as string,
-        pulse: formData.get("pulse") as string,
-        temp: formData.get("temp") as string,
-        spo2: formData.get("spo2") as string,
+        weight: vitals.weight,
+        bp: vitals.bp,
+        pulse: vitals.pulse,
+        temp: vitals.temp,
+        spo2: vitals.spo2,
         chiefComplaints: formData.get("chiefComplaints") as string,
         clinicalHistory: formData.get("clinicalHistory") as string,
         diagnosis: formData.get("diagnosis") as string,
@@ -135,11 +253,10 @@ export default function NewPrescriptionForm({ initialPatientId, initialData, clo
     }
   };
 
-  const isEditMode = !!initialData?.id;
-
   return (
     <form onSubmit={handleSubmit} className="space-y-8 max-w-5xl mx-auto pb-16">
-      <div className="flex items-center justify-between">
+      {/* Header with Active Doctor Details */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">
             {isEditMode ? "Edit Prescription" : "New Consultation"}
@@ -150,11 +267,23 @@ export default function NewPrescriptionForm({ initialPatientId, initialData, clo
               : "Record patient complaints, vitals, and issue a digital prescription."}
           </p>
         </div>
-        {isEditMode && (
-          <div className="text-sm text-slate-600 bg-slate-100 border px-3 py-1.5 rounded-full font-medium">
-            Prescription ID: #{initialData.id}
-          </div>
-        )}
+
+        <div className="flex flex-wrap items-center gap-2">
+          {doctorSettings?.doctorName && (
+            <div className="flex items-center gap-1.5 text-xs text-blue-800 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-full font-medium shadow-xs">
+              <Stethoscope className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+              <span>
+                Doctor: <strong>{doctorSettings.doctorName}</strong>
+                {doctorSettings.qualifications ? ` (${doctorSettings.qualifications})` : ""}
+              </span>
+            </div>
+          )}
+          {isEditMode && (
+            <div className="text-sm text-slate-600 bg-slate-100 border px-3 py-1.5 rounded-full font-medium">
+              Rx #{initialData.id}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Clone Notice Banner */}
@@ -196,7 +325,14 @@ export default function NewPrescriptionForm({ initialPatientId, initialData, clo
                     }}
                   >
                     <div>
-                      <div className="font-semibold text-slate-900">{p.name}</div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-slate-900">{p.name}</span>
+                        {p.regNo && (
+                          <span className="font-mono text-[10px] bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded font-bold">
+                            Reg: {p.regNo}
+                          </span>
+                        )}
+                      </div>
                       <div className="text-xs text-slate-500">
                         {p.age}y / {p.gender} {p.phone ? `• ${p.phone}` : ""} {p.abhaId ? `• ABHA: ${p.abhaId}` : ""}
                       </div>
@@ -221,7 +357,14 @@ export default function NewPrescriptionForm({ initialPatientId, initialData, clo
                 <User className="w-5 h-5" />
               </div>
               <div>
-                <div className="font-bold text-slate-900">Patient: {selectedPatient.name}</div>
+                <div className="flex items-center gap-2 font-bold text-slate-900">
+                  <span>Patient: {selectedPatient.name}</span>
+                  {selectedPatient.regNo && (
+                    <span className="font-mono text-xs font-bold bg-green-100 text-green-800 border border-green-200 px-2 py-0.5 rounded-full">
+                      Reg No: {selectedPatient.regNo}
+                    </span>
+                  )}
+                </div>
                 <div className="text-xs text-slate-600">
                   {selectedPatient.age}y / {selectedPatient.gender} {selectedPatient.phone ? `• ${selectedPatient.phone}` : ""} {selectedPatient.abhaId ? `• ABHA: ${selectedPatient.abhaId}` : ""}
                 </div>
@@ -248,6 +391,18 @@ export default function NewPrescriptionForm({ initialPatientId, initialData, clo
           <CardTitle className="text-lg">Patient Information</CardTitle>
         </CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="patientRegNo">Patient Reg. No.</Label>
+              <span className="text-[10px] text-blue-600 font-medium">YYYYMMDD-N</span>
+            </div>
+            <Input
+              id="patientRegNo"
+              value={selectedPatient?.regNo || (isEditMode ? initialData?.patient?.regNo || "" : "Auto-generated on save (YYYYMMDD-N)")}
+              readOnly
+              className="bg-slate-50 text-slate-600 font-mono text-xs"
+            />
+          </div>
           <div className="space-y-2">
             <Label htmlFor="patientName">Full Name *</Label>
             <Input
@@ -322,31 +477,177 @@ export default function NewPrescriptionForm({ initialPatientId, initialData, clo
         </CardContent>
       </Card>
 
-      {/* Vitals */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Vital Signs</CardTitle>
+      {/* Vital Signs (Standard values prefilled, fully editable as doctor requires) */}
+      <Card className="border-slate-200">
+        <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 gap-2">
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 bg-rose-50 text-rose-600 rounded-md">
+              <Activity className="w-4 h-4" />
+            </div>
+            <div>
+              <CardTitle className="text-lg flex items-center gap-2">
+                Vital Signs
+                <span className="text-[11px] font-normal text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                  Standard Data Prefilled • Editable
+                </span>
+              </CardTitle>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={prefillNormalVitals}
+              className="text-xs h-8 text-blue-700 border-blue-200 bg-blue-50/50 hover:bg-blue-100"
+              title="Reset all vitals to standard normal clinical adult values"
+            >
+              <Sparkles className="w-3.5 h-3.5 mr-1 text-blue-600" /> Prefill Standard Normals
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={clearVitals}
+              className="text-xs h-8 text-slate-500 hover:text-slate-800"
+              title="Clear all vital values"
+            >
+              <RotateCcw className="w-3.5 h-3.5 mr-1" /> Clear
+            </Button>
+          </div>
         </CardHeader>
-        <CardContent className="grid grid-cols-2 md:grid-cols-5 gap-4">
-          <div className="space-y-2">
-            <Label>Weight (kg)</Label>
-            <Input name="weight" placeholder="e.g. 68" defaultValue={initialData?.weight || ""} />
-          </div>
-          <div className="space-y-2">
-            <Label>BP (mmHg)</Label>
-            <Input name="bp" placeholder="e.g. 120/80" defaultValue={initialData?.bp || ""} />
-          </div>
-          <div className="space-y-2">
-            <Label>Pulse (bpm)</Label>
-            <Input name="pulse" placeholder="e.g. 76" defaultValue={initialData?.pulse || ""} />
-          </div>
-          <div className="space-y-2">
-            <Label>Temp (°F)</Label>
-            <Input name="temp" placeholder="e.g. 98.6" defaultValue={initialData?.temp || ""} />
-          </div>
-          <div className="space-y-2">
-            <Label>SPO2 (%)</Label>
-            <Input name="spo2" placeholder="e.g. 99" defaultValue={initialData?.spo2 || ""} />
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="vital-weight" className="text-xs font-semibold text-slate-700">Weight (kg)</Label>
+                <span className="text-[10px] text-slate-400">Optional</span>
+              </div>
+              <Input
+                id="vital-weight"
+                name="weight"
+                placeholder="e.g. 68"
+                value={vitals.weight}
+                onChange={(e) => setVitals((v) => ({ ...v, weight: e.target.value }))}
+                className="bg-white"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="vital-bp" className="text-xs font-semibold text-slate-700">BP (mmHg)</Label>
+                <span className="text-[10px] text-emerald-600 font-medium">Std: 120/80</span>
+              </div>
+              <Input
+                id="vital-bp"
+                name="bp"
+                placeholder="120/80"
+                value={vitals.bp}
+                onChange={(e) => setVitals((v) => ({ ...v, bp: e.target.value }))}
+                className="bg-white"
+              />
+              <div className="flex flex-wrap gap-1 pt-0.5">
+                {["120/80", "110/70", "130/85", "140/90"].map((val) => (
+                  <button
+                    key={val}
+                    type="button"
+                    onClick={() => setVitals((v) => ({ ...v, bp: val }))}
+                    className={`text-[10px] px-1.5 py-0.5 rounded border transition-colors ${
+                      vitals.bp === val ? "bg-blue-600 text-white border-blue-600 font-medium" : "bg-white text-slate-600 hover:bg-slate-100"
+                    }`}
+                  >
+                    {val}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="vital-pulse" className="text-xs font-semibold text-slate-700">Pulse (bpm)</Label>
+                <span className="text-[10px] text-emerald-600 font-medium">Std: 72</span>
+              </div>
+              <Input
+                id="vital-pulse"
+                name="pulse"
+                placeholder="72"
+                value={vitals.pulse}
+                onChange={(e) => setVitals((v) => ({ ...v, pulse: e.target.value }))}
+                className="bg-white"
+              />
+              <div className="flex flex-wrap gap-1 pt-0.5">
+                {["72", "76", "84", "96"].map((val) => (
+                  <button
+                    key={val}
+                    type="button"
+                    onClick={() => setVitals((v) => ({ ...v, pulse: val }))}
+                    className={`text-[10px] px-1.5 py-0.5 rounded border transition-colors ${
+                      vitals.pulse === val ? "bg-blue-600 text-white border-blue-600 font-medium" : "bg-white text-slate-600 hover:bg-slate-100"
+                    }`}
+                  >
+                    {val}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="vital-temp" className="text-xs font-semibold text-slate-700">Temp (°F)</Label>
+                <span className="text-[10px] text-emerald-600 font-medium">Std: 98.4</span>
+              </div>
+              <Input
+                id="vital-temp"
+                name="temp"
+                placeholder="98.4"
+                value={vitals.temp}
+                onChange={(e) => setVitals((v) => ({ ...v, temp: e.target.value }))}
+                className="bg-white"
+              />
+              <div className="flex flex-wrap gap-1 pt-0.5">
+                {["98.4", "99.0", "100.4", "101.5"].map((val) => (
+                  <button
+                    key={val}
+                    type="button"
+                    onClick={() => setVitals((v) => ({ ...v, temp: val }))}
+                    className={`text-[10px] px-1.5 py-0.5 rounded border transition-colors ${
+                      vitals.temp === val ? "bg-blue-600 text-white border-blue-600 font-medium" : "bg-white text-slate-600 hover:bg-slate-100"
+                    }`}
+                  >
+                    {val}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="vital-spo2" className="text-xs font-semibold text-slate-700">SPO2 (%)</Label>
+                <span className="text-[10px] text-emerald-600 font-medium">Std: 99</span>
+              </div>
+              <Input
+                id="vital-spo2"
+                name="spo2"
+                placeholder="99"
+                value={vitals.spo2}
+                onChange={(e) => setVitals((v) => ({ ...v, spo2: e.target.value }))}
+                className="bg-white"
+              />
+              <div className="flex flex-wrap gap-1 pt-0.5">
+                {["99", "98", "97", "95"].map((val) => (
+                  <button
+                    key={val}
+                    type="button"
+                    onClick={() => setVitals((v) => ({ ...v, spo2: val }))}
+                    className={`text-[10px] px-1.5 py-0.5 rounded border transition-colors ${
+                      vitals.spo2 === val ? "bg-blue-600 text-white border-blue-600 font-medium" : "bg-white text-slate-600 hover:bg-slate-100"
+                    }`}
+                  >
+                    {val}%
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -389,146 +690,253 @@ export default function NewPrescriptionForm({ initialPatientId, initialData, clo
         </CardContent>
       </Card>
 
-      {/* Medications */}
+      {/* Medications (Schedule and Duration / No. of Days dropdowns) */}
       <Card className="border-slate-300 shadow-sm">
         <CardHeader className="flex flex-row items-center justify-between border-b pb-4">
           <div>
             <CardTitle className="text-lg flex items-center gap-2">
               <Pill className="w-5 h-5 text-blue-600" /> Medications (Rx)
             </CardTitle>
-            <p className="text-xs text-slate-500 mt-0.5">Add generic medicines, strength, dosage frequency, and duration.</p>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Select schedule frequency, timing, and number of days from quick dropdowns or shortcut chips.
+            </p>
           </div>
           <Button type="button" variant="outline" size="sm" onClick={addMedication}>
             <Plus className="w-4 h-4 mr-1.5" /> Add Medicine
           </Button>
         </CardHeader>
         <CardContent className="pt-4 space-y-5">
-          {medications.map((med, index) => (
-            <div key={index} className="p-4 bg-slate-50 rounded-lg border border-slate-200 space-y-3">
-              <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-start">
-                <div className="md:col-span-4 space-y-1">
-                  <Label className="text-xs font-semibold text-slate-700">Generic Drug / Brand *</Label>
-                  <Input
-                    value={med.name}
-                    onChange={(e) => updateMedicationField(index, "name", e.target.value)}
-                    required
-                    placeholder="e.g. Paracetamol"
-                    list="generic-drugs"
-                    className="bg-white"
-                  />
-                </div>
-                <div className="md:col-span-2 space-y-1">
-                  <Label className="text-xs font-semibold text-slate-700">Strength</Label>
-                  <Input
-                    value={med.strength}
-                    onChange={(e) => updateMedicationField(index, "strength", e.target.value)}
-                    placeholder="e.g. 650mg"
-                    className="bg-white"
-                  />
-                </div>
-                <div className="md:col-span-2 space-y-1">
-                  <Label className="text-xs font-semibold text-slate-700">Dosage</Label>
-                  <Input
-                    value={med.dosage}
-                    onChange={(e) => updateMedicationField(index, "dosage", e.target.value)}
-                    placeholder="e.g. 1-0-1"
-                    className="bg-white"
-                  />
-                </div>
-                <div className="md:col-span-2 space-y-1">
-                  <Label className="text-xs font-semibold text-slate-700">Timing</Label>
-                  <Input
-                    value={med.timing}
-                    onChange={(e) => updateMedicationField(index, "timing", e.target.value)}
-                    placeholder="e.g. After food"
-                    list="timing-list"
-                    className="bg-white"
-                  />
-                </div>
-                <div className="md:col-span-1 space-y-1">
-                  <Label className="text-xs font-semibold text-slate-700">Duration</Label>
-                  <Input
-                    value={med.duration}
-                    onChange={(e) => updateMedicationField(index, "duration", e.target.value)}
-                    placeholder="e.g. 5 days"
-                    className="bg-white"
-                  />
-                </div>
-                <div className="md:col-span-1 flex items-end justify-center pt-5">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => removeMedication(index)}
-                    disabled={medications.length <= 1}
-                    className="text-slate-400 hover:text-red-600 disabled:opacity-30"
-                    title="Remove medicine"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
+          {medications.map((med, index) => {
+            const hasCustomDosage = !isKnownDosage(med.dosage);
+            const hasCustomTiming = !isKnownTiming(med.timing);
+            const hasCustomDuration = !isKnownDuration(med.duration);
 
-              {/* Special Instructions */}
-              <div>
-                <Input
-                  value={med.instruction || ""}
-                  onChange={(e) => updateMedicationField(index, "instruction", e.target.value)}
-                  placeholder="Special instructions (optional: e.g. With warm water, SOS only if fever > 100°F)"
-                  className="bg-white text-xs h-8 text-slate-700"
-                />
-              </div>
+            return (
+              <div key={index} className="p-4 bg-slate-50 rounded-lg border border-slate-200 space-y-3">
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-start">
+                  {/* Drug Name */}
+                  <div className="md:col-span-3 space-y-1">
+                    <Label className="text-xs font-semibold text-slate-700">Generic Drug / Brand *</Label>
+                    <Input
+                      value={med.name}
+                      onChange={(e) => updateMedicationField(index, "name", e.target.value)}
+                      required
+                      placeholder="e.g. Paracetamol"
+                      list="generic-drugs"
+                      className="bg-white text-xs h-9"
+                    />
+                  </div>
 
-              {/* Quick shortcut chips for dosage, timing, duration */}
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs pt-1 border-t border-slate-200">
-                <div className="flex items-center gap-1 text-slate-500">
-                  <span className="font-medium">Dosage:</span>
-                  {COMMON_DOSAGES.map((d) => (
-                    <button
-                      key={d}
-                      type="button"
-                      onClick={() => updateMedicationField(index, "dosage", d)}
-                      className={`px-1.5 py-0.5 rounded text-[11px] transition-colors ${
-                        med.dosage === d ? "bg-blue-600 text-white font-medium" : "bg-white border text-slate-600 hover:bg-slate-100"
-                      }`}
+                  {/* Strength */}
+                  <div className="md:col-span-2 space-y-1">
+                    <Label className="text-xs font-semibold text-slate-700">Strength</Label>
+                    <Input
+                      value={med.strength}
+                      onChange={(e) => updateMedicationField(index, "strength", e.target.value)}
+                      placeholder="e.g. 650mg"
+                      className="bg-white text-xs h-9"
+                    />
+                  </div>
+
+                  {/* Schedule / Dosage Dropdown */}
+                  <div className="md:col-span-2 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs font-semibold text-slate-700">Schedule (Dosage)</Label>
+                      {hasCustomDosage && (
+                        <span className="text-[10px] text-amber-600 font-medium">Custom</span>
+                      )}
+                    </div>
+                    <select
+                      value={hasCustomDosage ? "custom" : med.dosage}
+                      onChange={(e) => {
+                        if (e.target.value === "custom") {
+                          updateMedicationField(index, "dosage", "");
+                        } else {
+                          updateMedicationField(index, "dosage", e.target.value);
+                        }
+                      }}
+                      className="w-full h-9 px-2 text-xs border border-slate-300 rounded-md bg-white text-slate-800 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
-                      {d}
-                    </button>
-                  ))}
+                      {DOSAGE_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                      <option value="custom">✏️ Custom Schedule...</option>
+                    </select>
+
+                    {hasCustomDosage && (
+                      <Input
+                        value={med.dosage}
+                        onChange={(e) => updateMedicationField(index, "dosage", e.target.value)}
+                        placeholder="e.g. 2 tabs twice daily"
+                        className="mt-1 text-xs h-8 bg-white border-amber-300 focus:border-blue-500"
+                        autoFocus
+                      />
+                    )}
+                  </div>
+
+                  {/* Timing Dropdown */}
+                  <div className="md:col-span-2 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs font-semibold text-slate-700">Timing</Label>
+                      {hasCustomTiming && (
+                        <span className="text-[10px] text-amber-600 font-medium">Custom</span>
+                      )}
+                    </div>
+                    <select
+                      value={hasCustomTiming ? "custom" : med.timing}
+                      onChange={(e) => {
+                        if (e.target.value === "custom") {
+                          updateMedicationField(index, "timing", "");
+                        } else {
+                          updateMedicationField(index, "timing", e.target.value);
+                        }
+                      }}
+                      className="w-full h-9 px-2 text-xs border border-slate-300 rounded-md bg-white text-slate-800 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      {TIMING_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                      <option value="custom">✏️ Custom Timing...</option>
+                    </select>
+
+                    {hasCustomTiming && (
+                      <Input
+                        value={med.timing}
+                        onChange={(e) => updateMedicationField(index, "timing", e.target.value)}
+                        placeholder="e.g. 30 mins before food"
+                        className="mt-1 text-xs h-8 bg-white border-amber-300 focus:border-blue-500"
+                        autoFocus
+                      />
+                    )}
+                  </div>
+
+                  {/* Duration (No. of days) Dropdown */}
+                  <div className="md:col-span-2 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs font-semibold text-slate-700">No. of Days</Label>
+                      {hasCustomDuration && (
+                        <span className="text-[10px] text-amber-600 font-medium">Custom</span>
+                      )}
+                    </div>
+                    <select
+                      value={hasCustomDuration ? "custom" : med.duration}
+                      onChange={(e) => {
+                        if (e.target.value === "custom") {
+                          updateMedicationField(index, "duration", "");
+                        } else {
+                          updateMedicationField(index, "duration", e.target.value);
+                        }
+                      }}
+                      className="w-full h-9 px-2 text-xs border border-slate-300 rounded-md bg-white text-slate-800 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      {DURATION_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                      <option value="custom">✏️ Custom Days...</option>
+                    </select>
+
+                    {hasCustomDuration && (
+                      <Input
+                        value={med.duration}
+                        onChange={(e) => updateMedicationField(index, "duration", e.target.value)}
+                        placeholder="e.g. 4 days / 6 weeks"
+                        className="mt-1 text-xs h-8 bg-white border-amber-300 focus:border-blue-500"
+                        autoFocus
+                      />
+                    )}
+                  </div>
+
+                  {/* Delete Button */}
+                  <div className="md:col-span-1 flex items-end justify-center pt-5">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => removeMedication(index)}
+                      disabled={medications.length <= 1}
+                      className="text-slate-400 hover:text-red-600 disabled:opacity-30"
+                      title="Remove medicine"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-1 text-slate-500">
-                  <span className="font-medium">Timing:</span>
-                  {COMMON_TIMINGS.map((t) => (
-                    <button
-                      key={t}
-                      type="button"
-                      onClick={() => updateMedicationField(index, "timing", t)}
-                      className={`px-1.5 py-0.5 rounded text-[11px] transition-colors ${
-                        med.timing === t ? "bg-emerald-600 text-white font-medium" : "bg-white border text-slate-600 hover:bg-slate-100"
-                      }`}
-                    >
-                      {t}
-                    </button>
-                  ))}
+
+                {/* Special Instructions */}
+                <div>
+                  <Input
+                    value={med.instruction || ""}
+                    onChange={(e) => updateMedicationField(index, "instruction", e.target.value)}
+                    placeholder="Special instructions (optional: e.g. With warm water, SOS only if fever > 100°F)"
+                    className="bg-white text-xs h-8 text-slate-700"
+                  />
                 </div>
-                <div className="flex items-center gap-1 text-slate-500">
-                  <span className="font-medium">Duration:</span>
-                  {COMMON_DURATIONS.map((dur) => (
-                    <button
-                      key={dur}
-                      type="button"
-                      onClick={() => updateMedicationField(index, "duration", dur)}
-                      className={`px-1.5 py-0.5 rounded text-[11px] transition-colors ${
-                        med.duration === dur ? "bg-purple-600 text-white font-medium" : "bg-white border text-slate-600 hover:bg-slate-100"
-                      }`}
-                    >
-                      {dur}
-                    </button>
-                  ))}
+
+                {/* Quick 1-Click Shortcut Chips */}
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs pt-2 border-t border-slate-200">
+                  <div className="flex items-center gap-1 text-slate-500">
+                    <span className="font-medium text-[11px]">Schedule:</span>
+                    {COMMON_DOSAGES.map((d) => (
+                      <button
+                        key={d}
+                        type="button"
+                        onClick={() => updateMedicationField(index, "dosage", d)}
+                        className={`px-1.5 py-0.5 rounded text-[11px] transition-colors ${
+                          med.dosage === d
+                            ? "bg-blue-600 text-white font-medium shadow-xs"
+                            : "bg-white border text-slate-600 hover:bg-slate-100"
+                        }`}
+                      >
+                        {d}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="flex items-center gap-1 text-slate-500">
+                    <span className="font-medium text-[11px]">Timing:</span>
+                    {COMMON_TIMINGS.map((t) => (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => updateMedicationField(index, "timing", t)}
+                        className={`px-1.5 py-0.5 rounded text-[11px] transition-colors ${
+                          med.timing === t
+                            ? "bg-emerald-600 text-white font-medium shadow-xs"
+                            : "bg-white border text-slate-600 hover:bg-slate-100"
+                        }`}
+                      >
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="flex items-center gap-1 text-slate-500">
+                    <span className="font-medium text-[11px]">Days:</span>
+                    {COMMON_DURATIONS.map((dur) => (
+                      <button
+                        key={dur}
+                        type="button"
+                        onClick={() => updateMedicationField(index, "duration", dur)}
+                        className={`px-1.5 py-0.5 rounded text-[11px] transition-colors ${
+                          med.duration === dur
+                            ? "bg-purple-600 text-white font-medium shadow-xs"
+                            : "bg-white border text-slate-600 hover:bg-slate-100"
+                        }`}
+                      >
+                        {dur}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </CardContent>
       </Card>
 

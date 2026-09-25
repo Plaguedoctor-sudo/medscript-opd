@@ -3,6 +3,7 @@ import { relations } from "drizzle-orm";
 
 export const patients = sqliteTable("patients", {
   id: integer("id").primaryKey({ autoIncrement: true }),
+  regNo: text("reg_no"),
   name: text("name").notNull(),
   age: integer("age").notNull(),
   gender: text("gender").notNull(), // Male, Female, Other

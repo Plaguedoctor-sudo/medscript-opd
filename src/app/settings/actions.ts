@@ -7,11 +7,13 @@ import { revalidatePath } from "next/cache";
 import { ClinicSettings } from "@/types";
 
 export async function getSettings(): Promise<ClinicSettings | null> {
-  const settings = await db.select().from(clinicSettings).where(eq(clinicSettings.id, 1)).limit(1);
-  return (settings[0] as ClinicSettings) || null;
+  const settings = await db.query.clinicSettings.findFirst();
+  return (settings as ClinicSettings) || null;
 }
 
-export async function saveSettings(formData: FormData): Promise<void> {
+export async function saveSettings(formData: FormData): Promise<ClinicSettings> {
+  const existing = await getSettings();
+
   const file = formData.get("logo") as File | null;
   let logoUrl: string | undefined = undefined;
 
@@ -36,8 +38,8 @@ export async function saveSettings(formData: FormData): Promise<void> {
   const address = ((formData.get("address") as string) || "").trim().slice(0, 300);
   const contact = ((formData.get("contact") as string) || "").trim().slice(0, 100);
 
-  if (!doctorName || !qualifications || !regNumber || !clinicName || !address || !contact) {
-    throw new Error("All required clinic profile fields must be filled.");
+  if (!doctorName) {
+    throw new Error("Doctor name is required.");
   }
 
   const data: {
@@ -50,27 +52,29 @@ export async function saveSettings(formData: FormData): Promise<void> {
     logoUrl?: string;
   } = {
     doctorName,
-    qualifications,
-    regNumber,
-    clinicName,
-    address,
-    contact,
+    qualifications: qualifications || existing?.qualifications || "MBBS",
+    regNumber: regNumber || existing?.regNumber || "REG-PENDING",
+    clinicName: clinicName || existing?.clinicName || "Clinic OPD",
+    address: address || existing?.address || "Clinic Address",
+    contact: contact || existing?.contact || "+91",
   };
 
-  if (logoUrl) {
+  if (logoUrl !== undefined) {
     data.logoUrl = logoUrl;
   }
 
-  const existing = await getSettings();
-
   if (existing) {
-    await db.update(clinicSettings).set(data).where(eq(clinicSettings.id, 1));
+    await db.update(clinicSettings).set(data).where(eq(clinicSettings.id, existing.id));
   } else {
     await db.insert(clinicSettings).values({ id: 1, ...data });
   }
 
+  revalidatePath("/", "layout");
   revalidatePath("/settings");
   revalidatePath("/");
+
+  const updated = await getSettings();
+  return updated!;
 }
 
 export async function seedDemoData(): Promise<void> {
@@ -85,7 +89,7 @@ export async function seedDemoData(): Promise<void> {
 
   const existingSettings = await getSettings();
   if (existingSettings) {
-    await db.update(clinicSettings).set(clinicData).where(eq(clinicSettings.id, 1));
+    await db.update(clinicSettings).set(clinicData).where(eq(clinicSettings.id, existingSettings.id));
   } else {
     await db.insert(clinicSettings).values({ id: 1, ...clinicData });
   }
@@ -98,6 +102,7 @@ export async function seedDemoData(): Promise<void> {
     const [p1] = await db
       .insert(patients)
       .values({
+        regNo: "20260826-1",
         name: "Amit Verma",
         age: 42,
         gender: "Male",
@@ -110,6 +115,7 @@ export async function seedDemoData(): Promise<void> {
     const [p2] = await db
       .insert(patients)
       .values({
+        regNo: "20260913-1",
         name: "Priya Patel",
         age: 29,
         gender: "Female",
@@ -293,6 +299,7 @@ export async function seedDemoData(): Promise<void> {
     ]);
   }
 
+  revalidatePath("/", "layout");
   revalidatePath("/");
   revalidatePath("/patients");
   revalidatePath("/settings");

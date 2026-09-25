@@ -11,6 +11,7 @@ console.log("Seeding MedScript OPD database at:", dbPath);
 db.exec(`
   CREATE TABLE IF NOT EXISTS patients (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    reg_no TEXT,
     name TEXT NOT NULL,
     age INTEGER NOT NULL,
     gender TEXT NOT NULL,
@@ -57,6 +58,9 @@ try {
 try {
   db.exec("ALTER TABLE clinic_settings ADD COLUMN security_enabled INTEGER DEFAULT 0;");
 } catch {}
+try {
+  db.exec("ALTER TABLE patients ADD COLUMN reg_no TEXT;");
+} catch {}
 
 
 // Seed Clinic Settings
@@ -75,14 +79,14 @@ if (!existingSettings) {
 const patientCount = db.prepare("SELECT count(*) as count FROM patients").get().count;
 if (patientCount === 0) {
   const insertPatient = db.prepare(`
-    INSERT INTO patients (name, age, gender, phone, abha_id, created_at)
-    VALUES (?, ?, ?, ?, ?, ?)
+    INSERT INTO patients (reg_no, name, age, gender, phone, abha_id, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
   `);
 
   const DAY = 86400000;
   const now = Date.now();
-  const p1 = insertPatient.run("Amit Verma", 42, "Male", "+91 98765 43210", "14-2345-6789-0123", now - 28 * DAY);
-  const p2 = insertPatient.run("Priya Patel", 29, "Female", "+91 98234 56789", "14-9876-5432-1098", now - 10 * DAY);
+  const p1 = insertPatient.run("20260826-1", "Amit Verma", 42, "Male", "+91 98765 43210", "14-2345-6789-0123", now - 28 * DAY);
+  const p2 = insertPatient.run("20260913-1", "Priya Patel", 29, "Female", "+91 98234 56789", "14-9876-5432-1098", now - 10 * DAY);
 
   const insertRx = db.prepare(`
     INSERT INTO prescriptions (

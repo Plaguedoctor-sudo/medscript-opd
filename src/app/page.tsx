@@ -1,5 +1,5 @@
 import { db } from "@/db";
-import { prescriptions, patients, clinicSettings } from "@/db/schema";
+import { prescriptions, patients } from "@/db/schema";
 import { desc, eq, or, like } from "drizzle-orm";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,13 +20,21 @@ interface ConsultationRow {
     name: string;
     age: number;
     gender: string;
+    regNo?: string | null;
   };
 }
+
+export const dynamic = 'force-dynamic';
 
 export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   await requireAuth('/');
   const { securityEnabled } = await getSecurityConfig();
   const query = (await searchParams)?.q;
+  const clean = query ? query.trim() : "";
+  let hyphenated = clean;
+  if (/^\d{9,}$/.test(clean)) {
+    hyphenated = `${clean.slice(0, 8)}-${clean.slice(8)}`;
+  }
 
   // Fetch prescriptions with patient data, filtered by search query if present
   const results = await db
@@ -39,16 +47,19 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         name: patients.name,
         age: patients.age,
         gender: patients.gender,
+        regNo: patients.regNo,
       },
     })
     .from(prescriptions)
     .innerJoin(patients, eq(prescriptions.patientId, patients.id))
     .where(
-      query
+      clean
         ? or(
-            like(patients.name, `%${query}%`),
-            like(patients.phone, `%${query}%`),
-            like(prescriptions.diagnosis, `%${query}%`)
+            like(patients.name, `%${clean}%`),
+            like(patients.phone, `%${clean}%`),
+            like(patients.regNo, `%${clean}%`),
+            like(patients.regNo, `%${hyphenated}%`),
+            like(prescriptions.diagnosis, `%${clean}%`)
           )
         : undefined
     )
@@ -57,9 +68,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
 
   const totalPatients = await db.select().from(patients);
   const totalPrescriptions = await db.select().from(prescriptions);
-  const settings = await db.query.clinicSettings.findFirst({
-    where: eq(clinicSettings.id, 1),
-  });
+  const settings = await db.query.clinicSettings.findFirst();
 
   const typedResults = results as ConsultationRow[];
 
@@ -73,10 +82,17 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
               <FileText className="text-white w-5 h-5" />
             </div>
             <div>
-              <span className="text-xl font-bold text-slate-900 tracking-tight">MedScript OPD</span>
-              <span className="hidden sm:inline-block ml-2 text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-medium">
-                Clinic EMR
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-xl font-bold text-slate-900 tracking-tight">MedScript OPD</span>
+                <span className="hidden sm:inline-block text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-medium">
+                  Clinic EMR
+                </span>
+              </div>
+              {settings?.doctorName && (
+                <div className="text-[11px] text-slate-500 font-medium leading-none">
+                  {settings.doctorName} {settings.clinicName ? `• ${settings.clinicName}` : ''}
+                </div>
+              )}
             </div>
           </Link>
           <div className="flex items-center gap-3">
@@ -218,6 +234,11 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
                         <Link href={`/patient/${px.patientId}`} className="text-blue-600 hover:underline font-semibold">
                           {px.patient.name}
                         </Link>
+                        {px.patient.regNo && (
+                          <span className="block font-mono text-[11px] text-slate-500 font-normal">
+                            Reg: {px.patient.regNo}
+                          </span>
+                        )}
                       </TableCell>
                       <TableCell className="text-slate-600 text-xs">
                         {px.patient.age}y / {px.patient.gender}

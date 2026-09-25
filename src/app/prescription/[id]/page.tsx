@@ -1,10 +1,12 @@
 import { db } from "@/db";
-import { prescriptions, patients, clinicSettings } from "@/db/schema";
+import { prescriptions, patients } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import PrescriptionPreview from "./preview";
 import { ClinicSettings, Patient, Prescription } from "@/types";
 import { requireAuth } from "@/lib/auth";
+
+export const dynamic = 'force-dynamic';
 
 export default async function PrescriptionPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -23,9 +25,7 @@ export default async function PrescriptionPage({ params }: { params: Promise<{ i
 
   if (!patient) notFound();
 
-  const settings = await db.query.clinicSettings.findFirst({
-    where: eq(clinicSettings.id, 1),
-  });
+  const settings = await db.query.clinicSettings.findFirst();
 
   const defaultSettings: ClinicSettings = {
     id: 1,

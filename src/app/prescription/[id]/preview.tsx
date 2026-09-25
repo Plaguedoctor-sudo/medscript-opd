@@ -69,6 +69,11 @@ export default function PrescriptionPreview({ prescription, patient, settings, i
                 <User className="w-3.5 h-3.5" />
                 {patient.name}
               </Link>
+              {patient.regNo && (
+                <span className="font-mono bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded border border-blue-200">
+                  Reg: {patient.regNo}
+                </span>
+              )}
               <span>•</span>
               <span>{prescription.createdAt ? formatDate(prescription.createdAt) : 'N/A'}</span>
             </div>

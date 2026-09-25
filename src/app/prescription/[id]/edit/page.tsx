@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { Patient, Prescription } from "@/types";
 
+export const dynamic = 'force-dynamic';
+
 export default async function EditPrescriptionPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const prescriptionId = parseInt(id, 10);
@@ -23,6 +25,8 @@ export default async function EditPrescriptionPage({ params }: { params: Promise
   const patient = await db.query.patients.findFirst({
     where: eq(patients.id, prescription.patientId),
   });
+
+  const settings = await db.query.clinicSettings.findFirst();
 
   return (
     <div className="bg-slate-50 min-h-screen">
@@ -45,6 +49,7 @@ export default async function EditPrescriptionPage({ params }: { params: Promise
             ...(prescription as Prescription),
             patient: (patient as Patient) || undefined,
           }}
+          doctorSettings={settings || undefined}
         />
       </div>
     </div>
