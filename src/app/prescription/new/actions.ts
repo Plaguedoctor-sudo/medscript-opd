@@ -148,7 +148,7 @@ export async function createPrescription(formData: PrescriptionFormData) {
     diagnosis: sanitizeString(formData.diagnosis, 500),
     medications: JSON.stringify(sanitizeMedications(formData.medications)),
     advice: sanitizeString(formData.advice, 2000),
-    labTests: sanitizeString(formData.labTests, 1000),
+    labTests: sanitizeString(formData.labTests, 2500),
     followUpDate: sanitizeString(formData.followUpDate, 30),
   };
 
@@ -176,7 +176,7 @@ export async function updatePrescription(id: number, formData: PrescriptionFormD
     diagnosis: sanitizeString(formData.diagnosis, 500),
     medications: JSON.stringify(sanitizeMedications(formData.medications)),
     advice: sanitizeString(formData.advice, 2000),
-    labTests: sanitizeString(formData.labTests, 1000),
+    labTests: sanitizeString(formData.labTests, 2500),
     followUpDate: sanitizeString(formData.followUpDate, 30),
   };
 

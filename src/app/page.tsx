@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import Link from "next/link";
-import { PlusCircle, Settings, Users, FileText, AlertCircle, Edit, ExternalLink, Calendar } from "lucide-react";
+import { PlusCircle, Settings, Users, FileText, AlertCircle, Edit, ExternalLink, Calendar, BarChart3 } from "lucide-react";
 import { DashboardSearch } from "@/components/DashboardSearch";
 import { formatDate } from "@/lib/utils";
 import { requireAuth, getSecurityConfig } from "@/lib/auth";
@@ -96,19 +96,24 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
               )}
             </div>
           </Link>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
             <Link href="/patients">
-              <Button variant="ghost" size="sm" className="gap-1.5">
+              <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
                 <Users className="w-4 h-4" /> Patients
               </Button>
             </Link>
+            <Link href="/reports">
+              <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
+                <BarChart3 className="w-4 h-4 text-blue-600" /> Reports
+              </Button>
+            </Link>
             <Link href="/settings">
-              <Button variant="ghost" size="sm" className="gap-1.5">
+              <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
                 <Settings className="w-4 h-4" /> Settings
               </Button>
             </Link>
             <Link href="/prescription/new">
-              <Button size="sm" className="gap-1.5">
+              <Button size="sm" className="gap-1.5 text-xs">
                 <PlusCircle className="w-4 h-4" /> New Consultation
               </Button>
             </Link>
@@ -159,17 +164,24 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
             </Card>
           </Link>
 
-          <Card>
-            <CardContent className="pt-6 flex items-center gap-4">
-              <div className="p-3 bg-emerald-100 rounded-xl text-emerald-600">
-                <FileText className="w-6 h-6" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-slate-500">Prescriptions Issued</p>
-                <h3 className="text-2xl font-bold text-slate-900">{totalPrescriptions.length}</h3>
-              </div>
-            </CardContent>
-          </Card>
+          <Link href="/reports" className="block group">
+            <Card className="hover:border-emerald-400 hover:shadow-md transition-all cursor-pointer">
+              <CardContent className="pt-6 flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-emerald-100 rounded-xl text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+                    <BarChart3 className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-slate-500">Prescriptions Issued</p>
+                    <h3 className="text-2xl font-bold text-slate-900">{totalPrescriptions.length}</h3>
+                  </div>
+                </div>
+                <span className="text-xs text-emerald-600 font-medium group-hover:translate-x-0.5 transition-transform">
+                  Audit Reports &rarr;
+                </span>
+              </CardContent>
+            </Card>
+          </Link>
 
           <Link href="/prescription/new" className="block">
             <Card className="bg-gradient-to-r from-blue-600 to-blue-700 text-white cursor-pointer hover:from-blue-700 hover:to-blue-800 transition-all shadow-sm">

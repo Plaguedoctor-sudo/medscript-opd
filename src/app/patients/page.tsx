@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import Link from "next/link";
-import { Users, PlusCircle, ArrowLeft, Phone, Fingerprint } from "lucide-react";
+import { Users, PlusCircle, ArrowLeft, Phone, Fingerprint, BarChart3, FileSpreadsheet } from "lucide-react";
 import { DashboardSearch } from "@/components/DashboardSearch";
 import { Patient } from "@/types";
 import { requireAuth, getSecurityConfig } from "@/lib/auth";
@@ -74,9 +74,14 @@ export default async function PatientsPage({ searchParams }: { searchParams: Pro
               <span className="text-xl font-bold text-slate-900 tracking-tight">Patients Directory</span>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
+            <Link href="/reports">
+              <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
+                <BarChart3 className="w-4 h-4 text-blue-600" /> Reports & Export
+              </Button>
+            </Link>
             <Link href="/prescription/new">
-              <Button size="sm" className="gap-1.5">
+              <Button size="sm" className="gap-1.5 text-xs">
                 <PlusCircle className="w-4 h-4" /> New Consultation
               </Button>
             </Link>
@@ -96,7 +101,14 @@ export default async function PatientsPage({ searchParams }: { searchParams: Pro
                 Browse patient health records, contact information, and prescription history.
               </p>
             </div>
-            <DashboardSearch />
+            <div className="flex items-center gap-2.5">
+              <DashboardSearch />
+              <Link href="/reports">
+                <Button variant="outline" size="sm" className="gap-1.5 text-xs h-9 text-slate-700">
+                  <FileSpreadsheet className="w-3.5 h-3.5 text-blue-600" /> Export CSV
+                </Button>
+              </Link>
+            </div>
           </CardHeader>
           <CardContent>
             {typedPatients.length === 0 ? (

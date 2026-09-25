@@ -28,10 +28,21 @@ import {
   Settings,
   AlertCircle,
   ExternalLink,
+  FlaskConical,
+  TestTube,
+  TestTubes,
+  Check,
 } from "lucide-react";
 import { toast } from "@/components/ui/toast";
 import { Medication, Patient, Prescription, ClinicSettings } from "@/types";
 import { DRUG_LIBRARY, DRUG_CATEGORIES, DrugItem, searchDrugs } from "@/lib/drug-library";
+import {
+  LAB_CATEGORIES,
+  INDIVIDUAL_LAB_TESTS,
+  searchLabLibrary,
+  appendLabTests,
+  LabPanel,
+} from "@/lib/lab-library";
 
 interface FormProps {
   initialPatientId?: string;
@@ -144,6 +155,46 @@ export default function NewPrescriptionForm({
   const [isLibraryModalOpen, setIsLibraryModalOpen] = useState(false);
   const [librarySearchQuery, setLibrarySearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
+
+  // Lab Tests & Diagnostic Packages State
+  const [labTests, setLabTests] = useState<string>(initialData?.labTests || "");
+  const [isLabModalOpen, setIsLabModalOpen] = useState(false);
+  const [labSearchQuery, setLabSearchQuery] = useState("");
+  const [selectedLabCategory, setSelectedLabCategory] = useState<string>("All");
+
+  const handleAddLabPanel = (panel: LabPanel) => {
+    const updated = appendLabTests(labTests, panel.tests);
+    setLabTests(updated);
+    toast.show({
+      title: `${panel.name} Added`,
+      description: `Added ${panel.tests.length} tests to investigations.`,
+      type: "success",
+    });
+  };
+
+  const handleAddLabTest = (testName: string) => {
+    const updated = appendLabTests(labTests, [testName]);
+    setLabTests(updated);
+    toast.show({
+      title: "Test Added",
+      description: `Added ${testName} to investigations.`,
+      type: "success",
+    });
+  };
+
+  const handleRemoveLabTest = (testToRemove: string) => {
+    const current = labTests
+      .split(/,|\n/)
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0 && s.toLowerCase() !== testToRemove.toLowerCase());
+    setLabTests(current.join(", "));
+  };
+
+  const parsedCurrentTests = labTests
+    .split(/,|\n/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+  const currentTestsSet = new Set(parsedCurrentTests.map((t) => t.toLowerCase()));
 
   useEffect(() => {
     if (initialPatientId && !selectedPatient) {
@@ -1173,38 +1224,214 @@ export default function NewPrescriptionForm({
         </CardContent>
       </Card>
 
-      {/* Advice & Follow-up */}
+      {/* Clinical Advice, Investigations & Follow-up */}
       <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Advice, Investigations & Follow-up</CardTitle>
+        <CardHeader className="pb-3 border-b border-slate-100 flex flex-row items-center justify-between">
+          <div>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <FlaskConical className="w-5 h-5 text-blue-600" />
+              Investigations &amp; Clinical Follow-up
+            </CardTitle>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Order diagnostic blood tests, imaging panels, dietary advice, and review date.
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setIsLabModalOpen(true)}
+            className="gap-1.5 text-xs text-blue-700 bg-blue-50/80 hover:bg-blue-100 border-blue-200 font-medium"
+          >
+            <FlaskConical className="w-3.5 h-3.5 text-blue-600" />
+            Browse Diagnostic Library
+          </Button>
         </CardHeader>
-        <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="advice">Dietary Advice / Precautions</Label>
-            <Input
-              id="advice"
-              name="advice"
-              placeholder="e.g. Drink plenty of fluids, avoid cold foods"
-              defaultValue={initialData?.advice || ""}
-            />
+
+        <CardContent className="pt-4 space-y-5">
+          {/* Lab Tests & Diagnostic Ordering Area */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Label htmlFor="labTests" className="text-sm font-semibold text-slate-900">
+                  Recommended Investigations / Lab Tests
+                </Label>
+                {parsedCurrentTests.length > 0 && (
+                  <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
+                    {parsedCurrentTests.length} ordered
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                {labTests && (
+                  <button
+                    type="button"
+                    onClick={() => setLabTests("")}
+                    className="text-xs text-rose-600 hover:text-rose-800 underline font-medium"
+                  >
+                    Clear tests
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Quick 1-Click Popular Panels & Bundles */}
+            <div className="space-y-1.5">
+              <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
+                Quick Diagnostic Bundles (1-Click Add):
+              </span>
+              <div className="flex flex-wrap gap-1.5">
+                {[
+                  { name: "Diabetic Panel", tests: ["Fasting Blood Sugar (FBS)", "Post-Prandial Blood Sugar (PPBS)", "HbA1c (Glycated Hemoglobin)", "Serum Creatinine"], icon: "🧪" },
+                  { name: "Acute Fever Workup", tests: ["Complete Blood Count (CBC) with Platelets", "Malarial Parasite (Smear / Rapid Card)", "Dengue NS1 Antigen & IgM", "Widal Slide Agglutination Test", "Urine Routine & Microscopy"], icon: "🌡️" },
+                  { name: "Hypertension Workup", tests: ["Fasting Lipid Profile", "Serum Creatinine", "Serum Electrolytes (Na+, K+, Cl-)", "12-Lead Electrocardiogram (ECG)"], icon: "🩺" },
+                  { name: "CBC with Platelets", tests: ["Complete Blood Count (CBC) with Platelets"], icon: "🩸" },
+                  { name: "Lipid Profile (Full)", tests: ["Lipid Profile (Full)"], icon: "🫀" },
+                  { name: "Thyroid Profile (T3, T4, TSH)", tests: ["Thyroid Profile (T3, T4, TSH)"], icon: "🦋" },
+                  { name: "Liver Function (LFT)", tests: ["Liver Function Tests (LFT Complete)"], icon: "🔬" },
+                  { name: "Kidney Function (KFT)", tests: ["Kidney Function Tests (KFT / RFT)"], icon: "🫘" },
+                  { name: "Urine Routine & Microscopy", tests: ["Urine Routine & Microscopy"], icon: "🧪" },
+                  { name: "Chest X-Ray (PA View)", tests: ["Chest X-Ray (PA View)"], icon: "🩻" },
+                ].map((quick) => {
+                  const isAllAdded = quick.tests.every((t) => currentTestsSet.has(t.toLowerCase()));
+                  return (
+                    <button
+                      key={quick.name}
+                      type="button"
+                      onClick={() => {
+                        if (isAllAdded) {
+                          const testsToRemove = new Set(quick.tests.map((t) => t.toLowerCase()));
+                          const remaining = parsedCurrentTests.filter((t) => !testsToRemove.has(t.toLowerCase()));
+                          setLabTests(remaining.join(", "));
+                        } else {
+                          const updated = appendLabTests(labTests, quick.tests);
+                          setLabTests(updated);
+                          toast.show({
+                            title: `${quick.name} Added`,
+                            description: `Added ${quick.tests.length} tests to prescription.`,
+                            type: "success",
+                          });
+                        }
+                      }}
+                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium border transition-colors ${
+                        isAllAdded
+                          ? "bg-emerald-50 text-emerald-700 border-emerald-300 shadow-2xs font-semibold"
+                          : "bg-white text-slate-700 border-slate-200 hover:border-blue-400 hover:bg-blue-50/50"
+                      }`}
+                    >
+                      <span>{quick.icon}</span>
+                      <span>{quick.name}</span>
+                      {isAllAdded ? (
+                        <Check className="w-3.5 h-3.5 text-emerald-600" />
+                      ) : (
+                        <span className="text-slate-400 text-[10px]">+</span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Selected Ordered Tests Chips */}
+            {parsedCurrentTests.length > 0 && (
+              <div className="p-3 bg-blue-50/40 border border-blue-100 rounded-lg space-y-1.5">
+                <span className="text-[11px] font-semibold text-blue-900 block">
+                  Prescribed Investigations ({parsedCurrentTests.length}):
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  {parsedCurrentTests.map((testName, i) => (
+                    <span
+                      key={`${testName}-${i}`}
+                      className="inline-flex items-center gap-1.5 bg-white border border-blue-200 text-blue-950 px-2.5 py-1 rounded-md text-xs shadow-2xs group"
+                    >
+                      <TestTube className="w-3 h-3 text-blue-500" />
+                      <span className="font-medium">{testName}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveLabTest(testName)}
+                        className="text-slate-400 hover:text-rose-600 p-0.5 rounded transition-colors ml-0.5"
+                        title={`Remove ${testName}`}
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Direct Input / Manual Editor */}
+            <div>
+              <Input
+                id="labTests"
+                name="labTests"
+                value={labTests}
+                onChange={(e) => setLabTests(e.target.value)}
+                placeholder="Type or edit comma-separated test names (e.g. Complete Blood Count, Urine Routine, HbA1c)..."
+                className="text-sm font-mono text-slate-800"
+                list="lab-tests-list"
+              />
+              <p className="text-[11px] text-slate-500 mt-1">
+                Tip: Click quick bundles above or browse the diagnostic library to auto-fill; you can also type custom tests directly separated by commas.
+              </p>
+            </div>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="labTests">Lab Tests / Investigations</Label>
-            <Input
-              id="labTests"
-              name="labTests"
-              placeholder="e.g. Complete Blood Count (CBC), Urine Routine"
-              defaultValue={initialData?.labTests || ""}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="followUpDate">Follow-up Date</Label>
-            <Input
-              id="followUpDate"
-              name="followUpDate"
-              type="date"
-              defaultValue={initialData?.followUpDate || ""}
-            />
+
+          {/* Advice & Follow-up in 2 Columns */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-3 border-t border-slate-100">
+            <div className="space-y-2">
+              <Label htmlFor="advice" className="text-sm font-semibold text-slate-900">
+                Dietary Advice / Precautions
+              </Label>
+              <Input
+                id="advice"
+                name="advice"
+                placeholder="e.g. Low salt diet, plenty of fluids, avoid cold drinks"
+                defaultValue={initialData?.advice || ""}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="followUpDate" className="text-sm font-semibold text-slate-900">
+                  Follow-up Review Date
+                </Label>
+                <div className="flex items-center gap-1 text-[11px] text-blue-600 font-medium">
+                  {[
+                    { label: "+3d", days: 3 },
+                    { label: "+5d", days: 5 },
+                    { label: "+7d", days: 7 },
+                    { label: "+15d", days: 15 },
+                    { label: "+1mo", days: 30 },
+                  ].map((preset) => (
+                    <button
+                      key={preset.label}
+                      type="button"
+                      onClick={() => {
+                        const target = new Date();
+                        target.setDate(target.getDate() + preset.days);
+                        const yyyy = target.getFullYear();
+                        const mm = String(target.getMonth() + 1).padStart(2, "0");
+                        const dd = String(target.getDate()).padStart(2, "0");
+                        const dateStr = `${yyyy}-${mm}-${dd}`;
+                        const input = document.getElementById("followUpDate") as HTMLInputElement;
+                        if (input) input.value = dateStr;
+                      }}
+                      className="px-1.5 py-0.5 rounded bg-slate-100 hover:bg-blue-100 hover:text-blue-700 text-slate-600 transition-colors"
+                      title={`Set follow-up in ${preset.days} days`}
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <Input
+                id="followUpDate"
+                name="followUpDate"
+                type="date"
+                defaultValue={initialData?.followUpDate || ""}
+              />
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -1385,10 +1612,329 @@ export default function NewPrescriptionForm({
         </div>
       )}
 
+      {/* Searchable Diagnostic & Lab Investigation Library Modal */}
+      {isLabModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-2xl border border-slate-200 w-full max-w-4xl max-h-[85vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95">
+            {/* Modal Header */}
+            <div className="p-4 sm:p-5 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-lg bg-blue-600 text-white flex items-center justify-center shadow-xs">
+                  <FlaskConical className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900">OPD Diagnostic &amp; Laboratory Library</h3>
+                  <p className="text-xs text-slate-500">
+                    Search evidence-based panels, profiles, and individual tests. 1-click &quot;+ Add to Prescription&quot; to include.
+                  </p>
+                </div>
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsLabModalOpen(false)}
+                className="text-slate-400 hover:text-slate-700"
+              >
+                <X className="w-5 h-5" />
+              </Button>
+            </div>
+
+            {/* Search Input & Category Pills */}
+            <div className="p-4 border-b border-slate-200 bg-white space-y-3">
+              <div className="relative">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <Input
+                  value={labSearchQuery}
+                  onChange={(e) => setLabSearchQuery(e.target.value)}
+                  placeholder="Search tests or panels (e.g. CBC, HbA1c, LFT, Creatinine, Dengue, Thyroid, X-Ray, Lipid)..."
+                  className="pl-9 h-10 text-sm bg-slate-50 focus:bg-white"
+                  autoFocus
+                />
+                {labSearchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setLabSearchQuery("")}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs font-medium"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+
+              {/* Category Filter Pills */}
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs no-scrollbar">
+                {LAB_CATEGORIES.map((cat) => (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => setSelectedLabCategory(cat)}
+                    className={`px-3 py-1 rounded-full whitespace-nowrap transition-colors font-medium ${
+                      selectedLabCategory === cat
+                        ? "bg-blue-600 text-white shadow-2xs"
+                        : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                    }`}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Results Body */}
+            <div className="flex-1 overflow-y-auto p-4 sm:p-5 bg-slate-50/50 space-y-6">
+              {(() => {
+                const results = searchLabLibrary(labSearchQuery, selectedLabCategory);
+                const hasPanels = results.panels.length > 0;
+                const hasTests = results.tests.length > 0;
+
+                if (!hasPanels && !hasTests) {
+                  return (
+                    <div className="text-center py-12 text-slate-400">
+                      <FlaskConical className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                      <p className="font-semibold text-sm">No investigations found matching &ldquo;{labSearchQuery}&rdquo;</p>
+                      <p className="text-xs mt-1">Try another search term or browse the category filters above.</p>
+                    </div>
+                  );
+                }
+
+                return (
+                  <>
+                    {/* Section 1: Pre-configured Diagnostic Panels & Bundles */}
+                    {hasPanels && (
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-xs font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
+                            <TestTubes className="w-4 h-4 text-blue-600" />
+                            Diagnostic Panels &amp; Workup Bundles ({results.panels.length})
+                          </h4>
+                          <span className="text-[11px] text-slate-400">Includes complete test panel</span>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                          {results.panels.map((panel) => {
+                            const isAllIn = panel.tests.every((t) => currentTestsSet.has(t.toLowerCase()));
+                            const someIn = !isAllIn && panel.tests.some((t) => currentTestsSet.has(t.toLowerCase()));
+
+                            return (
+                              <div
+                                key={panel.id}
+                                className="bg-white border border-slate-200 rounded-lg p-3.5 shadow-2xs hover:border-blue-300 transition-all flex flex-col justify-between gap-3"
+                              >
+                                <div className="space-y-2">
+                                  <div className="flex items-start justify-between gap-2">
+                                    <div>
+                                      <h5 className="font-bold text-slate-900 text-sm">{panel.name}</h5>
+                                      <p className="text-xs text-slate-500 mt-0.5">{panel.description}</p>
+                                    </div>
+                                    {panel.badge && (
+                                      <span className="text-[10px] bg-blue-50 text-blue-700 font-semibold px-2 py-0.5 rounded border border-blue-200 shrink-0">
+                                        {panel.badge}
+                                      </span>
+                                    )}
+                                  </div>
+
+                                  {/* List of included tests */}
+                                  <div className="space-y-1 pt-1 border-t border-slate-100">
+                                    <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
+                                      Included tests ({panel.tests.length}):
+                                    </span>
+                                    <div className="flex flex-wrap gap-1">
+                                      {panel.tests.map((testName) => {
+                                        const isSingleAdded = currentTestsSet.has(testName.toLowerCase());
+                                        return (
+                                          <button
+                                            key={testName}
+                                            type="button"
+                                            onClick={() => {
+                                              if (isSingleAdded) {
+                                                handleRemoveLabTest(testName);
+                                              } else {
+                                                handleAddLabTest(testName);
+                                              }
+                                            }}
+                                            className={`text-[11px] px-2 py-0.5 rounded border transition-colors ${
+                                              isSingleAdded
+                                                ? "bg-emerald-50 text-emerald-800 border-emerald-300 font-medium"
+                                                : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-blue-50 hover:border-blue-300"
+                                            }`}
+                                            title={isSingleAdded ? "Click to remove this test" : "Click to add this test individually"}
+                                          >
+                                            {isSingleAdded && "✓ "}
+                                            {testName}
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+                                  <span className="text-[11px] text-slate-500 font-medium">
+                                    {panel.category}
+                                  </span>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant={isAllIn ? "outline" : "default"}
+                                    onClick={() => {
+                                      if (isAllIn) {
+                                        const toRemove = new Set(panel.tests.map((t) => t.toLowerCase()));
+                                        const remaining = parsedCurrentTests.filter((t) => !toRemove.has(t.toLowerCase()));
+                                        setLabTests(remaining.join(", "));
+                                      } else {
+                                        handleAddLabPanel(panel);
+                                      }
+                                    }}
+                                    className={`h-7 px-3 text-xs gap-1.5 ${
+                                      isAllIn
+                                        ? "text-emerald-700 border-emerald-300 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-300"
+                                        : "bg-blue-600 hover:bg-blue-700 text-white"
+                                    }`}
+                                  >
+                                    {isAllIn ? (
+                                      <>
+                                        <Check className="w-3.5 h-3.5 text-emerald-600" /> Entire Panel Added
+                                      </>
+                                    ) : someIn ? (
+                                      <>
+                                        <Plus className="w-3.5 h-3.5" /> Add Remaining ({panel.tests.filter((t) => !currentTestsSet.has(t.toLowerCase())).length})
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Plus className="w-3.5 h-3.5" /> Add Entire Panel
+                                      </>
+                                    )}
+                                  </Button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Section 2: Individual Tests & Diagnostic Investigations */}
+                    {hasTests && (
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-xs font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
+                            <TestTube className="w-4 h-4 text-emerald-600" />
+                            Individual Diagnostic Tests ({results.tests.length})
+                          </h4>
+                          <span className="text-[11px] text-slate-400">Single parameter tests</span>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
+                          {results.tests.map((test) => {
+                            const isAdded = currentTestsSet.has(test.name.toLowerCase());
+                            return (
+                              <div
+                                key={test.id}
+                                className={`bg-white border rounded-lg p-3 shadow-2xs transition-all flex flex-col justify-between gap-2.5 ${
+                                  isAdded ? "border-emerald-300 bg-emerald-50/20" : "border-slate-200 hover:border-blue-300"
+                                }`}
+                              >
+                                <div className="space-y-1">
+                                  <div className="flex items-start justify-between gap-1.5">
+                                    <h6 className="font-semibold text-slate-900 text-xs leading-snug">{test.name}</h6>
+                                    <span className="text-[9px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-medium shrink-0">
+                                      {test.category}
+                                    </span>
+                                  </div>
+                                  <div className="flex flex-wrap gap-1 text-[10px] text-slate-500">
+                                    {test.sampleType && (
+                                      <span className="bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded font-medium">
+                                        {test.sampleType}
+                                      </span>
+                                    )}
+                                    {test.fastingRequired && (
+                                      <span className="bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded font-medium">
+                                        Fasting Req.
+                                      </span>
+                                    )}
+                                  </div>
+                                  {test.commonIndications && (
+                                    <p className="text-[10px] text-slate-400 line-clamp-1 italic">
+                                      {test.commonIndications}
+                                    </p>
+                                  )}
+                                </div>
+
+                                <div className="pt-2 border-t border-slate-100 flex items-center justify-end">
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant={isAdded ? "outline" : "ghost"}
+                                    onClick={() => {
+                                      if (isAdded) {
+                                        handleRemoveLabTest(test.name);
+                                      } else {
+                                        handleAddLabTest(test.name);
+                                      }
+                                    }}
+                                    className={`h-6 px-2.5 text-[11px] gap-1 ${
+                                      isAdded
+                                        ? "text-emerald-700 border-emerald-300 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-300 font-medium"
+                                        : "text-blue-700 hover:bg-blue-50 font-medium"
+                                    }`}
+                                  >
+                                    {isAdded ? (
+                                      <>
+                                        <Check className="w-3 h-3 text-emerald-600" /> Added
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Plus className="w-3 h-3" /> Add Test
+                                      </>
+                                    )}
+                                  </Button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-3 border-t border-slate-200 bg-white flex items-center justify-between text-xs text-slate-500">
+              <div className="flex items-center gap-2">
+                <span>
+                  Currently prescribed: <strong>{parsedCurrentTests.length} investigations</strong>
+                </span>
+                {parsedCurrentTests.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setLabTests("")}
+                    className="text-rose-600 hover:underline font-medium ml-2"
+                  >
+                    Clear all
+                  </button>
+                )}
+              </div>
+              <Button type="button" size="sm" onClick={() => setIsLabModalOpen(false)}>
+                Done / Return to Form
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Datalists for autocompletion */}
       <datalist id="generic-drugs">
         {DRUG_LIBRARY.map((d) => (
           <option key={d.id} value={d.name} label={`${d.category} (${d.brandNames.join(", ")})`} />
+        ))}
+      </datalist>
+
+      <datalist id="lab-tests-list">
+        {INDIVIDUAL_LAB_TESTS.map((t) => (
+          <option key={t.id} value={t.name} label={t.category} />
         ))}
       </datalist>
 
