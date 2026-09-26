@@ -6,13 +6,14 @@ import { PrescriptionPDF } from '@/components/PrescriptionPDF';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Printer, Edit, Download, Trash2, User, Loader2, AlertCircle, Settings } from 'lucide-react';
+import { ArrowLeft, Printer, Edit, Download, Trash2, User, Loader2, AlertCircle, Settings, MessageCircle, Phone, Receipt } from 'lucide-react';
 import { deletePrescription } from '@/app/prescription/new/actions';
 import { toast } from '@/components/ui/toast';
 import { ClinicSettings, Patient, Prescription, Medication } from '@/types';
 import { formatDate } from '@/lib/utils';
 import { DigitalRxSeal } from '@/components/DigitalRxSeal';
 import { logClinicalAuditAction } from '@/app/login/actions';
+import { PrescriptionDispatchModal } from '@/components/PrescriptionDispatchModal';
 
 interface PrescriptionPreviewProps {
   prescription: Prescription;
@@ -34,6 +35,8 @@ export default function PrescriptionPreview({
   const router = useRouter();
   const isClient = useSyncExternalStore(emptySubscribe, () => true, () => false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isDispatchOpen, setIsDispatchOpen] = useState(false);
+  const [dispatchChannel, setDispatchChannel] = useState<'whatsapp' | 'sms'>('whatsapp');
 
   const handleDelete = async () => {
     if (!confirm('Are you sure you want to delete this prescription? This action cannot be undone.')) {
@@ -130,6 +133,38 @@ export default function PrescriptionPreview({
           <Button variant="outline" size="sm" onClick={handlePrintAudit} className="gap-1.5">
             <Printer className="w-4 h-4" /> Print Page
           </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setDispatchChannel('whatsapp');
+              setIsDispatchOpen(true);
+            }}
+            className="gap-1.5 border-emerald-300 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800"
+          >
+            <MessageCircle className="w-4 h-4 text-emerald-600" />
+            WhatsApp Rx
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setDispatchChannel('sms');
+              setIsDispatchOpen(true);
+            }}
+            className="gap-1.5 border-teal-300 text-teal-700 hover:bg-teal-50 hover:text-teal-800"
+          >
+            <Phone className="w-4 h-4 text-teal-600" />
+            SMS Rx
+          </Button>
+
+          <Link href={`/billing?patientId=${patient.id}&prescriptionId=${prescription.id}`}>
+            <Button variant="outline" size="sm" className="gap-1.5 border-emerald-300 text-emerald-800 hover:bg-emerald-50">
+              <Receipt className="w-4 h-4 text-emerald-600" /> Bill / Invoice
+            </Button>
+          </Link>
 
           {userRole !== 'receptionist' ? (
             <>
@@ -320,8 +355,8 @@ export default function PrescriptionPreview({
                         {m.name}
                       </div>
                       {m.genericName && (
-                        <div className="text-[11px] text-slate-500 font-medium italic mt-0.5">
-                          ({m.genericName})
+                        <div className="text-[11px] text-slate-500 font-medium italic mt-0.5 uppercase tracking-wide">
+                          ({m.genericName.toUpperCase()})
                         </div>
                       )}
                       {m.instruction && <div className="text-[10px] text-slate-500 font-normal mt-0.5">{m.instruction}</div>}
@@ -367,6 +402,16 @@ export default function PrescriptionPreview({
           </div>
         </div>
       </div>
+
+      {/* WhatsApp & SMS Clinical Prescription Dispatch Modal */}
+      <PrescriptionDispatchModal
+        prescription={prescription}
+        patient={patient}
+        settings={settings}
+        isOpen={isDispatchOpen}
+        onClose={() => setIsDispatchOpen(false)}
+        defaultChannel={dispatchChannel}
+      />
     </div>
   );
 }

@@ -83,6 +83,25 @@ sqlite.exec(`
   CREATE INDEX IF NOT EXISTS idx_security_alerts_acknowledged ON security_alerts(acknowledged_at);
   CREATE INDEX IF NOT EXISTS idx_security_alerts_created_at ON security_alerts(created_at);
   CREATE INDEX IF NOT EXISTS idx_security_alerts_category ON security_alerts(category);
+
+  CREATE TABLE IF NOT EXISTS invoices (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    invoice_no TEXT NOT NULL UNIQUE,
+    patient_id INTEGER NOT NULL REFERENCES patients(id),
+    prescription_id INTEGER,
+    items TEXT NOT NULL,
+    subtotal REAL DEFAULT 0,
+    discount REAL DEFAULT 0,
+    tax REAL DEFAULT 0,
+    total_amount REAL DEFAULT 0,
+    payment_method TEXT DEFAULT 'Cash',
+    payment_status TEXT DEFAULT 'PAID',
+    notes TEXT,
+    created_at INTEGER
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_invoices_patient ON invoices(patient_id);
+  CREATE INDEX IF NOT EXISTS idx_invoices_invoice_no ON invoices(invoice_no);
 `);
 
 // Auto-migrate newly added columns if existing DB
@@ -163,6 +182,26 @@ try {
 }
 try {
   sqlite.exec('ALTER TABLE clinic_settings ADD COLUMN session_secret TEXT;');
+} catch {
+  // Column already exists
+}
+try {
+  sqlite.exec('ALTER TABLE clinic_settings ADD COLUMN lockdown_active INTEGER DEFAULT 0;');
+} catch {
+  // Column already exists
+}
+try {
+  sqlite.exec('ALTER TABLE clinic_settings ADD COLUMN lockdown_reason TEXT;');
+} catch {
+  // Column already exists
+}
+try {
+  sqlite.exec('ALTER TABLE clinic_settings ADD COLUMN lockdown_triggered_at INTEGER;');
+} catch {
+  // Column already exists
+}
+try {
+  sqlite.exec('ALTER TABLE clinic_settings ADD COLUMN deception_mode_active INTEGER DEFAULT 0;');
 } catch {
   // Column already exists
 }

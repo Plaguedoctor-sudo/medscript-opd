@@ -65,5 +65,40 @@ export interface ClinicSettings {
   minPinLength?: number | null;
   enforceComplexity?: boolean | null;
   sessionSecret?: string | null;
+  lockdownActive?: boolean | null;
+  lockdownReason?: string | null;
+  lockdownTriggeredAt?: Date | null;
+  deceptionModeActive?: boolean | null;
+}
+
+export type InvoiceItemCategory = 'Consultation' | 'Medication' | 'Procedure' | 'Lab Test' | 'Other';
+
+export interface InvoiceItem {
+  id: string;
+  description: string;
+  category: InvoiceItemCategory;
+  quantity: number;
+  unitPrice: number;
+  total: number;
+}
+
+export interface Invoice {
+  id: number;
+  invoiceNo: string;
+  patientId: number;
+  prescriptionId?: number | null;
+  items: string; // JSON string of InvoiceItem[]
+  subtotal: number;
+  discount: number;
+  tax: number;
+  totalAmount: number;
+  paymentMethod: 'Cash' | 'UPI' | 'Card' | 'Due' | string;
+  paymentStatus: 'PAID' | 'PENDING' | 'REFUNDED' | string;
+  notes?: string | null;
+  createdAt: Date | null;
+}
+
+export interface InvoiceWithPatient extends Invoice {
+  patient: Patient;
 }
 

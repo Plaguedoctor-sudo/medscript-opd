@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
-import { ShieldAlert, AlertTriangle, X, CheckCircle2 } from 'lucide-react';
+import { ShieldAlert, AlertTriangle, X, CheckCircle2, Lock } from 'lucide-react';
 import { Button } from './ui/button';
-import { acknowledgeAlertAction } from '@/app/actions/security-alert-actions';
+import { acknowledgeAlertAction, triggerEmergencyLockdownAction } from '@/app/actions/security-alert-actions';
 import { toast } from './ui/toast';
 import type { SecurityAlertItem } from '@/lib/security-engine';
 
@@ -80,7 +80,32 @@ export function DoctorSecurityBanner({
         </div>
       </div>
 
-      <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+      <div className="flex flex-wrap items-center gap-2 shrink-0 self-end sm:self-center">
+        {isCritical && (
+          <Button
+            size="sm"
+            onClick={async () => {
+              if (
+                confirm(
+                  'Trigger Emergency Breach Containment & System Lockdown? Clinical mutations will be contained and Honeypot Decoy Mode armed.'
+                )
+              ) {
+                const res = await triggerEmergencyLockdownAction(
+                  `Manual Doctor Containment for: ${primaryAlert.title}`,
+                  true
+                );
+                if (res.success) {
+                  window.location.reload();
+                }
+              }
+            }}
+            className="text-xs bg-slate-950 hover:bg-black text-rose-300 border border-rose-500 font-bold shadow-xs"
+          >
+            <Lock className="w-3.5 h-3.5 mr-1 text-rose-400" />
+            Contain & Lockdown
+          </Button>
+        )}
+
         <Button
           size="sm"
           onClick={() => handleAcknowledge(primaryAlert.id)}

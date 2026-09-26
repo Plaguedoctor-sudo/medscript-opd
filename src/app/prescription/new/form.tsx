@@ -1,12 +1,15 @@
 'use client'
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { createPrescription, updatePrescription, searchPatients, getPatientById } from "./actions";
+import { Icd10Search } from "@/components/Icd10Search";
+import { DrugInteractionAlert } from "@/components/DrugInteractionAlert";
+import { checkDrugInteractions } from "@/lib/drug-interactions";
 import Link from "next/link";
 import {
   Plus,
@@ -183,6 +186,12 @@ export default function NewPrescriptionForm({
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(initialData?.patient || null);
   const [isSearching, setIsSearching] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [diagnosis, setDiagnosis] = useState<string>(initialData?.diagnosis || "");
+
+  // Real-time Drug-Drug Interaction Detection
+  const detectedInteractions = useMemo(() => {
+    return checkDrugInteractions(medications);
+  }, [medications]);
 
   // Drug Library Search & Formulary State
   const [activeSearchIndex, setActiveSearchIndex] = useState<number | null>(null);
@@ -300,7 +309,8 @@ export default function NewPrescriptionForm({
 
   const updateMedicationField = (index: number, field: keyof Medication, value: string) => {
     const newMedications = [...medications];
-    newMedications[index] = { ...newMedications[index], [field]: value };
+    const finalVal = field === "genericName" ? value.toUpperCase() : value;
+    newMedications[index] = { ...newMedications[index], [field]: finalVal };
     setMedications(newMedications);
   };
 
@@ -312,7 +322,7 @@ export default function NewPrescriptionForm({
       ...updated[index],
       prefix,
       name: brandName,
-      genericName: drug.genericName || drug.name,
+      genericName: (drug.genericName || drug.name).toUpperCase(),
       strength: drug.defaultStrength,
       dosage: drug.defaultDosage,
       timing: drug.defaultTiming,
@@ -323,7 +333,7 @@ export default function NewPrescriptionForm({
     setActiveSearchIndex(null);
     toast.show({
       title: "Drug Auto-Filled",
-      description: `${prefix} ${brandName} (${drug.genericName}) added with schedule ${drug.defaultDosage}.`,
+      description: `${prefix} ${brandName} (${drug.genericName.toUpperCase()}) added with schedule ${drug.defaultDosage}.`,
       type: "success",
     });
   };
@@ -335,7 +345,7 @@ export default function NewPrescriptionForm({
     const newEntry: Medication = {
       prefix,
       name: brandName,
-      genericName: drug.genericName || drug.name,
+      genericName: (drug.genericName || drug.name).toUpperCase(),
       strength: drug.defaultStrength,
       dosage: drug.defaultDosage,
       timing: drug.defaultTiming,
@@ -351,7 +361,7 @@ export default function NewPrescriptionForm({
 
     toast.show({
       title: "Added to Prescription",
-      description: `${prefix} ${brandName} (${drug.genericName}) added with schedule ${drug.defaultDosage}.`,
+      description: `${prefix} ${brandName} (${drug.genericName.toUpperCase()}) added with schedule ${drug.defaultDosage}.`,
       type: "success",
     });
   };
@@ -379,7 +389,7 @@ export default function NewPrescriptionForm({
         spo2: vitals.spo2,
         chiefComplaints: formData.get("chiefComplaints") as string,
         clinicalHistory: formData.get("clinicalHistory") as string,
-        diagnosis: formData.get("diagnosis") as string,
+        diagnosis: (formData.get("diagnosis") as string) || diagnosis,
         medications: medications.filter((m) => m.name.trim().length > 0),
         advice: formData.get("advice") as string,
         labTests: formData.get("labTests") as string,
@@ -932,17 +942,27 @@ export default function NewPrescriptionForm({
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="diagnosis">Diagnosis</Label>
-            <Input
+            <div className="flex items-center justify-between">
+              <Label htmlFor="diagnosis" className="flex items-center gap-1.5 font-semibold text-slate-800">
+                <Stethoscope className="w-4 h-4 text-blue-600" /> Diagnosis & ICD-10 Search
+              </Label>
+              <span className="text-[11px] text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full font-medium border border-blue-200">
+                ICD-10-CM Standard
+              </span>
+            </div>
+            <Icd10Search
               id="diagnosis"
               name="diagnosis"
-              placeholder="e.g. Acute Upper Respiratory Tract Infection (URTI)"
-              defaultValue={initialData?.diagnosis || ""}
-              list="diagnosis-list"
+              value={diagnosis}
+              onChange={setDiagnosis}
+              placeholder="Search ICD-10 Diagnosis (e.g. I10, Diabetes, URTI, Fever, Dengue)..."
             />
           </div>
         </CardContent>
       </Card>
+
+      {/* Real-time Clinical Drug-Drug Interaction Checker Alert */}
+      <DrugInteractionAlert interactions={detectedInteractions} />
 
       {/* Medications (Schedule and Duration / No. of Days dropdowns) */}
       <Card className="border-slate-300 shadow-sm">
@@ -1065,6 +1085,8 @@ export default function NewPrescriptionForm({
                       <Input
                         value={med.genericName || ""}
                         onChange={(e) => updateMedicationField(index, "genericName", e.target.value)}
+                        placeholder="Generic / Molecule (CAPITAL LETTERS, e.g. PARACETAMOL 650MG)"
+                        className="bg-slate-50/80 border-dashed text-[11px] h-7 text-slate-700 font-mono uppercase tracking-wide placeholder:normal-case placeholder:font-sans placeholder:text-slate-400"
                         onKeyDown={(e) => {
                           if (e.key === "Enter") {
                             e.preventDefault();
@@ -1088,8 +1110,6 @@ export default function NewPrescriptionForm({
                             }
                           }
                         }}
-                        placeholder="Generic composition (e.g. Paracetamol, Amoxicillin + Clavulanic Acid)"
-                        className="text-[11px] text-slate-600 italic bg-white/80 border-slate-200 h-7"
                       />
                     </div>
 

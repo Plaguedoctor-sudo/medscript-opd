@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import Link from "next/link";
-import { Users, PlusCircle, ArrowLeft, Phone, Fingerprint, BarChart3, FileSpreadsheet } from "lucide-react";
+import { Users, PlusCircle, ArrowLeft, Phone, Fingerprint, BarChart3, FileSpreadsheet, Receipt } from "lucide-react";
 import { DashboardSearch } from "@/components/DashboardSearch";
 import { Patient } from "@/types";
 import { requireAuth, getSecurityConfig, getCurrentUserRole } from "@/lib/auth";
@@ -85,6 +85,11 @@ export default async function PatientsPage({ searchParams }: { searchParams: Pro
             <UserRoleBadge role={role} securityEnabled={securityEnabled} />
             <PrivacyShield />
             <SecurityAlertBell />
+            <Link href="/billing">
+              <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
+                <Receipt className="w-4 h-4 text-emerald-600" /> Billing
+              </Button>
+            </Link>
             <Link href="/reports">
               <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
                 <BarChart3 className="w-4 h-4 text-blue-600" /> Reports & Export

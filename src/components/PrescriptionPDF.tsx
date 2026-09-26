@@ -402,7 +402,7 @@ export const PrescriptionPDF = ({ prescription, patient, settings }: Prescriptio
                   </Text>
                   {med.genericName ? (
                     <Text style={{ fontSize: 7.5, color: '#475569', fontStyle: 'italic', marginTop: 1 }}>
-                      ({med.genericName})
+                      ({med.genericName.toUpperCase()})
                     </Text>
                   ) : null}
                   {med.instruction ? (

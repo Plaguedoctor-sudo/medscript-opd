@@ -1,7 +1,8 @@
 import { db } from '@/db';
-import { auditLogs, securityAlerts } from '@/db/schema';
+import { auditLogs, securityAlerts, clinicSettings } from '@/db/schema';
 import { desc, isNull, and, gte, eq } from 'drizzle-orm';
-import type { AuditAction, ActorRole, AuditStatus } from './audit';
+import { logAuditEvent, type AuditAction, type ActorRole, type AuditStatus } from './audit';
+import { verifyPinHash } from './auth';
 
 export type AlertSeverity = 'CRITICAL' | 'WARNING' | 'INFO';
 export type AlertCategory =
@@ -120,6 +121,11 @@ export async function evaluateAuditAnomaly({
         ipAddress: safeIp,
         metadata: { action, details, timestamp: now.toISOString() },
       });
+
+      await containBreach({
+        reason: `Desk Security Lockout: Multiple invalid PIN attempts from ${safeIp}`,
+        ipAddress: safeIp,
+      });
       return;
     }
 
@@ -146,6 +152,13 @@ export async function evaluateAuditAnomaly({
           description: `${recentFailures.length} failed login attempts registered within the last 15 minutes from IP ${safeIp}. Possible unauthorized access attempt or brute-force attack.`,
           ipAddress: safeIp,
           metadata: { failureCount: recentFailures.length, ip: safeIp },
+        });
+
+        const shouldFeedDecoy = recentFailures.length >= 5;
+        await containBreach({
+          reason: `Credential brute-force detected (${recentFailures.length} failed PIN entries)`,
+          ipAddress: safeIp,
+          enableDeception: shouldFeedDecoy,
         });
       }
       return;
@@ -230,6 +243,12 @@ export async function evaluateAuditAnomaly({
           ipAddress: safeIp,
           metadata: { bulkCount, recentActions: recentExports.map((e) => e.action) },
         });
+
+        await containBreach({
+          reason: `High-frequency bulk data export detected (${bulkCount} exports in 30 mins) - Possible exfiltration`,
+          ipAddress: safeIp,
+          enableDeception: true,
+        });
       }
     }
 
@@ -265,6 +284,11 @@ export async function evaluateAuditAnomaly({
         description: `Cryptographic HMAC-SHA256 signature verification failed for clinical prescription record. The data may have been altered or corrupted outside MedScript.`,
         ipAddress: safeIp,
         metadata: { details },
+      });
+
+      await containBreach({
+        reason: 'Prescription cryptographic digital seal tamper detected - System integrity lockdown',
+        ipAddress: safeIp,
       });
     }
   } catch (err) {
@@ -417,3 +441,161 @@ export async function triggerSecurityTestIncident(
     });
   }
 }
+
+export interface LockdownStatus {
+  lockdownActive: boolean;
+  lockdownReason: string | null;
+  lockdownTriggeredAt: Date | null;
+  deceptionModeActive: boolean;
+}
+
+/**
+ * Retrieve current system lockdown & active deception status
+ */
+export async function getLockdownStatus(): Promise<LockdownStatus> {
+  try {
+    const settings = await db.query.clinicSettings.findFirst();
+    return {
+      lockdownActive: Boolean(settings?.lockdownActive),
+      lockdownReason: settings?.lockdownReason || null,
+      lockdownTriggeredAt: settings?.lockdownTriggeredAt ? new Date(settings.lockdownTriggeredAt) : null,
+      deceptionModeActive: Boolean(settings?.deceptionModeActive),
+    };
+  } catch (err) {
+    console.error('Failed to get lockdown status:', err);
+    return {
+      lockdownActive: false,
+      lockdownReason: null,
+      lockdownTriggeredAt: null,
+      deceptionModeActive: false,
+    };
+  }
+}
+
+/**
+ * Autonomous Breach Containment:
+ * Triggered automatically when severe cyber threats (brute force, bulk exfiltration, cryptographic tamper)
+ * are detected. Locks down clinical mutations.
+ * If subsequent violations continue or breach cannot be stopped, it automatically arms Deception Mode
+ * to feed the adversary false random data.
+ */
+export async function containBreach({
+  reason,
+  ipAddress,
+  enableDeception = false,
+}: {
+  reason: string;
+  ipAddress?: string;
+  enableDeception?: boolean;
+}): Promise<void> {
+  try {
+    const settings = await db.query.clinicSettings.findFirst();
+    const alreadyLocked = Boolean(settings?.lockdownActive);
+
+    // If already locked down and another breach occurs, the adversary cannot be stopped:
+    // activate Active Deception Mode (feed false random data)
+    const shouldActivateDeception = enableDeception || alreadyLocked;
+
+    await db
+      .update(clinicSettings)
+      .set({
+        lockdownActive: true,
+        lockdownReason: reason,
+        lockdownTriggeredAt: settings?.lockdownTriggeredAt || new Date(),
+        deceptionModeActive: shouldActivateDeception ? true : settings?.deceptionModeActive,
+      })
+      .where(eq(clinicSettings.id, 1));
+
+    await logAuditEvent({
+      action: 'SECURITY_LOCKDOWN_TRIGGERED',
+      actorRole: 'SYSTEM',
+      details: `Breach Containment Activated: ${reason} (Origin IP: ${ipAddress || 'Internal'}${shouldActivateDeception ? ' - Active Deception Mode ARMED' : ''})`,
+      status: 'WARNING',
+      ipAddress,
+    });
+  } catch (err) {
+    console.error('Failed to contain breach:', err);
+  }
+}
+
+/**
+ * Manual emergency lockdown trigger by Doctor
+ */
+export async function triggerEmergencyLockdown(reason: string, enableDeception = false): Promise<boolean> {
+  try {
+    await containBreach({
+      reason: `Manual Doctor Emergency Protocol: ${reason}`,
+      enableDeception,
+    });
+    return true;
+  } catch (err) {
+    console.error('Failed to trigger emergency lockdown:', err);
+    return false;
+  }
+}
+
+/**
+ * Lift Emergency Lockdown with Doctor PIN verification
+ */
+export async function liftEmergencyLockdown(doctorPin: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const settings = await db.query.clinicSettings.findFirst();
+    if (!settings) return { success: false, error: 'Clinic settings not found' };
+
+    // Verify doctor PIN if security is configured
+    if (settings.pinHash) {
+      if (!doctorPin || !verifyPinHash(doctorPin, settings.pinHash)) {
+        return { success: false, error: 'Invalid Doctor PIN. Lockdown recovery denied.' };
+      }
+    }
+
+    await db
+      .update(clinicSettings)
+      .set({
+        lockdownActive: false,
+        lockdownReason: null,
+        lockdownTriggeredAt: null,
+        deceptionModeActive: false,
+      })
+      .where(eq(clinicSettings.id, 1));
+
+    await logAuditEvent({
+      action: 'SECURITY_LOCKDOWN_LIFTED',
+      actorRole: 'DOCTOR',
+      details: 'Emergency Lockdown and Breach Containment lifted by Doctor. Normal clinical operations restored.',
+      status: 'SUCCESS',
+    });
+
+    return { success: true };
+  } catch (err: unknown) {
+    console.error('Failed to lift lockdown:', err);
+    return { success: false, error: err instanceof Error ? err.message : 'Failed to lift lockdown' };
+  }
+}
+
+/**
+ * Explicitly toggle Active Deception (Honeypot Decoy Mode)
+ */
+export async function toggleDeceptionMode(enabled: boolean): Promise<boolean> {
+  try {
+    await db
+      .update(clinicSettings)
+      .set({
+        deceptionModeActive: enabled,
+      })
+      .where(eq(clinicSettings.id, 1));
+
+    await logAuditEvent({
+      action: 'DECEPTION_MODE_TOGGLED',
+      actorRole: 'DOCTOR',
+      details: `Active Deception Engine (Honeypot false random data feeder) set to ${enabled ? 'ENABLED' : 'DISABLED'}`,
+      status: 'SUCCESS',
+    });
+
+    return true;
+  } catch (err) {
+    console.error('Failed to toggle deception mode:', err);
+    return false;
+  }
+}
+

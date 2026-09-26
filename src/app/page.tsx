@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import Link from "next/link";
-import { PlusCircle, Settings, Users, FileText, AlertCircle, Edit, ExternalLink, Calendar, BarChart3 } from "lucide-react";
+import { PlusCircle, Settings, Users, FileText, AlertCircle, Edit, ExternalLink, Calendar, BarChart3, Receipt } from "lucide-react";
 import { DashboardSearch } from "@/components/DashboardSearch";
 import { formatDate } from "@/lib/utils";
 import { requireAuth, getSecurityConfig, getCurrentUserRole } from "@/lib/auth";
@@ -14,7 +14,8 @@ import { PrivacyShield } from "@/components/PrivacyShield";
 import { UserRoleBadge } from "@/components/UserRoleBadge";
 import { SecurityAlertBell } from "@/components/SecurityAlertBell";
 import { DoctorSecurityBanner } from "@/components/DoctorSecurityBanner";
-import { getSecurityAlerts } from "@/lib/security-engine";
+import { LockdownBanner } from "@/components/LockdownBanner";
+import { getSecurityAlerts, getLockdownStatus } from "@/lib/security-engine";
 
 interface ConsultationRow {
   id: number;
@@ -38,11 +39,12 @@ export default async function DashboardPage({
   searchParams: Promise<{ q?: string; unauthorized?: string }>;
 }) {
   await requireAuth('/');
-  const [{ securityEnabled }, role, resolvedParams, securityAlertsData] = await Promise.all([
+  const [{ securityEnabled }, role, resolvedParams, securityAlertsData, lockdownStatus] = await Promise.all([
     getSecurityConfig(),
     getCurrentUserRole(),
     searchParams,
     getSecurityAlerts({ unacknowledgedOnly: false, limit: 30 }),
+    getLockdownStatus(),
   ]);
   const query = resolvedParams?.q;
   const unauthorized = resolvedParams?.unauthorized;
@@ -125,6 +127,11 @@ export default async function DashboardPage({
                 <BarChart3 className="w-4 h-4 text-blue-600" /> Reports
               </Button>
             </Link>
+            <Link href="/billing">
+              <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
+                <Receipt className="w-4 h-4 text-emerald-600" /> Billing
+              </Button>
+            </Link>
             <Link href="/settings">
               <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
                 <Settings className="w-4 h-4" /> Settings
@@ -149,6 +156,9 @@ export default async function DashboardPage({
       </nav>
 
       <main className="container mx-auto px-4 py-8 max-w-6xl">
+        {/* Breach Containment & Deception Lockdown Banner */}
+        <LockdownBanner initialStatus={lockdownStatus} userRole={role} />
+
         {/* Doctor Threat & Security Anomaly Banner */}
         <DoctorSecurityBanner
           activeAlerts={securityAlertsData.alerts.filter((a) => a.acknowledgedAt === null)}

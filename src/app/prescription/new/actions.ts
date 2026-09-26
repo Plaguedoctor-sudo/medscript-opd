@@ -107,7 +107,7 @@ function sanitizeMedications(meds: unknown): Medication[] {
     .map((m) => ({
       prefix: m.prefix ? m.prefix.trim().slice(0, 20) : undefined,
       name: m.name.trim().slice(0, 100),
-      genericName: m.genericName ? m.genericName.trim().slice(0, 150) : undefined,
+      genericName: m.genericName ? m.genericName.trim().slice(0, 150).toUpperCase() : undefined,
       strength: (m.strength || "").trim().slice(0, 50),
       dosage: (m.dosage || "").trim().slice(0, 50),
       timing: (m.timing || "").trim().slice(0, 50),
@@ -118,6 +118,15 @@ function sanitizeMedications(meds: unknown): Medication[] {
 
 export async function createPrescription(formData: PrescriptionFormData) {
   await requireRole(['doctor'], '/prescription/new');
+
+  // Enforce autonomous breach containment lockdown
+  const settings = await db.query.clinicSettings.findFirst();
+  if (settings?.lockdownActive) {
+    throw new Error(
+      `SYSTEM LOCKDOWN ACTIVE: Clinical database is frozen under breach containment: "${settings.lockdownReason || 'Security alert active'}". Doctor must lift lockdown to resume prescription creation.`
+    );
+  }
+
   let patientId = formData.patientId ? Number(formData.patientId) : null;
   let isNewPatient = false;
 

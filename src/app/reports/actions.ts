@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { prescriptions, patients } from "@/db/schema";
 import { desc, eq, and, gte, lte } from "drizzle-orm";
 import { ConsultationExportItem, PatientExportItem, DiagnosisSummaryItem, MedicationSummaryItem } from "@/lib/csv-export";
+import { generateDecoyPatients, generateDecoyConsultations } from "@/lib/decoy-engine";
 import { requireAuth } from "@/lib/auth";
 import { logAuditEvent } from "@/lib/audit";
 
@@ -51,6 +52,51 @@ export async function logExportEvent(type: 'consultations' | 'patients', count: 
 
 export async function getReportsData(filter: ReportFilterOptions = { range: "month" }): Promise<ReportsDataResult> {
   await requireAuth('/reports');
+
+  // Deception / Honeypot check: feed false random synthetic data if deception mode is active
+  const settings = await db.query.clinicSettings.findFirst();
+  if (settings?.deceptionModeActive) {
+    const decoyPatients = generateDecoyPatients(30);
+    const decoyConsultations = generateDecoyConsultations(30);
+    await logAuditEvent({
+      action: 'DECEPTION_DATA_SERVED',
+      details: 'Active deception mode fed 30 synthetic randomized patient & consultation records to export/report stream',
+      status: 'WARNING',
+    });
+    return {
+      stats: {
+        totalConsultationsInRange: 30,
+        allTimeConsultations: 120,
+        uniquePatientsInRange: 30,
+        allTimePatients: 100,
+        mostCommonDiagnosis: 'Acute Viral Rhinopharyngitis (Canary-Strain-B)',
+        mostCommonDrug: 'TAB. CANARICILLIN 500MG (SYNTHETIC)',
+      },
+      diagnoses: [
+        { diagnosis: 'Acute Viral Rhinopharyngitis (Canary-Strain-B)', count: 12, percentage: 40 },
+        { diagnosis: 'Type 2 Diabetes Mellitus - Compensated (Decoy Record)', count: 10, percentage: 33 },
+        { diagnosis: 'Essential Primary Hypertension (Synthetic Canary #804)', count: 8, percentage: 27 },
+      ],
+      medications: [
+        { name: 'TAB. CANARICILLIN 500MG (SYNTHETIC)', count: 15, commonDosages: ['1-0-1'] },
+        { name: 'TAB. DECOYPROTIN 20MG (HONEYPOT)', count: 10, commonDosages: ['0-0-1'] },
+      ],
+      demographics: {
+        maleCount: 15,
+        femaleCount: 15,
+        otherCount: 0,
+        pediatricCount: 4,
+        adultCount: 20,
+        seniorCount: 6,
+      },
+      consultations: decoyConsultations,
+      patientsDirectory: decoyPatients,
+      clinicInfo: {
+        doctorName: settings?.doctorName,
+        clinicName: settings?.clinicName,
+      },
+    };
+  }
   const now = new Date();
   let fromDate: Date | undefined;
   let toDate: Date | undefined;
@@ -117,8 +163,7 @@ export async function getReportsData(filter: ReportFilterOptions = { range: "mon
     .where(whereClause)
     .orderBy(desc(prescriptions.createdAt));
 
-  // Fetch clinic settings
-  const settings = await db.query.clinicSettings.findFirst();
+  // settings already loaded above
 
   // Fetch all patients for directory export
   const allPatients = await db

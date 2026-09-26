@@ -55,7 +55,7 @@ export const DRUG_LIBRARY: DrugItem[] = [
   {
     id: "pcm-650",
     name: "Paracetamol 650mg",
-    genericName: "Paracetamol",
+    genericName: "PARACETAMOL",
     brandNames: ["Dolo 650", "Calpol 650", "Pacimol 650"],
     category: "Pain & Fever",
     form: "Tablet",
@@ -68,7 +68,7 @@ export const DRUG_LIBRARY: DrugItem[] = [
   {
     id: "pcm-500",
     name: "Paracetamol 500mg",
-    genericName: "Paracetamol",
+    genericName: "PARACETAMOL",
     brandNames: ["Crocin 500", "Calpol 500"],
     category: "Pain & Fever",
     form: "Tablet",
@@ -81,7 +81,7 @@ export const DRUG_LIBRARY: DrugItem[] = [
   {
     id: "aceclo-pcm",
     name: "Aceclofenac + Paracetamol",
-    genericName: "Aceclofenac (100mg) + Paracetamol (325mg)",
+    genericName: "ACECLOFENAC (100MG) + PARACETAMOL (325MG)",
     brandNames: ["Zerodol-P", "Hifenac-P", "Aroff Plus"],
     category: "Pain & Fever",
     form: "Tablet",
@@ -94,7 +94,7 @@ export const DRUG_LIBRARY: DrugItem[] = [
   {
     id: "ibup-400",
     name: "Ibuprofen 400mg",
-    genericName: "Ibuprofen",
+    genericName: "IBUPROFEN",
     brandNames: ["Brufen 400", "Ibugesic 400"],
     category: "Pain & Fever",
     form: "Tablet",
@@ -107,7 +107,7 @@ export const DRUG_LIBRARY: DrugItem[] = [
   {
     id: "diclo-50",
     name: "Diclofenac Sodium 50mg",
-    genericName: "Diclofenac Sodium",
+    genericName: "DICLOFENAC SODIUM",
     brandNames: ["Voveran 50", "Dicloran 50"],
     category: "Pain & Fever",
     form: "Tablet",
@@ -120,7 +120,7 @@ export const DRUG_LIBRARY: DrugItem[] = [
   {
     id: "tram-pcm",
     name: "Tramadol + Paracetamol",
-    genericName: "Tramadol (37.5mg) + Paracetamol (325mg)",
+    genericName: "TRAMADOL (37.5MG) + PARACETAMOL (325MG)",
     brandNames: ["Ultracet", "Calpol-T"],
     category: "Pain & Fever",
     form: "Tablet",
@@ -133,7 +133,7 @@ export const DRUG_LIBRARY: DrugItem[] = [
   {
     id: "meftal-spas",
     name: "Mefenamic Acid + Dicyclomine",
-    genericName: "Mefenamic Acid (250mg) + Dicyclomine (10mg)",
+    genericName: "MEFENAMIC ACID (250MG) + DICYCLOMINE (10MG)",
     brandNames: ["Meftal-Spas", "Spasmo-Proxyvon"],
     category: "Pain & Fever",
     form: "Tablet",
@@ -148,7 +148,7 @@ export const DRUG_LIBRARY: DrugItem[] = [
   {
     id: "amox-clav-625",
     name: "Amoxicillin + Clavulanic Acid 625mg",
-    genericName: "Amoxicillin (500mg) + Clavulanic Acid (125mg)",
+    genericName: "AMOXICILLIN (500MG) + CLAVULANIC ACID (125MG)",
     brandNames: ["Augmentin 625 Duo", "Clavam 625", "Moxikind-CV 625"],
     category: "Antibiotics",
     form: "Tablet",
@@ -161,7 +161,7 @@ export const DRUG_LIBRARY: DrugItem[] = [
   {
     id: "azithro-500",
     name: "Azithromycin 500mg",
-    genericName: "Azithromycin",
+    genericName: "AZITHROMYCIN",
     brandNames: ["Azee 500", "Zithrox 500", "Azithral 500"],
     category: "Antibiotics",
     form: "Tablet",
@@ -174,7 +174,7 @@ export const DRUG_LIBRARY: DrugItem[] = [
   {
     id: "cefix-200",
     name: "Cefixime 200mg",
-    genericName: "Cefixime",
+    genericName: "CEFIXIME",
     brandNames: ["Zifi 200", "Taxim-O 200", "Cephalkem 200"],
     category: "Antibiotics",
     form: "Tablet",
@@ -187,7 +187,7 @@ export const DRUG_LIBRARY: DrugItem[] = [
   {
     id: "cipro-500",
     name: "Ciprofloxacin 500mg",
-    genericName: "Ciprofloxacin",
+    genericName: "CIPROFLOXACIN",
     brandNames: ["Ciplox 500", "Cifran 500"],
     category: "Antibiotics",
     form: "Tablet",
@@ -200,7 +200,7 @@ export const DRUG_LIBRARY: DrugItem[] = [
   {
     id: "oflox-ornid",
     name: "Ofloxacin + Ornidazole",
-    genericName: "Ofloxacin (200mg) + Ornidazole (500mg)",
+    genericName: "OFLOXACIN (200MG) + ORNIDAZOLE (500MG)",
     brandNames: ["O2", "Zenflox-OZ", "Oflomac-OZ"],
     category: "Antibiotics",
     form: "Tablet",
@@ -213,7 +213,7 @@ export const DRUG_LIBRARY: DrugItem[] = [
   {
     id: "doxy-100",
     name: "Doxycycline 100mg",
-    genericName: "Doxycycline",
+    genericName: "DOXYCYCLINE",
     brandNames: ["Doxicip 100", "Microdox-LBX"],
     category: "Antibiotics",
     form: "Capsule",
@@ -226,7 +226,7 @@ export const DRUG_LIBRARY: DrugItem[] = [
   {
     id: "nitro-100",
     name: "Nitrofurantoin 100mg SR",
-    genericName: "Nitrofurantoin Sustained Release",
+    genericName: "NITROFURANTOIN SUSTAINED RELEASE",
     brandNames: ["Niftran 100", "Martifur MR 100"],
     category: "Antibiotics",
     form: "Tablet",
@@ -239,7 +239,7 @@ export const DRUG_LIBRARY: DrugItem[] = [
   {
     id: "metronid-400",
     name: "Metronidazole 400mg",
-    genericName: "Metronidazole",
+    genericName: "METRONIDAZOLE",
     brandNames: ["Flagyl 400", "Metrogyl 400"],
     category: "Antibiotics",
     form: "Tablet",
@@ -254,7 +254,7 @@ export const DRUG_LIBRARY: DrugItem[] = [
   {
     id: "panto-40",
     name: "Pantoprazole 40mg",
-    genericName: "Pantoprazole",
+    genericName: "PANTOPRAZOLE",
     brandNames: ["Pan 40", "Pantocid 40", "Pantodac 40"],
     category: "Gastro & Antacids",
     form: "Tablet",
@@ -267,7 +267,7 @@ export const DRUG_LIBRARY: DrugItem[] = [
   {
     id: "panto-dom-dsr",
     name: "Pantoprazole + Domperidone SR",
-    genericName: "Pantoprazole (40mg) + Domperidone (30mg SR)",
+    genericName: "PANTOPRAZOLE (40MG) + DOMPERIDONE (30MG SR)",
     brandNames: ["Pan-D", "Pantocid-DSR", "Dompan-SR"],
     category: "Gastro & Antacids",
     form: "Capsule",
@@ -280,7 +280,7 @@ export const DRUG_LIBRARY: DrugItem[] = [
   {
     id: "rabe-dom-dsr",
     name: "Rabeprazole + Domperidone",
-    genericName: "Rabeprazole (20mg) + Domperidone (30mg SR)",
+    genericName: "RABEPRAZOLE (20MG) + DOMPERIDONE (30MG SR)",
     brandNames: ["Razo-D", "Cyra-D", "Rablet-D"],
     category: "Gastro & Antacids",
     form: "Capsule",
@@ -293,7 +293,7 @@ export const DRUG_LIBRARY: DrugItem[] = [
   {
     id: "omez-20",
     name: "Omeprazole 20mg",
-    genericName: "Omeprazole",
+    genericName: "OMEPRAZOLE",
     brandNames: ["Omez 20", "Ocid 20"],
     category: "Gastro & Antacids",
     form: "Capsule",
@@ -306,7 +306,7 @@ export const DRUG_LIBRARY: DrugItem[] = [
   {
     id: "ondan-4",
     name: "Ondansetron 4mg MD",
-    genericName: "Ondansetron Mouth Dissolving",
+    genericName: "ONDANSETRON MOUTH DISSOLVING",
     brandNames: ["Emeset 4 MD", "Zofer 4 MD", "Vomikind MD"],
     category: "Gastro & Antacids",
     form: "Tablet",
@@ -319,7 +319,7 @@ export const DRUG_LIBRARY: DrugItem[] = [
   {
     id: "sucralfate-syr",
     name: "Sucralfate + Oxetacaine Suspension",
-    genericName: "Sucralfate (1000mg) + Oxetacaine (20mg)",
+    genericName: "SUCRALFATE (1000MG) + OXETACAINE (20MG)",
     brandNames: ["Sucrafil-O", "Pegafate-O"],
     category: "Gastro & Antacids",
     form: "Syrup",
@@ -332,7 +332,7 @@ export const DRUG_LIBRARY: DrugItem[] = [
   {
     id: "ors-powder",
     name: "Oral Rehydration Salts (ORS)",
-    genericName: "WHO Formula Oral Electrolytes",
+    genericName: "WHO FORMULA ORAL ELECTROLYTES",
     brandNames: ["Electral Powder", "Walyte ORS"],
     category: "Gastro & Antacids",
     form: "Sachet",
@@ -347,7 +347,7 @@ export const DRUG_LIBRARY: DrugItem[] = [
   {
     id: "levocet-5",
     name: "Levocetirizine 5mg",
-    genericName: "Levocetirizine Dihydrochloride",
+    genericName: "LEVOCETIRIZINE DIHYDROCHLORIDE",
     brandNames: ["Levocet 5", "1-AL 5", "Vozet 5"],
     category: "Cough, Cold & Allergy",
     form: "Tablet",
@@ -360,7 +360,7 @@ export const DRUG_LIBRARY: DrugItem[] = [
   {
     id: "montair-lc",
     name: "Montelukast + Levocetirizine",
-    genericName: "Montelukast (10mg) + Levocetirizine (5mg)",
+    genericName: "MONTELUKAST (10MG) + LEVOCETIRIZINE (5MG)",
     brandNames: ["Montair-LC", "Monticope", "Telekast-L"],
     category: "Cough, Cold & Allergy",
     form: "Tablet",
@@ -373,7 +373,7 @@ export const DRUG_LIBRARY: DrugItem[] = [
   {
     id: "fexo-120",
     name: "Fexofenadine 120mg",
-    genericName: "Fexofenadine Hydrochloride",
+    genericName: "FEXOFENADINE HYDROCHLORIDE",
     brandNames: ["Allegra 120", "Fexova 120"],
     category: "Cough, Cold & Allergy",
     form: "Tablet",
@@ -386,7 +386,7 @@ export const DRUG_LIBRARY: DrugItem[] = [
   {
     id: "cough-dry",
     name: "Dextromethorphan + CPM Syrup",
-    genericName: "Dextromethorphan HBr + Chlorpheniramine Maleate",
+    genericName: "DEXTROMETHORPHAN HBR + CHLORPHENIRAMINE MALEATE",
     brandNames: ["Ascoril-D", "Benadryl DR", "Alex Syrup"],
     category: "Cough, Cold & Allergy",
     form: "Syrup",
@@ -399,7 +399,7 @@ export const DRUG_LIBRARY: DrugItem[] = [
   {
     id: "cough-wet",
     name: "Ambroxol + Levosalbutamol + Guaiphenesin",
-    genericName: "Mucolytic & Bronchodilator Expectorant",
+    genericName: "MUCOLYTIC & BRONCHODILATOR EXPECTORANT",
     brandNames: ["Ascoril-LS", "Bro-Zedex LS", "Grilinctus-LS"],
     category: "Cough, Cold & Allergy",
     form: "Syrup",
@@ -412,7 +412,7 @@ export const DRUG_LIBRARY: DrugItem[] = [
   {
     id: "sinarest",
     name: "Paracetamol + Phenylephrine + Chlorpheniramine",
-    genericName: "Antipyretic + Decongestant + Antihistaminic",
+    genericName: "ANTIPYRETIC + DECONGESTANT + ANTIHISTAMINIC",
     brandNames: ["Sinarest", "Cheston Cold", "Wikoryl"],
     category: "Cough, Cold & Allergy",
     form: "Tablet",
@@ -425,7 +425,7 @@ export const DRUG_LIBRARY: DrugItem[] = [
   {
     id: "asthalin-inhaler",
     name: "Salbutamol Inhaler 100mcg",
-    genericName: "Salbutamol Sulfate",
+    genericName: "SALBUTAMOL SULFATE",
     brandNames: ["Asthalin Inhaler", "Ventorlin"],
     category: "Cough, Cold & Allergy",
     form: "Inhaler",
@@ -438,7 +438,7 @@ export const DRUG_LIBRARY: DrugItem[] = [
   {
     id: "foracort-200",
     name: "Budesonide + Formoterol Inhaler 200",
-    genericName: "Budesonide (200mcg) + Formoterol (6mcg)",
+    genericName: "BUDESONIDE (200MCG) + FORMOTEROL (6MCG)",
     brandNames: ["Foracort 200 Rotacaps/Inhaler", "Budamate 200"],
     category: "Cough, Cold & Allergy",
     form: "Inhaler",
@@ -453,7 +453,7 @@ export const DRUG_LIBRARY: DrugItem[] = [
   {
     id: "telma-40",
     name: "Telmisartan 40mg",
-    genericName: "Telmisartan",
+    genericName: "TELMISARTAN",
     brandNames: ["Telma 40", "Telmikind 40", "Creser 40"],
     category: "Cardio & BP",
     form: "Tablet",
@@ -466,7 +466,7 @@ export const DRUG_LIBRARY: DrugItem[] = [
   {
     id: "telma-am",
     name: "Telmisartan 40mg + Amlodipine 5mg",
-    genericName: "Telmisartan (40mg) + Amlodipine (5mg)",
+    genericName: "TELMISARTAN (40MG) + AMLODIPINE (5MG)",
     brandNames: ["Telma-AM", "Telmikind-AM", "Amlokind-T"],
     category: "Cardio & BP",
     form: "Tablet",
@@ -479,7 +479,7 @@ export const DRUG_LIBRARY: DrugItem[] = [
   {
     id: "amlong-5",
     name: "Amlodipine 5mg",
-    genericName: "Amlodipine Besylate",
+    genericName: "AMLODIPINE BESYLATE",
     brandNames: ["Amlong 5", "Stamlo 5", "Amlopin 5"],
     category: "Cardio & BP",
     form: "Tablet",
@@ -492,7 +492,7 @@ export const DRUG_LIBRARY: DrugItem[] = [
   {
     id: "atorva-10",
     name: "Atorvastatin 10mg",
-    genericName: "Atorvastatin Calcium",
+    genericName: "ATORVASTATIN CALCIUM",
     brandNames: ["Atorva 10", "Storvas 10", "Lipicure 10"],
     category: "Cardio & BP",
     form: "Tablet",
@@ -505,7 +505,7 @@ export const DRUG_LIBRARY: DrugItem[] = [
   {
     id: "atorva-20",
     name: "Atorvastatin 20mg",
-    genericName: "Atorvastatin Calcium",
+    genericName: "ATORVASTATIN CALCIUM",
     brandNames: ["Atorva 20", "Storvas 20", "Lipicure 20"],
     category: "Cardio & BP",
     form: "Tablet",
@@ -518,7 +518,7 @@ export const DRUG_LIBRARY: DrugItem[] = [
   {
     id: "rosuvas-10",
     name: "Rosuvastatin 10mg",
-    genericName: "Rosuvastatin Calcium",
+    genericName: "ROSUVASTATIN CALCIUM",
     brandNames: ["Rosuvas 10", "Rozavel 10", "Roseday 10"],
     category: "Cardio & BP",
     form: "Tablet",
@@ -531,7 +531,7 @@ export const DRUG_LIBRARY: DrugItem[] = [
   {
     id: "metolar-25",
     name: "Metoprolol Succinate 25mg ER",
-    genericName: "Metoprolol Succinate Extended Release",
+    genericName: "METOPROLOL SUCCINATE EXTENDED RELEASE",
     brandNames: ["Betaloc 25", "Metolar XR 25", "Pro lomet 25"],
     category: "Cardio & BP",
     form: "Tablet",
@@ -544,7 +544,7 @@ export const DRUG_LIBRARY: DrugItem[] = [
   {
     id: "ecosprin-75",
     name: "Aspirin (Ecosprin) 75mg",
-    genericName: "Aspirin (Enteric Coated)",
+    genericName: "ASPIRIN (ENTERIC COATED)",
     brandNames: ["Ecosprin 75", "Delisprin 75"],
     category: "Cardio & BP",
     form: "Tablet",
@@ -557,7 +557,7 @@ export const DRUG_LIBRARY: DrugItem[] = [
   {
     id: "clopi-75",
     name: "Clopidogrel 75mg",
-    genericName: "Clopidogrel Bisulfate",
+    genericName: "CLOPIDOGREL BISULFATE",
     brandNames: ["Clopilet 75", "Deplatt 75"],
     category: "Cardio & BP",
     form: "Tablet",
@@ -572,7 +572,7 @@ export const DRUG_LIBRARY: DrugItem[] = [
   {
     id: "metform-500",
     name: "Metformin 500mg SR",
-    genericName: "Metformin Hydrochloride Sustained Release",
+    genericName: "METFORMIN HYDROCHLORIDE SUSTAINED RELEASE",
     brandNames: ["Glycomet 500 SR", "Cetapin 500", "Obimet 500"],
     category: "Diabetes",
     form: "Tablet",
@@ -585,7 +585,7 @@ export const DRUG_LIBRARY: DrugItem[] = [
   {
     id: "metform-1000",
     name: "Metformin 1000mg SR",
-    genericName: "Metformin Hydrochloride Sustained Release",
+    genericName: "METFORMIN HYDROCHLORIDE SUSTAINED RELEASE",
     brandNames: ["Glycomet 1000 SR", "Gluconorm-SR 1g"],
     category: "Diabetes",
     form: "Tablet",
@@ -598,7 +598,7 @@ export const DRUG_LIBRARY: DrugItem[] = [
   {
     id: "glycomet-gp1",
     name: "Metformin 500mg + Glimepiride 1mg",
-    genericName: "Glimepiride (1mg) + Metformin (500mg SR)",
+    genericName: "GLIMEPIRIDE (1MG) + METFORMIN (500MG SR)",
     brandNames: ["Glycomet-GP 1", "Amaryl M 1", "Zoryl-M 1"],
     category: "Diabetes",
     form: "Tablet",
@@ -611,7 +611,7 @@ export const DRUG_LIBRARY: DrugItem[] = [
   {
     id: "glycomet-gp2",
     name: "Metformin 500mg + Glimepiride 2mg",
-    genericName: "Glimepiride (2mg) + Metformin (500mg SR)",
+    genericName: "GLIMEPIRIDE (2MG) + METFORMIN (500MG SR)",
     brandNames: ["Glycomet-GP 2", "Amaryl M 2", "Zoryl-M 2"],
     category: "Diabetes",
     form: "Tablet",
@@ -624,7 +624,7 @@ export const DRUG_LIBRARY: DrugItem[] = [
   {
     id: "teneli-20",
     name: "Teneligliptin 20mg",
-    genericName: "Teneligliptin Hydrobromide",
+    genericName: "TENELIGLIPTIN HYDROBROMIDE",
     brandNames: ["Ziten 20", "Tendia 20", "Tenelimac 20"],
     category: "Diabetes",
     form: "Tablet",
@@ -637,7 +637,7 @@ export const DRUG_LIBRARY: DrugItem[] = [
   {
     id: "dapa-10",
     name: "Dapagliflozin 10mg",
-    genericName: "Dapagliflozin Propanediol",
+    genericName: "DAPAGLIFLOZIN PROPANEDIOL",
     brandNames: ["Forxiga 10", "Oxra 10", "Dapavel 10"],
     category: "Diabetes",
     form: "Tablet",
@@ -650,7 +650,7 @@ export const DRUG_LIBRARY: DrugItem[] = [
   {
     id: "thyro-50",
     name: "Levothyroxine 50mcg",
-    genericName: "Levothyroxine Sodium",
+    genericName: "LEVOTHYROXINE SODIUM",
     brandNames: ["Thyronorm 50mcg", "Eltroxin 50mcg"],
     category: "Diabetes",
     form: "Tablet",
@@ -663,7 +663,7 @@ export const DRUG_LIBRARY: DrugItem[] = [
   {
     id: "thyro-100",
     name: "Levothyroxine 100mcg",
-    genericName: "Levothyroxine Sodium",
+    genericName: "LEVOTHYROXINE SODIUM",
     brandNames: ["Thyronorm 100mcg", "Eltroxin 100mcg"],
     category: "Diabetes",
     form: "Tablet",
@@ -678,7 +678,7 @@ export const DRUG_LIBRARY: DrugItem[] = [
   {
     id: "shelcal-500",
     name: "Calcium 500mg + Vitamin D3",
-    genericName: "Calcium Carbonate (500mg elemental) + Vitamin D3 (250 IU)",
+    genericName: "CALCIUM CARBONATE (500MG ELEMENTAL) + VITAMIN D3 (250 IU)",
     brandNames: ["Shelcal 500", "Cipcal 500", "Gemcal"],
     category: "Vitamins & Supplements",
     form: "Tablet",
@@ -691,7 +691,7 @@ export const DRUG_LIBRARY: DrugItem[] = [
   {
     id: "vit-d3-60k",
     name: "Cholecalciferol (Vitamin D3) 60,000 IU",
-    genericName: "Cholecalciferol Vitamin D3",
+    genericName: "CHOLECALCIFEROL VITAMIN D3",
     brandNames: ["Uprise-D3 60K", "Calcirol 60K Sachet", "D-Rise 60K"],
     category: "Vitamins & Supplements",
     form: "Capsule",
@@ -704,7 +704,7 @@ export const DRUG_LIBRARY: DrugItem[] = [
   {
     id: "neurobion",
     name: "Vitamin B-Complex + B12",
-    genericName: "Thiamine, Riboflavin, Niacinamide, Pyridoxine, Cyanocobalamin",
+    genericName: "THIAMINE, RIBOFLAVIN, NIACINAMIDE, PYRIDOXINE, CYANOCOBALAMIN",
     brandNames: ["Neurobion Forte", "Becosules", "Cobadex Forte"],
     category: "Vitamins & Supplements",
     form: "Tablet",
@@ -717,7 +717,7 @@ export const DRUG_LIBRARY: DrugItem[] = [
   {
     id: "iron-folic",
     name: "Ferrous Ascorbate + Folic Acid",
-    genericName: "Ferrous Ascorbate (100mg elemental Iron) + Folic Acid (1.5mg)",
+    genericName: "FERROUS ASCORBATE (100MG ELEMENTAL IRON) + FOLIC ACID (1.5MG)",
     brandNames: ["Orofer-XT", "HB-Rich", "Feronia-XT"],
     category: "Vitamins & Supplements",
     form: "Tablet",
@@ -730,7 +730,7 @@ export const DRUG_LIBRARY: DrugItem[] = [
   {
     id: "vit-c-zinc",
     name: "Vitamin C 500mg + Zinc",
-    genericName: "Ascorbic Acid (500mg) + Zinc (5mg)",
+    genericName: "ASCORBIC ACID (500MG) + ZINC (5MG)",
     brandNames: ["Limcee Chewable", "Celin 500", "Zinconia"],
     category: "Vitamins & Supplements",
     form: "Tablet",
@@ -745,7 +745,7 @@ export const DRUG_LIBRARY: DrugItem[] = [
   {
     id: "tbact-oint",
     name: "Mupirocin 2% Ointment",
-    genericName: "Mupirocin Ointment 2% w/w",
+    genericName: "MUPIROCIN OINTMENT 2% W/W",
     brandNames: ["T-Bact Ointment", "Bactroban"],
     category: "Dermatology",
     form: "Ointment",
@@ -758,7 +758,7 @@ export const DRUG_LIBRARY: DrugItem[] = [
   {
     id: "candid-cream",
     name: "Clotrimazole 1% Cream",
-    genericName: "Clotrimazole Cream 1% w/w",
+    genericName: "CLOTRIMAZOLE CREAM 1% W/W",
     brandNames: ["Candid Cream", "Canesten"],
     category: "Dermatology",
     form: "Ointment",
@@ -771,7 +771,7 @@ export const DRUG_LIBRARY: DrugItem[] = [
   {
     id: "betnovate-n",
     name: "Betamethasone + Neomycin Cream",
-    genericName: "Betamethasone Valerate (0.1%) + Neomycin (0.5%)",
+    genericName: "BETAMETHASONE VALERATE (0.1%) + NEOMYCIN (0.5%)",
     brandNames: ["Betnovate-N", "Cortiderm-N"],
     category: "Dermatology",
     form: "Ointment",
@@ -786,7 +786,7 @@ export const DRUG_LIBRARY: DrugItem[] = [
   {
     id: "moxi-eye",
     name: "Moxifloxacin 0.5% Eye Drops",
-    genericName: "Moxifloxacin Ophthalmic Solution 0.5% w/v",
+    genericName: "MOXIFLOXACIN OPHTHALMIC SOLUTION 0.5% W/V",
     brandNames: ["Moxicip Eye Drops", "Vigamox"],
     category: "Eye & ENT",
     form: "Drops",
@@ -799,7 +799,7 @@ export const DRUG_LIBRARY: DrugItem[] = [
   {
     id: "refresh-tears",
     name: "Carboxymethylcellulose 0.5% Eye Drops",
-    genericName: "Carboxymethylcellulose Lubricant Eye Drops",
+    genericName: "CARBOXYMETHYLCELLULOSE LUBRICANT EYE DROPS",
     brandNames: ["Refresh Tears", "Tears Naturale", "Lubrex"],
     category: "Eye & ENT",
     form: "Drops",
@@ -812,7 +812,7 @@ export const DRUG_LIBRARY: DrugItem[] = [
   {
     id: "ciplox-ear",
     name: "Ciprofloxacin Ear Drops",
-    genericName: "Ciprofloxacin 0.3% w/v Ear Drops",
+    genericName: "CIPROFLOXACIN 0.3% W/V EAR DROPS",
     brandNames: ["Ciplox Ear Drops", "Cifran Ear Drops"],
     category: "Eye & ENT",
     form: "Drops",
@@ -825,7 +825,7 @@ export const DRUG_LIBRARY: DrugItem[] = [
   {
     id: "otrivin-drops",
     name: "Xylometazoline 0.1% Nasal Drops",
-    genericName: "Xylometazoline Hydrochloride 0.1%",
+    genericName: "XYLOMETAZOLINE HYDROCHLORIDE 0.1%",
     brandNames: ["Otrivin Nasal Drops", "Nasivion"],
     category: "Eye & ENT",
     form: "Drops",
