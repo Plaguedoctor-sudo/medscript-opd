@@ -205,6 +205,11 @@ try {
 } catch {
   // Column already exists
 }
+try {
+  sqlite.exec('ALTER TABLE clinic_settings ADD COLUMN session_revoked_before INTEGER;');
+} catch {
+  // Column already exists
+}
 
 // Enforce POSIX 0600 file permissions on database at rest
 try {

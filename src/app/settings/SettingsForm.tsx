@@ -36,12 +36,12 @@ import {
   Smartphone,
   AlertTriangle,
 } from "lucide-react";
-import { ClinicSettings } from "@/types";
+import { ClinicSettings, SafeClinicSettings } from "@/types";
 import { AuditLogItem } from "@/lib/audit";
 import { MfaSetupModal } from "@/components/MfaSetupModal";
 
 interface SettingsFormProps {
-  settings: ClinicSettings | null;
+  settings: SafeClinicSettings | ClinicSettings | null;
   securityConfig: {
     securityEnabled: boolean;
     pinConfigured: boolean;

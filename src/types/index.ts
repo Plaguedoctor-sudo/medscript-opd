@@ -71,6 +71,11 @@ export interface ClinicSettings {
   deceptionModeActive?: boolean | null;
 }
 
+export type SafeClinicSettings = Omit<
+  ClinicSettings,
+  'pinHash' | 'staffPinHash' | 'mfaSecret' | 'mfaBackupCodes' | 'sessionSecret'
+>;
+
 export type InvoiceItemCategory = 'Consultation' | 'Medication' | 'Procedure' | 'Lab Test' | 'Other';
 
 export interface InvoiceItem {

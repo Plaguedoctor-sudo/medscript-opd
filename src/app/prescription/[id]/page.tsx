@@ -3,15 +3,22 @@ import { prescriptions, patients } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import PrescriptionPreview from "./preview";
-import { ClinicSettings, Patient, Prescription } from "@/types";
+import { ClinicSettings, SafeClinicSettings, Patient, Prescription } from "@/types";
 import { requireAuth, getCurrentUserRole } from "@/lib/auth";
 import { logAuditEvent } from "@/lib/audit";
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-export default async function PrescriptionPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function PrescriptionPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams?: Promise<{ print?: string; send?: string }>;
+}) {
   const { id } = await params;
+  const resolvedSearchParams = searchParams ? await searchParams : {};
   await requireAuth(`/prescription/${id}`);
   const role = await getCurrentUserRole();
   const prescriptionId = parseInt(id, 10);
@@ -36,9 +43,9 @@ export default async function PrescriptionPage({ params }: { params: Promise<{ i
     status: 'SUCCESS',
   });
 
-  const settings = await db.query.clinicSettings.findFirst();
+  const rawSettings = await db.query.clinicSettings.findFirst();
 
-  const defaultSettings: ClinicSettings = {
+  const defaultSettings: SafeClinicSettings = {
     id: 1,
     doctorName: "Doctor / Clinic Name",
     qualifications: "MBBS / Specialist",
@@ -49,13 +56,40 @@ export default async function PrescriptionPage({ params }: { params: Promise<{ i
     logoUrl: null,
   };
 
+  const safeSettings: SafeClinicSettings = rawSettings
+    ? {
+        id: rawSettings.id,
+        doctorName: rawSettings.doctorName,
+        qualifications: rawSettings.qualifications,
+        regNumber: rawSettings.regNumber,
+        clinicName: rawSettings.clinicName,
+        address: rawSettings.address,
+        contact: rawSettings.contact,
+        logoUrl: rawSettings.logoUrl,
+        rbacEnabled: rawSettings.rbacEnabled,
+        securityEnabled: rawSettings.securityEnabled,
+        autoLockMinutes: rawSettings.autoLockMinutes,
+        mfaEnabled: rawSettings.mfaEnabled,
+        pinUpdatedAt: rawSettings.pinUpdatedAt,
+        rotationDays: rawSettings.rotationDays,
+        minPinLength: rawSettings.minPinLength,
+        enforceComplexity: rawSettings.enforceComplexity,
+        lockdownActive: rawSettings.lockdownActive,
+        lockdownReason: rawSettings.lockdownReason,
+        lockdownTriggeredAt: rawSettings.lockdownTriggeredAt,
+        deceptionModeActive: rawSettings.deceptionModeActive,
+      }
+    : defaultSettings;
+
   return (
     <PrescriptionPreview 
       prescription={prescription as Prescription} 
       patient={patient as Patient} 
-      settings={(settings as ClinicSettings) || defaultSettings} 
-      isDefaultSettings={!settings}
+      settings={safeSettings} 
+      isDefaultSettings={!rawSettings}
       userRole={role}
+      autoPrint={resolvedSearchParams.print === 'true'}
+      autoSend={(resolvedSearchParams.send as 'whatsapp' | 'sms') || null}
     />
   );
 }

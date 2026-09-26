@@ -80,6 +80,7 @@ export const clinicSettings = sqliteTable("clinic_settings", {
   lockdownReason: text("lockdown_reason"),
   lockdownTriggeredAt: integer("lockdown_triggered_at", { mode: "timestamp" }),
   deceptionModeActive: integer("deception_mode_active", { mode: "boolean" }).$defaultFn(() => false),
+  sessionRevokedBefore: integer("session_revoked_before", { mode: "timestamp" }),
 });
 
 export const auditLogs = sqliteTable("audit_logs", {
@@ -129,4 +130,17 @@ export const invoicesRelations = relations(invoices, ({ one }) => ({
     references: [patients.id],
   }),
 }));
+
+export const rateLimits = sqliteTable("rate_limits", {
+  key: text("key").primaryKey(),
+  attempts: integer("attempts").notNull().default(0),
+  firstAttempt: integer("first_attempt").notNull(),
+  lockedUntil: integer("locked_until").notNull().default(0),
+});
+
+export const breakGlassLimits = sqliteTable("break_glass_limits", {
+  ip: text("ip").primaryKey(),
+  uses: integer("uses").notNull().default(0),
+  firstUse: integer("first_use").notNull(),
+});
 

@@ -6,7 +6,7 @@ import NewPrescriptionForm from "@/app/prescription/new/form";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Settings, Stethoscope } from "lucide-react";
-import { Patient, Prescription } from "@/types";
+import { Patient, Prescription, SafeClinicSettings } from "@/types";
 import { requireRole } from "@/lib/auth";
 
 export const dynamic = 'force-dynamic';
@@ -29,7 +29,31 @@ export default async function EditPrescriptionPage({ params }: { params: Promise
     where: eq(patients.id, prescription.patientId),
   });
 
-  const settings = await db.query.clinicSettings.findFirst();
+  const rawSettings = await db.query.clinicSettings.findFirst();
+  const safeSettings: SafeClinicSettings | undefined = rawSettings
+    ? {
+        id: rawSettings.id,
+        doctorName: rawSettings.doctorName,
+        qualifications: rawSettings.qualifications,
+        regNumber: rawSettings.regNumber,
+        clinicName: rawSettings.clinicName,
+        address: rawSettings.address,
+        contact: rawSettings.contact,
+        logoUrl: rawSettings.logoUrl,
+        rbacEnabled: rawSettings.rbacEnabled,
+        securityEnabled: rawSettings.securityEnabled,
+        autoLockMinutes: rawSettings.autoLockMinutes,
+        mfaEnabled: rawSettings.mfaEnabled,
+        pinUpdatedAt: rawSettings.pinUpdatedAt,
+        rotationDays: rawSettings.rotationDays,
+        minPinLength: rawSettings.minPinLength,
+        enforceComplexity: rawSettings.enforceComplexity,
+        lockdownActive: rawSettings.lockdownActive,
+        lockdownReason: rawSettings.lockdownReason,
+        lockdownTriggeredAt: rawSettings.lockdownTriggeredAt,
+        deceptionModeActive: rawSettings.deceptionModeActive,
+      }
+    : undefined;
 
   return (
     <div className="bg-slate-50 min-h-screen">
@@ -47,9 +71,9 @@ export default async function EditPrescriptionPage({ params }: { params: Promise
               </div>
               <div>
                 <span className="font-bold text-slate-900 block leading-tight">Edit Prescription #{prescriptionId}</span>
-                {settings?.doctorName && (
+                {rawSettings?.doctorName && (
                   <span className="text-[11px] text-slate-500 font-medium block leading-none mt-0.5">
-                    {settings.doctorName} {settings.clinicName ? `• ${settings.clinicName}` : ''}
+                    {rawSettings.doctorName} {rawSettings.clinicName ? `• ${rawSettings.clinicName}` : ''}
                   </span>
                 )}
               </div>
@@ -69,7 +93,7 @@ export default async function EditPrescriptionPage({ params }: { params: Promise
             ...(prescription as Prescription),
             patient: (patient as Patient) || undefined,
           }}
-          doctorSettings={settings || undefined}
+          doctorSettings={safeSettings}
         />
       </div>
     </div>

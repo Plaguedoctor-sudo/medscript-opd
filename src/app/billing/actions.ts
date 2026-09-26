@@ -3,7 +3,7 @@
 import { db } from '@/db';
 import { invoices, patients, clinicSettings, prescriptions } from '@/db/schema';
 import { desc, eq, like, or, and, gte, lte, sql } from 'drizzle-orm';
-import { InvoiceItem, Invoice, InvoiceWithPatient, Patient } from '@/types';
+import { InvoiceItem, Invoice, InvoiceWithPatient, Patient, SafeClinicSettings } from '@/types';
 import { requireAuth, getCurrentUserRole } from '@/lib/auth';
 import { logAuditEvent } from '@/lib/audit';
 import { revalidatePath } from 'next/cache';
@@ -231,7 +231,7 @@ export async function createInvoiceAction(data: {
 export async function getInvoiceDetails(id: number): Promise<{
   invoice: Invoice;
   patient: Patient;
-  settings: typeof clinicSettings.$inferSelect | null;
+  settings: SafeClinicSettings | null;
   prescriptionDetails?: { diagnosis: string | null; createdAt: Date | null } | null;
 } | null> {
   await requireAuth('/billing');
@@ -250,7 +250,31 @@ export async function getInvoiceDetails(id: number): Promise<{
 
   const inv = row[0].invoice;
   const pat = row[0].patient;
-  const settings = (await db.query.clinicSettings.findFirst()) || null;
+  const rawSettings = (await db.query.clinicSettings.findFirst()) || null;
+  const settings: SafeClinicSettings | null = rawSettings
+    ? {
+        id: rawSettings.id,
+        doctorName: rawSettings.doctorName,
+        qualifications: rawSettings.qualifications,
+        regNumber: rawSettings.regNumber,
+        clinicName: rawSettings.clinicName,
+        address: rawSettings.address,
+        contact: rawSettings.contact,
+        logoUrl: rawSettings.logoUrl,
+        rbacEnabled: rawSettings.rbacEnabled,
+        securityEnabled: rawSettings.securityEnabled,
+        autoLockMinutes: rawSettings.autoLockMinutes,
+        mfaEnabled: rawSettings.mfaEnabled,
+        pinUpdatedAt: rawSettings.pinUpdatedAt,
+        rotationDays: rawSettings.rotationDays,
+        minPinLength: rawSettings.minPinLength,
+        enforceComplexity: rawSettings.enforceComplexity,
+        lockdownActive: rawSettings.lockdownActive,
+        lockdownReason: rawSettings.lockdownReason,
+        lockdownTriggeredAt: rawSettings.lockdownTriggeredAt,
+        deceptionModeActive: rawSettings.deceptionModeActive,
+      }
+    : null;
 
   let prescriptionDetails = null;
   if (inv.prescriptionId) {

@@ -35,9 +35,11 @@ import {
   TestTube,
   TestTubes,
   Check,
+  Printer,
+  MessageCircle,
 } from "lucide-react";
 import { toast } from "@/components/ui/toast";
-import { Medication, Patient, Prescription, ClinicSettings } from "@/types";
+import { Medication, Patient, Prescription, ClinicSettings, SafeClinicSettings } from "@/types";
 import {
   DRUG_LIBRARY,
   DRUG_CATEGORIES,
@@ -58,7 +60,7 @@ interface FormProps {
   initialPatientId?: string;
   initialData?: (Prescription & { patient?: Patient }) | null;
   cloneFromId?: number;
-  doctorSettings?: ClinicSettings;
+  doctorSettings?: SafeClinicSettings | ClinicSettings;
 }
 
 const DOSAGE_OPTIONS = [
@@ -186,6 +188,7 @@ export default function NewPrescriptionForm({
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(initialData?.patient || null);
   const [isSearching, setIsSearching] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [postSaveAction, setPostSaveAction] = useState<'view' | 'print' | 'whatsapp'>('view');
   const [diagnosis, setDiagnosis] = useState<string>(initialData?.diagnosis || "");
 
   // Real-time Drug-Drug Interaction Detection
@@ -396,6 +399,20 @@ export default function NewPrescriptionForm({
         followUpDate: formData.get("followUpDate") as string,
       };
 
+      // Validate phone number if user requested immediate WhatsApp dispatch
+      if (postSaveAction === 'whatsapp') {
+        const phoneToCheck = (data.patientPhone || "").replace(/\D/g, "");
+        if (phoneToCheck.length < 10) {
+          toast.show({
+            title: "Patient Phone Required",
+            description: "Please enter a valid 10-digit mobile number above to send via WhatsApp.",
+            type: "error",
+          });
+          setIsSubmitting(false);
+          return;
+        }
+      }
+
       if (initialData?.id) {
         const res = await updatePrescription(initialData.id, data);
         toast.show({
@@ -403,15 +420,29 @@ export default function NewPrescriptionForm({
           description: "Changes have been saved successfully.",
           type: "success",
         });
-        router.push(`/prescription/${res.prescriptionId}`);
+        let url = `/prescription/${res.prescriptionId}`;
+        if (postSaveAction === 'print') {
+          url += '?print=true';
+        } else if (postSaveAction === 'whatsapp') {
+          url += '?send=whatsapp';
+        }
+        router.push(url);
       } else {
         const res = await createPrescription(data);
         toast.show({
           title: "Prescription Created",
-          description: "A new prescription has been generated.",
+          description: postSaveAction === 'whatsapp'
+            ? "Prescription created! Opening WhatsApp dispatch..."
+            : "A new prescription has been generated.",
           type: "success",
         });
-        router.push(`/prescription/${res.prescriptionId}`);
+        let url = `/prescription/${res.prescriptionId}`;
+        if (postSaveAction === 'print') {
+          url += '?print=true';
+        } else if (postSaveAction === 'whatsapp') {
+          url += '?send=whatsapp';
+        }
+        router.push(url);
       }
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : "An error occurred while saving. Please try again.";
@@ -1608,20 +1639,69 @@ export default function NewPrescriptionForm({
         </CardContent>
       </Card>
 
-      <Button type="submit" size="lg" className="w-full h-12 text-base font-semibold" disabled={isSubmitting}>
-        {isSubmitting ? (
-          <>
-            <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-            {isEditMode ? "Updating Prescription..." : "Generating Prescription..."}
-          </>
-        ) : isEditMode ? (
-          <>
-            <Save className="w-5 h-5 mr-2" /> Save Changes
-          </>
-        ) : (
-          "Save & Generate Prescription"
-        )}
-      </Button>
+      <div className="flex flex-col sm:flex-row gap-3 pt-2">
+        <Button
+          type="submit"
+          size="lg"
+          variant="outline"
+          className="flex-1 h-12 text-sm sm:text-base font-semibold border-blue-400 text-blue-700 hover:bg-blue-50"
+          disabled={isSubmitting}
+          onClick={() => setPostSaveAction('view')}
+        >
+          {isSubmitting && postSaveAction === 'view' ? (
+            <>
+              <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+              {isEditMode ? "Updating..." : "Saving..."}
+            </>
+          ) : isEditMode ? (
+            <>
+              <Save className="w-5 h-5 mr-2" /> Save Changes
+            </>
+          ) : (
+            <>
+              <Save className="w-5 h-5 mr-2" /> Save & View
+            </>
+          )}
+        </Button>
+
+        <Button
+          type="submit"
+          size="lg"
+          className="flex-1 h-12 text-sm sm:text-base font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-md gap-2"
+          disabled={isSubmitting}
+          onClick={() => setPostSaveAction('print')}
+        >
+          {isSubmitting && postSaveAction === 'print' ? (
+            <>
+              <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+              Opening Print...
+            </>
+          ) : (
+            <>
+              <Printer className="w-5 h-5 mr-2" /> Save & Print
+            </>
+          )}
+        </Button>
+
+        <Button
+          type="submit"
+          size="lg"
+          className="flex-1 h-12 text-sm sm:text-base font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-md gap-2"
+          disabled={isSubmitting}
+          onClick={() => setPostSaveAction('whatsapp')}
+        >
+          {isSubmitting && postSaveAction === 'whatsapp' ? (
+            <>
+              <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+              Opening WhatsApp...
+            </>
+          ) : (
+            <>
+              <MessageCircle className="w-5 h-5 mr-2" /> Save & Send (WhatsApp)
+            </>
+          )}
+        </Button>
+      </div>
 
       {/* Searchable Clinical Drug Library Modal */}
       {isLibraryModalOpen && (

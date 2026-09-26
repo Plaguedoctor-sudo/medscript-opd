@@ -1,15 +1,13 @@
 import crypto from 'crypto';
-
-const MASTER_ENCRYPTION_SECRET =
-  process.env.DATA_ENCRYPTION_KEY ||
-  process.env.SESSION_SECRET ||
-  'medscript-opd-phi-aes256-gcm-master-key-2026';
+import fs from 'fs';
+import { getSessionSecret } from '@/lib/auth';
 
 /**
- * Derives a 256-bit (32-byte) key from the master secret using SHA-256
+ * Derives a 256-bit (32-byte) key using SHA-256
  */
-function getDerivedKey(secret: string = MASTER_ENCRYPTION_SECRET): Buffer {
-  return crypto.createHash('sha256').update(secret).digest();
+function getDerivedKey(secret?: string): Buffer {
+  const effectiveSecret = secret || process.env.DATA_ENCRYPTION_KEY || getSessionSecret();
+  return crypto.createHash('sha256').update(effectiveSecret).digest();
 }
 
 /**

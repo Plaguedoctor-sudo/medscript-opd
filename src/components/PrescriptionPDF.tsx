@@ -1,7 +1,7 @@
 'use client'
 
 import { Document, Page, Text, View, StyleSheet, Image } from '@react-pdf/renderer';
-import { ClinicSettings, Medication, Patient, Prescription } from '@/types';
+import { ClinicSettings, SafeClinicSettings, Medication, Patient, Prescription } from '@/types';
 
 const styles = StyleSheet.create({
   page: {
@@ -222,7 +222,7 @@ const styles = StyleSheet.create({
 interface PrescriptionPDFProps {
   prescription: Prescription;
   patient: Patient;
-  settings: ClinicSettings;
+  settings: SafeClinicSettings | ClinicSettings;
 }
 
 export const PrescriptionPDF = ({ prescription, patient, settings }: PrescriptionPDFProps) => {

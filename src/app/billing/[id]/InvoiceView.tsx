@@ -20,14 +20,14 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/toast';
-import { Invoice, Patient, ClinicSettings, InvoiceItem } from '@/types';
+import { Invoice, Patient, ClinicSettings, SafeClinicSettings, InvoiceItem } from '@/types';
 import { formatDate } from '@/lib/utils';
 import { updateInvoiceStatusAction } from '../actions';
 
 interface InvoiceViewProps {
   invoice: Invoice;
   patient: Patient;
-  settings: ClinicSettings | null;
+  settings: SafeClinicSettings | ClinicSettings | null;
   prescriptionDetails?: { diagnosis: string | null; createdAt: Date | null } | null;
 }
 

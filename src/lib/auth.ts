@@ -66,29 +66,66 @@ export function safeCompare(a: string | undefined | null, b: string | undefined 
   return crypto.timingSafeEqual(bufferA, bufferB);
 }
 
+/**
+ * Hashes PIN or Passcode using memory-hard scrypt KDF (N=16384, r=8, p=1)
+ * Format: `scrypt:v1:<salt_hex>:<hash_hex>`
+ * Resists GPU and ASIC offline dictionary cracking.
+ */
 export function hashPin(pin: string): string {
-  const secret = getSessionSecret();
-  return crypto
-    .createHmac('sha256', secret)
-    .update(`medscript:${pin.trim()}`)
-    .digest('hex');
+  const clean = pin.trim();
+  const salt = crypto.randomBytes(16).toString('hex');
+  const derived = crypto.scryptSync(clean, salt, 32, {
+    N: 16384,
+    r: 8,
+    p: 1,
+    maxmem: 32 * 1024 * 1024,
+  });
+  return `scrypt:v1:${salt}:${derived.toString('hex')}`;
 }
 
 /**
- * Constant-time comparison between input PIN and stored hash to prevent timing attacks.
- * Includes legacy migration tolerance for existing clinic PINs.
+ * Constant-time verification of PIN against stored hash.
+ * Supports memory-hard scrypt with seamless migration from legacy HMAC.
  */
 export function verifyPinHash(inputPin: string, storedHash: string): boolean {
   if (!inputPin || !storedHash) return false;
-  const currentHash = hashPin(inputPin);
-  if (safeCompare(currentHash, storedHash)) return true;
+  const clean = inputPin.trim();
 
-  // Backward compatibility: check with initial legacy salt if migrating
-  const legacyHash = crypto
-    .createHmac('sha256', 'medscript-opd-secure-pin-salt-2026')
-    .update(`medscript:${inputPin.trim()}`)
-    .digest('hex');
-  return safeCompare(legacyHash, storedHash);
+  // Modern scrypt KDF hash format
+  if (storedHash.startsWith('scrypt:v1:')) {
+    const parts = storedHash.split(':');
+    if (parts.length === 4) {
+      const salt = parts[2];
+      const expectedHex = parts[3];
+      const derived = crypto.scryptSync(clean, salt, 32, {
+        N: 16384,
+        r: 8,
+        p: 1,
+        maxmem: 32 * 1024 * 1024,
+      });
+      return safeCompare(derived.toString('hex'), expectedHex);
+    }
+    return false;
+  }
+
+  // Backward compatibility: verify legacy HMAC hash using known salt candidates
+  const candidates = [
+    'medscript-opd-secure-pin-salt-2026',
+    getSessionSecret(),
+    process.env.SESSION_SECRET || '',
+  ].filter(Boolean);
+
+  for (const candidateSecret of candidates) {
+    const legacyHmac = crypto
+      .createHmac('sha256', candidateSecret)
+      .update(`medscript:${clean}`)
+      .digest('hex');
+    if (safeCompare(legacyHmac, storedHash)) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 /**
@@ -106,7 +143,19 @@ export function createSessionToken(role: UserRole = 'doctor'): string {
 }
 
 /**
- * Parses and verifies the authenticity of a session token
+ * Revokes all currently active sessions server-side by updating session_revoked_before.
+ */
+export function revokeAllSessions(): void {
+  try {
+    const now = Date.now();
+    sqlite.prepare('UPDATE clinic_settings SET session_revoked_before = ? WHERE id = 1').run(now);
+  } catch (err) {
+    console.error('Failed to update session_revoked_before:', err);
+  }
+}
+
+/**
+ * Parses and verifies the authenticity and revocation status of a session token
  */
 export function parseSessionToken(token: string | undefined | null): { valid: boolean; role: UserRole } {
   if (!token || typeof token !== 'string') return { valid: false, role: 'receptionist' };
@@ -123,14 +172,7 @@ export function parseSessionToken(token: string | undefined | null): { valid: bo
       .digest('hex');
 
     if (!safeCompare(signature, expectedSignature)) {
-      // Also check legacy salt for active sessions during upgrade
-      const legacySig = crypto
-        .createHmac('sha256', 'medscript-opd-secure-pin-salt-2026')
-        .update(`session:${timestampStr}:${role}`)
-        .digest('hex');
-      if (!safeCompare(signature, legacySig)) {
-        return { valid: false, role: 'receptionist' };
-      }
+      return { valid: false, role: 'receptionist' };
     }
 
     const timestamp = parseInt(timestampStr, 10);
@@ -138,6 +180,18 @@ export function parseSessionToken(token: string | undefined | null): { valid: bo
 
     const age = Date.now() - timestamp;
     if (age < 0 || age > SESSION_DURATION_MS) return { valid: false, role: 'receptionist' };
+
+    // Check server-side revocation timestamp
+    try {
+      const row = sqlite
+        .prepare('SELECT session_revoked_before FROM clinic_settings WHERE id = 1')
+        .get() as { session_revoked_before?: number | null } | undefined;
+      if (row && row.session_revoked_before && timestamp < row.session_revoked_before) {
+        return { valid: false, role: 'receptionist' };
+      }
+    } catch {
+      // Ignore if column not present yet
+    }
 
     return { valid: true, role };
   }
@@ -151,13 +205,7 @@ export function parseSessionToken(token: string | undefined | null): { valid: bo
       .digest('hex');
 
     if (!safeCompare(signature, expectedSignature)) {
-      const legacySig = crypto
-        .createHmac('sha256', 'medscript-opd-secure-pin-salt-2026')
-        .update(`session:${timestampStr}`)
-        .digest('hex');
-      if (!safeCompare(signature, legacySig)) {
-        return { valid: false, role: 'receptionist' };
-      }
+      return { valid: false, role: 'receptionist' };
     }
 
     const timestamp = parseInt(timestampStr, 10);
@@ -165,6 +213,18 @@ export function parseSessionToken(token: string | undefined | null): { valid: bo
 
     const age = Date.now() - timestamp;
     if (age < 0 || age > SESSION_DURATION_MS) return { valid: false, role: 'receptionist' };
+
+    // Check server-side revocation timestamp
+    try {
+      const row = sqlite
+        .prepare('SELECT session_revoked_before FROM clinic_settings WHERE id = 1')
+        .get() as { session_revoked_before?: number | null } | undefined;
+      if (row && row.session_revoked_before && timestamp < row.session_revoked_before) {
+        return { valid: false, role: 'receptionist' };
+      }
+    } catch {
+      // Ignore if column not present yet
+    }
 
     return { valid: true, role: 'doctor' };
   }

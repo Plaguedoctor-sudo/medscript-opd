@@ -59,6 +59,11 @@ export async function createManualBackupSnapshot(): Promise<{ success: boolean; 
 }
 
 export async function getLocalBackupSnapshots(): Promise<BackupItem[]> {
+  const authed = await isAuthenticated();
+  if (!authed) {
+    return [];
+  }
+
   try {
     const backupsDir = path.join(process.cwd(), 'backups');
     if (!fs.existsSync(backupsDir)) {

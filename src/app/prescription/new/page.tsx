@@ -5,7 +5,7 @@ import { ArrowLeft, Stethoscope, Settings } from "lucide-react";
 import { db } from "@/db";
 import { prescriptions, patients } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { Patient, Prescription } from "@/types";
+import { Patient, Prescription, SafeClinicSettings } from "@/types";
 import { requireRole, getSecurityConfig } from "@/lib/auth";
 import { LockDeskButton } from "@/components/LockDeskButton";
 import { SecurityAlertBell } from "@/components/SecurityAlertBell";
@@ -26,7 +26,31 @@ export default async function NewPrescriptionPage({
     : '/prescription/new';
   await requireRole(['doctor'], redirectTarget);
   const { securityEnabled } = await getSecurityConfig();
-  const settings = await db.query.clinicSettings.findFirst();
+  const rawSettings = await db.query.clinicSettings.findFirst();
+  const safeSettings: SafeClinicSettings | undefined = rawSettings
+    ? {
+        id: rawSettings.id,
+        doctorName: rawSettings.doctorName,
+        qualifications: rawSettings.qualifications,
+        regNumber: rawSettings.regNumber,
+        clinicName: rawSettings.clinicName,
+        address: rawSettings.address,
+        contact: rawSettings.contact,
+        logoUrl: rawSettings.logoUrl,
+        rbacEnabled: rawSettings.rbacEnabled,
+        securityEnabled: rawSettings.securityEnabled,
+        autoLockMinutes: rawSettings.autoLockMinutes,
+        mfaEnabled: rawSettings.mfaEnabled,
+        pinUpdatedAt: rawSettings.pinUpdatedAt,
+        rotationDays: rawSettings.rotationDays,
+        minPinLength: rawSettings.minPinLength,
+        enforceComplexity: rawSettings.enforceComplexity,
+        lockdownActive: rawSettings.lockdownActive,
+        lockdownReason: rawSettings.lockdownReason,
+        lockdownTriggeredAt: rawSettings.lockdownTriggeredAt,
+        deceptionModeActive: rawSettings.deceptionModeActive,
+      }
+    : undefined;
   const backHref = patientId ? `/patient/${patientId}` : "/";
 
   let cloneData: (Prescription & { patient?: Patient }) | null = null;
@@ -72,9 +96,9 @@ export default async function NewPrescriptionPage({
                 <span className="text-xl font-bold text-slate-900 tracking-tight block leading-tight">
                   {cloneFromId ? `Repeat Consultation (from Rx #${cloneFromId})` : "New Consultation"}
                 </span>
-                {settings?.doctorName && (
+                {rawSettings?.doctorName && (
                   <span className="text-[11px] text-slate-500 font-medium block leading-none mt-0.5">
-                    {settings.doctorName} {settings.clinicName ? `• ${settings.clinicName}` : ''}
+                    {rawSettings.doctorName} {rawSettings.clinicName ? `• ${rawSettings.clinicName}` : ''}
                   </span>
                 )}
               </div>
@@ -97,7 +121,7 @@ export default async function NewPrescriptionPage({
           initialPatientId={patientId || (cloneData?.patientId ? String(cloneData.patientId) : undefined)}
           initialData={cloneData}
           cloneFromId={cloneFromId}
-          doctorSettings={settings || undefined}
+          doctorSettings={safeSettings}
         />
       </div>
     </div>

@@ -12,11 +12,12 @@ import {
   toggleDeceptionMode,
   SecurityAlertStats,
 } from "@/lib/security-engine";
-import { getCurrentUserRole } from "@/lib/auth";
+import { getCurrentUserRole, requireAuth } from "@/lib/auth";
 import { logAuditEvent } from "@/lib/audit";
 
 export async function getSecurityAlertsAction(): Promise<SecurityAlertStats> {
   try {
+    await requireAuth();
     return await getSecurityAlerts({ unacknowledgedOnly: false, limit: 40 });
   } catch (err) {
     console.error("Failed to load security alerts:", err);
@@ -35,6 +36,9 @@ export async function acknowledgeAlertAction(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const role = await getCurrentUserRole();
+    if (!role) {
+      return { success: false, error: "Unauthorized: Active session required." };
+    }
     const actorName = role === "doctor" ? "Doctor" : "Authorized Staff";
 
     const ok = await acknowledgeAlert(id, actorName);
@@ -61,6 +65,9 @@ export async function acknowledgeAllAlertsAction(): Promise<{
 }> {
   try {
     const role = await getCurrentUserRole();
+    if (!role) {
+      return { success: false, error: "Unauthorized: Active session required." };
+    }
     const actorName = role === "doctor" ? "Doctor" : "Authorized Staff";
 
     const ok = await acknowledgeAllAlerts(actorName);
@@ -85,6 +92,11 @@ export async function triggerSecurityTestIncidentAction(
   type: "brute_force" | "data_transfer" | "break_glass" | "tamper_seal" | "containment_breach"
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    const role = await getCurrentUserRole();
+    if (role !== "doctor") {
+      return { success: false, error: "Forbidden: Only verified Doctor accounts can trigger security incident simulations." };
+    }
+
     if (type === "containment_breach") {
       // Trigger critical intrusion alert and immediate autonomous breach containment
       await triggerEmergencyLockdown(

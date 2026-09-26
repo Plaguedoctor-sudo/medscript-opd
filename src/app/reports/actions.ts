@@ -5,7 +5,7 @@ import { prescriptions, patients } from "@/db/schema";
 import { desc, eq, and, gte, lte } from "drizzle-orm";
 import { ConsultationExportItem, PatientExportItem, DiagnosisSummaryItem, MedicationSummaryItem } from "@/lib/csv-export";
 import { generateDecoyPatients, generateDecoyConsultations } from "@/lib/decoy-engine";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, requireRole } from "@/lib/auth";
 import { logAuditEvent } from "@/lib/audit";
 
 export interface ReportFilterOptions {
@@ -42,7 +42,7 @@ export interface ReportsDataResult {
 }
 
 export async function logExportEvent(type: 'consultations' | 'patients', count: number): Promise<void> {
-  await requireAuth('/reports');
+  await requireRole(['doctor'], '/reports');
   await logAuditEvent({
     action: type === 'consultations' ? 'DATA_EXPORT_CONSULTATIONS' : 'DATA_EXPORT_PATIENTS',
     details: `Exported ${count} ${type} records to CSV`,
@@ -51,7 +51,7 @@ export async function logExportEvent(type: 'consultations' | 'patients', count: 
 }
 
 export async function getReportsData(filter: ReportFilterOptions = { range: "month" }): Promise<ReportsDataResult> {
-  await requireAuth('/reports');
+  await requireRole(['doctor'], '/reports');
 
   // Deception / Honeypot check: feed false random synthetic data if deception mode is active
   const settings = await db.query.clinicSettings.findFirst();

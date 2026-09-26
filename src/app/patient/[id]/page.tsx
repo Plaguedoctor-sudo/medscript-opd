@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import Link from "next/link";
-import { ArrowLeft, User, FileText, Calendar, Phone, Fingerprint, PlusCircle, Edit, ExternalLink, Copy } from "lucide-react";
+import { ArrowLeft, User, FileText, Calendar, Phone, Fingerprint, PlusCircle, Edit, ExternalLink, Copy, MessageCircle } from "lucide-react";
 import { Medication, Patient, Prescription } from "@/types";
 import { EditPatientModal } from "./EditPatientModal";
 import { PatientVitalsAnalytics } from "./PatientVitalsAnalytics";
@@ -188,6 +188,16 @@ export default async function PatientProfilePage({ params }: { params: Promise<{
                         </TableCell>
                         <TableCell className="text-right whitespace-nowrap">
                           <div className="flex items-center justify-end gap-1.5">
+                            <Link href={`/prescription/${px.id}?send=whatsapp`}>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-8 px-2 gap-1 border-emerald-300 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800"
+                                title="Send Prescription to Patient via WhatsApp"
+                              >
+                                <MessageCircle className="w-3.5 h-3.5 text-emerald-600" /> WhatsApp
+                              </Button>
+                            </Link>
                             <Link href={`/prescription/new?patientId=${typedPatient.id}&cloneFrom=${px.id}`}>
                               <Button
                                 variant="ghost"

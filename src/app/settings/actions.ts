@@ -4,16 +4,19 @@ import { db } from "@/db";
 import { clinicSettings, patients, prescriptions } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
-import { ClinicSettings } from "@/types";
+import { ClinicSettings, SafeClinicSettings } from "@/types";
 import { requireRole } from "@/lib/auth";
 import { logAuditEvent } from "@/lib/audit";
 
-export async function getSettings(): Promise<ClinicSettings | null> {
+export async function getSettings(): Promise<SafeClinicSettings | null> {
+  await requireRole(['doctor'], '/settings');
   const settings = await db.query.clinicSettings.findFirst();
-  return (settings as ClinicSettings) || null;
+  if (!settings) return null;
+  const { pinHash, staffPinHash, mfaSecret, mfaBackupCodes, sessionSecret, ...safe } = settings;
+  return safe as SafeClinicSettings;
 }
 
-export async function saveSettings(formData: FormData): Promise<ClinicSettings> {
+export async function saveSettings(formData: FormData): Promise<SafeClinicSettings> {
   await requireRole(['doctor'], '/settings');
   const existing = await getSettings();
 

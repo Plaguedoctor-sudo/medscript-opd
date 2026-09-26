@@ -82,8 +82,20 @@ export async function loginWithPin(
 
   if (verifyPinHash(trimmedPin, settings.pinHash)) {
     userRole = 'doctor';
+    if (!settings.pinHash.startsWith('scrypt:v1:')) {
+      try {
+        const upgraded = hashPin(trimmedPin);
+        sqlite.prepare('UPDATE clinic_settings SET pin_hash = ? WHERE id = 1').run(upgraded);
+      } catch {}
+    }
   } else if (settings.staffPinHash && verifyPinHash(trimmedPin, settings.staffPinHash)) {
     userRole = 'receptionist';
+    if (!settings.staffPinHash.startsWith('scrypt:v1:')) {
+      try {
+        const upgraded = hashPin(trimmedPin);
+        sqlite.prepare('UPDATE clinic_settings SET staff_pin_hash = ? WHERE id = 1').run(upgraded);
+      } catch {}
+    }
   }
 
   if (!userRole) {
@@ -220,7 +232,10 @@ export async function lockDeskAction(): Promise<void> {
 /**
  * Emergency Break-Glass access for life-threatening triage (CWE-306 Hardened)
  */
-export async function breakGlassEmergencyAction(reason?: string): Promise<{ success: boolean; redirectUrl?: string; error?: string }> {
+export async function breakGlassEmergencyAction(
+  reason?: string,
+  emergencyPin?: string
+): Promise<{ success: boolean; redirectUrl?: string; error?: string }> {
   const clientIp = await getClientIp();
   const cleanReason = (reason || '').trim();
 
@@ -246,6 +261,39 @@ export async function breakGlassEmergencyAction(reason?: string): Promise<{ succ
       success: false,
       error: `Emergency break-glass limit reached. Retry after ${rateLimit.retryAfterMinutes} minutes or authenticate with Doctor PIN.`,
     };
+  }
+
+  // Check clinic security settings
+  const settings = await db.query.clinicSettings.findFirst({
+    where: eq(clinicSettings.id, 1),
+  });
+
+  if (settings?.securityEnabled) {
+    const cleanPin = (emergencyPin || '').trim();
+    if (!cleanPin) {
+      return {
+        success: false,
+        error: 'Security enabled: Emergency break-glass protocol requires a valid Staff or Doctor PIN.',
+      };
+    }
+
+    const isStaffValid = settings.staffPinHash ? verifyPinHash(cleanPin, settings.staffPinHash) : false;
+    const isDoctorValid = settings.pinHash ? verifyPinHash(cleanPin, settings.pinHash) : false;
+
+    if (!isStaffValid && !isDoctorValid) {
+      recordFailedPinAttempt(clientIp);
+      await logAuditEvent({
+        action: 'AUTH_LOGIN_FAILURE',
+        actorRole: 'SYSTEM',
+        details: `⚠️ UNAUTHORIZED BREAK-GLASS ATTEMPT: Invalid emergency PIN supplied for reason "${cleanReason}"`,
+        status: 'FAILURE',
+        ipAddress: clientIp,
+      });
+      return {
+        success: false,
+        error: 'Invalid emergency PIN. Access denied and unauthorized attempt logged.',
+      };
+    }
   }
 
   recordBreakGlassAttempt(clientIp);
@@ -288,7 +336,19 @@ export async function updateSecuritySettings(
   minPinLength?: number,
   enforceComplexity?: boolean
 ): Promise<SecurityUpdateResult> {
-  const { pinConfigured } = await getSecurityConfig();
+  const { pinConfigured, securityEnabled } = await getSecurityConfig();
+  const currentRole = await getCurrentUserRole();
+
+  // If desk security is active or PIN is configured, ONLY an authenticated Doctor can alter security
+  if (pinConfigured || securityEnabled) {
+    if (currentRole !== 'doctor') {
+      return {
+        success: false,
+        message: 'Unauthorized: Verified Doctor session required to modify consultation desk security.',
+      };
+    }
+  }
+
   const validAutoLock = autoLockMinutes !== undefined && [0, 5, 10, 15, 30, 60].includes(autoLockMinutes)
     ? autoLockMinutes
     : 15;
@@ -538,17 +598,20 @@ export async function logClinicalAuditAction(
   status: AuditStatus = 'SUCCESS'
 ): Promise<void> {
   const role = await getCurrentUserRole();
+  if (!role) {
+    return; // Silently discard unauthenticated requests to prevent audit log flooding
+  }
   const actorRole = role === 'doctor' ? 'DOCTOR' : 'RECEPTIONIST';
   await logAuditEvent({
     action,
     actorRole,
-    details,
+    details: details.slice(0, 500),
     status,
   });
 }
 
 /**
- * Runs SQLite live integrity verification diagnostics
+ * Runs SQLite live integrity verification diagnostics (Doctor only)
  */
 export async function runDatabaseDiagnostics(): Promise<{
   healthy: boolean;
@@ -559,6 +622,19 @@ export async function runDatabaseDiagnostics(): Promise<{
   pageCount: number;
   totalSizeBytes: number;
 }> {
+  const role = await getCurrentUserRole();
+  if (role !== 'doctor') {
+    return {
+      healthy: false,
+      integrityResult: 'Unauthorized: Doctor credentials required',
+      foreignKeyResult: 'Unauthorized',
+      journalMode: 'UNKNOWN',
+      pageSize: 0,
+      pageCount: 0,
+      totalSizeBytes: 0,
+    };
+  }
+
   try {
     const integrity = sqlite.pragma('integrity_check') as { integrity_check?: string }[];
     const foreignKeys = sqlite.pragma('foreign_key_check') as unknown[];

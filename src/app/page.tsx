@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import Link from "next/link";
-import { PlusCircle, Settings, Users, FileText, AlertCircle, Edit, ExternalLink, Calendar, BarChart3, Receipt } from "lucide-react";
+import { PlusCircle, Settings, Users, FileText, AlertCircle, Edit, ExternalLink, Calendar, BarChart3, Receipt, MessageCircle } from "lucide-react";
 import { DashboardSearch } from "@/components/DashboardSearch";
 import { formatDate } from "@/lib/utils";
 import { requireAuth, getSecurityConfig, getCurrentUserRole } from "@/lib/auth";
@@ -322,6 +322,11 @@ export default async function DashboardPage({
                       </TableCell>
                       <TableCell className="text-right whitespace-nowrap">
                         <div className="flex items-center justify-end gap-1.5">
+                          <Link href={`/prescription/${px.id}?send=whatsapp`}>
+                            <Button variant="outline" size="sm" className="h-8 gap-1 border-emerald-300 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800" title="Send Prescription to Patient via WhatsApp">
+                              <MessageCircle className="w-3.5 h-3.5 text-emerald-600" /> WhatsApp
+                            </Button>
+                          </Link>
                           <Link href={`/prescription/${px.id}/edit`}>
                             <Button variant="ghost" size="sm" className="h-8 px-2 text-slate-600 hover:text-blue-600 gap-1" title="Edit Prescription">
                               <Edit className="w-3.5 h-3.5" /> Edit

@@ -8,18 +8,18 @@ import {
   Copy,
   Check,
   X,
-  ExternalLink,
   ShieldCheck,
-  Edit2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from '@/components/ui/toast';
-import { Patient, Prescription, ClinicSettings, Medication } from '@/types';
-import { formatDate } from '@/lib/utils';
-import { formatDigitalSealCode } from '@/lib/prescription-security';
-import { logClinicalAuditAction } from '@/app/login/actions';
+import { Patient, Prescription, ClinicSettings } from '@/types';
+import {
+  generateWhatsAppPrescriptionMessage,
+  generateSMSPrescriptionMessage,
+  sendPrescriptionDirectly,
+} from '@/lib/prescription-message';
 
 interface PrescriptionDispatchModalProps {
   prescription: Prescription;
@@ -44,77 +44,10 @@ export function PrescriptionDispatchModal({
 
   if (!isOpen) return null;
 
-  let medications: Medication[] = [];
-  try {
-    medications = JSON.parse(prescription.medications || '[]');
-  } catch {
-    medications = [];
-  }
-
-  const sealCode = prescription.signatureHash
-    ? formatDigitalSealCode(prescription.signatureHash)
-    : 'VERIFIED-EMR';
-
-  // Format WhatsApp Message (Markdown-compatible)
-  const generateWhatsAppMessage = () => {
-    const lines: string[] = [];
-    lines.push(`🏥 *${settings.clinicName || 'CLINIC OPD'}*`);
-    lines.push(`👨‍⚕️ *${settings.doctorName}*${settings.qualifications ? ` (${settings.qualifications})` : ''}`);
-    if (settings.regNumber) lines.push(`Reg No: ${settings.regNumber}`);
-    if (settings.contact) lines.push(`Contact: ${settings.contact}`);
-    lines.push(`--------------------------------`);
-    lines.push(`📋 *OFFICIAL PRESCRIPTION SUMMARY*`);
-    lines.push(`*Patient:* ${patient.name} (${patient.age}y / ${patient.gender})`);
-    if (patient.regNo) lines.push(`*Reg No:* ${patient.regNo}`);
-    lines.push(`*Date:* ${prescription.createdAt ? formatDate(prescription.createdAt) : 'Today'}`);
-    if (prescription.diagnosis) lines.push(`*Diagnosis:* ${prescription.diagnosis}`);
-    lines.push(`--------------------------------`);
-    lines.push(`💊 *MEDICATIONS (Rx):*`);
-
-    medications.forEach((m, idx) => {
-      const prefix = m.prefix ? `${m.prefix} ` : '';
-      const generic = m.genericName ? ` (${m.genericName.toUpperCase()})` : '';
-      const strength = m.strength ? ` ${m.strength}` : '';
-      lines.push(`${idx + 1}. *${prefix}${m.name}${strength}*${generic}`);
-      lines.push(`   Dosage: ${m.dosage || 'As directed'} | ${m.timing || 'After food'} | ${m.duration || ''}`);
-      if (m.instruction) lines.push(`   Note: ${m.instruction}`);
-    });
-
-    if (prescription.advice) {
-      lines.push(`--------------------------------`);
-      lines.push(`ℹ️ *ADVICE & INSTRUCTIONS:*`);
-      lines.push(prescription.advice);
-    }
-
-    if (prescription.labTests) {
-      lines.push(`🔬 *INVESTIGATIONS:*`);
-      lines.push(prescription.labTests);
-    }
-
-    if (prescription.followUpDate) {
-      lines.push(`--------------------------------`);
-      lines.push(`📅 *NEXT FOLLOW-UP:* ${prescription.followUpDate}`);
-    }
-
-    lines.push(`--------------------------------`);
-    lines.push(`🔐 *DIGITAL SEAL:* ${sealCode}`);
-    lines.push(`*MedScript Secure OPD Record*`);
-
-    return lines.join('\n');
-  };
-
-  // Format SMS Message (Compact)
-  const generateSMSMessage = () => {
-    const rxSummary = medications
-      .map((m, i) => `${i + 1}.${m.name} ${m.dosage} (${m.duration})`)
-      .join('; ');
-
-    return `Rx from ${settings.doctorName}, ${settings.clinicName || 'Clinic'}: Patient ${patient.name}. Medicines: ${rxSummary}. Follow-up: ${
-      prescription.followUpDate || 'SOS'
-    }. Seal: ${sealCode}`;
-  };
-
-  const messageText = channel === 'whatsapp' ? generateWhatsAppMessage() : generateSMSMessage();
+  const messageText =
+    channel === 'whatsapp'
+      ? generateWhatsAppPrescriptionMessage(prescription, patient, settings)
+      : generateSMSPrescriptionMessage(prescription, patient, settings);
 
   const handleCopy = async () => {
     try {
@@ -136,48 +69,11 @@ export function PrescriptionDispatchModal({
   };
 
   const handleDispatch = () => {
-    const cleanPhone = phoneNumber.replace(/[^0-9]/g, '');
-
-    if (!cleanPhone && channel === 'whatsapp') {
-      toast.show({
-        title: 'Phone Number Required',
-        description: 'Please enter a valid mobile number for WhatsApp dispatch.',
-        type: 'error',
-      });
-      return;
-    }
-
-    if (channel === 'whatsapp') {
-      logClinicalAuditAction(
-        'PRESCRIPTION_DISPATCHED_WHATSAPP',
-        `Prescription #${prescription.id} dispatched via WhatsApp to ${cleanPhone} (Patient: ${patient.name})`
-      ).catch(() => {});
-
-      // If phone starts with country code or not, ensure proper format (default India 91 if 10 digits)
-      const formattedPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
-      const url = `https://wa.me/${formattedPhone}?text=${encodeURIComponent(messageText)}`;
-      window.open(url, '_blank', 'noopener,noreferrer');
-      toast.show({
-        title: 'Opening WhatsApp',
-        description: `Dispatching prescription to +${formattedPhone}...`,
-        type: 'success',
-      });
-      onClose();
-    } else {
-      logClinicalAuditAction(
-        'PRESCRIPTION_DISPATCHED_SMS',
-        `Prescription #${prescription.id} prepared for SMS dispatch to ${cleanPhone} (Patient: ${patient.name})`
-      ).catch(() => {});
-
-      const smsUrl = cleanPhone
-        ? `sms:${cleanPhone}?body=${encodeURIComponent(messageText)}`
-        : `sms:?body=${encodeURIComponent(messageText)}`;
-      window.open(smsUrl, '_self');
-      toast.show({
-        title: 'Opening SMS App',
-        description: 'Launching native messaging client...',
-        type: 'info',
-      });
+    const success = sendPrescriptionDirectly(prescription, patient, settings, {
+      channel,
+      phoneOverride: phoneNumber,
+    });
+    if (success) {
       onClose();
     }
   };
@@ -313,7 +209,7 @@ export function PrescriptionDispatchModal({
               }`}
             >
               <Send className="w-4 h-4" />
-              {channel === 'whatsapp' ? 'Open WhatsApp' : 'Dispatch via SMS'}
+              {channel === 'whatsapp' ? 'Send via WhatsApp' : 'Dispatch via SMS'}
             </Button>
           </div>
         </div>
