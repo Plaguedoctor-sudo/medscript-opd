@@ -188,6 +188,115 @@ sqlite.exec(`
 
   CREATE INDEX IF NOT EXISTS idx_staff_users_login ON staff_users(login_id);
   CREATE INDEX IF NOT EXISTS idx_staff_users_role ON staff_users(role);
+
+  CREATE TABLE IF NOT EXISTS pharmacy_inventory (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    medicine_name TEXT NOT NULL,
+    brand_name TEXT,
+    category TEXT NOT NULL DEFAULT 'Tablet',
+    batch_no TEXT NOT NULL,
+    expiry_date TEXT NOT NULL,
+    quantity_in_stock INTEGER NOT NULL DEFAULT 0,
+    min_threshold INTEGER NOT NULL DEFAULT 20,
+    purchase_cost REAL NOT NULL DEFAULT 0,
+    mrp REAL NOT NULL DEFAULT 0,
+    selling_price REAL NOT NULL DEFAULT 0,
+    rack_location TEXT,
+    supplier_name TEXT,
+    created_at INTEGER,
+    updated_at INTEGER
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_pharmacy_medicine ON pharmacy_inventory(medicine_name);
+  CREATE INDEX IF NOT EXISTS idx_pharmacy_category ON pharmacy_inventory(category);
+  CREATE INDEX IF NOT EXISTS idx_pharmacy_expiry ON pharmacy_inventory(expiry_date);
+
+  CREATE TABLE IF NOT EXISTS pharmacy_transactions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    inventory_id INTEGER NOT NULL REFERENCES pharmacy_inventory(id),
+    type TEXT NOT NULL,
+    quantity INTEGER NOT NULL,
+    patient_id INTEGER REFERENCES patients(id),
+    prescription_id INTEGER REFERENCES prescriptions(id),
+    admission_id INTEGER REFERENCES ipd_admissions(id),
+    remarks TEXT,
+    created_at INTEGER
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_pharmacy_tx_inv ON pharmacy_transactions(inventory_id);
+
+  CREATE TABLE IF NOT EXISTS appointments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    token_no INTEGER NOT NULL,
+    appointment_date TEXT NOT NULL,
+    time_slot TEXT,
+    patient_id INTEGER NOT NULL REFERENCES patients(id),
+    doctor_id INTEGER REFERENCES staff_users(id),
+    doctor_name TEXT,
+    type TEXT NOT NULL DEFAULT 'OPD_CONSULTATION',
+    status TEXT NOT NULL DEFAULT 'SCHEDULED',
+    chief_complaint TEXT,
+    notes TEXT,
+    created_at INTEGER
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_appointments_date ON appointments(appointment_date);
+  CREATE INDEX IF NOT EXISTS idx_appointments_patient ON appointments(patient_id);
+  CREATE INDEX IF NOT EXISTS idx_appointments_status ON appointments(status);
+
+  CREATE TABLE IF NOT EXISTS emar_records (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    admission_id INTEGER NOT NULL REFERENCES ipd_admissions(id),
+    medication_name TEXT NOT NULL,
+    dosage TEXT NOT NULL,
+    route TEXT DEFAULT 'Oral',
+    scheduled_time INTEGER NOT NULL,
+    administered_at INTEGER,
+    status TEXT NOT NULL DEFAULT 'PENDING',
+    nurse_name TEXT,
+    notes TEXT,
+    created_at INTEGER
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_emar_admission ON emar_records(admission_id);
+  CREATE INDEX IF NOT EXISTS idx_emar_scheduled ON emar_records(scheduled_time);
+
+  CREATE TABLE IF NOT EXISTS clinical_consents (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    patient_id INTEGER NOT NULL REFERENCES patients(id),
+    admission_id INTEGER REFERENCES ipd_admissions(id),
+    consent_type TEXT NOT NULL,
+    title TEXT NOT NULL,
+    content TEXT NOT NULL,
+    patient_signature TEXT,
+    signed_by_name TEXT NOT NULL,
+    relationship TEXT NOT NULL DEFAULT 'Self',
+    witness_name TEXT,
+    doctor_signature TEXT,
+    signed_at INTEGER,
+    ip_address TEXT,
+    created_at INTEGER
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_consents_patient ON clinical_consents(patient_id);
+  CREATE INDEX IF NOT EXISTS idx_consents_admission ON clinical_consents(admission_id);
+
+  CREATE TABLE IF NOT EXISTS ipd_deposits (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    admission_id INTEGER NOT NULL REFERENCES ipd_admissions(id),
+    patient_id INTEGER NOT NULL REFERENCES patients(id),
+    receipt_no TEXT NOT NULL UNIQUE,
+    amount REAL NOT NULL DEFAULT 0,
+    payment_method TEXT NOT NULL DEFAULT 'Cash',
+    transaction_ref TEXT,
+    type TEXT NOT NULL DEFAULT 'ADVANCE',
+    notes TEXT,
+    collected_by TEXT,
+    created_at INTEGER
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_deposits_admission ON ipd_deposits(admission_id);
+  CREATE INDEX IF NOT EXISTS idx_deposits_patient ON ipd_deposits(patient_id);
 `);
 
 // Auto-seed default staff profiles across all major roles and subcategories
@@ -443,6 +552,30 @@ try {
   // Ignore migration errors
 }
 
+// Auto-migrate newly added columns on patients and clinic_settings
+try {
+  const patientColumns = sqlite.prepare("PRAGMA table_info(patients)").all() as { name: string }[];
+  const pCols = new Set(patientColumns.map((c) => c.name));
+  if (!pCols.has("abha_address")) sqlite.prepare("ALTER TABLE patients ADD COLUMN abha_address TEXT").run();
+  if (!pCols.has("allergies")) sqlite.prepare("ALTER TABLE patients ADD COLUMN allergies TEXT").run();
+  if (!pCols.has("blood_group")) sqlite.prepare("ALTER TABLE patients ADD COLUMN blood_group TEXT").run();
+
+  const settingsColumns = sqlite.prepare("PRAGMA table_info(clinic_settings)").all() as { name: string }[];
+  const sCols = new Set(settingsColumns.map((c) => c.name));
+  if (!sCols.has("gdrive_backup_enabled")) sqlite.prepare("ALTER TABLE clinic_settings ADD COLUMN gdrive_backup_enabled INTEGER DEFAULT 0").run();
+  if (!sCols.has("gdrive_folder_id")) sqlite.prepare("ALTER TABLE clinic_settings ADD COLUMN gdrive_folder_id TEXT").run();
+  if (!sCols.has("gdrive_client_email")) sqlite.prepare("ALTER TABLE clinic_settings ADD COLUMN gdrive_client_email TEXT").run();
+  if (!sCols.has("gdrive_private_key")) sqlite.prepare("ALTER TABLE clinic_settings ADD COLUMN gdrive_private_key TEXT").run();
+  if (!sCols.has("gdrive_encryption_key")) sqlite.prepare("ALTER TABLE clinic_settings ADD COLUMN gdrive_encryption_key TEXT").run();
+  if (!sCols.has("gdrive_last_backup_at")) sqlite.prepare("ALTER TABLE clinic_settings ADD COLUMN gdrive_last_backup_at INTEGER").run();
+  if (!sCols.has("gdrive_last_backup_status")) sqlite.prepare("ALTER TABLE clinic_settings ADD COLUMN gdrive_last_backup_status TEXT").run();
+  if (!sCols.has("gdrive_last_backup_file_id")) sqlite.prepare("ALTER TABLE clinic_settings ADD COLUMN gdrive_last_backup_file_id TEXT").run();
+  if (!sCols.has("gdrive_last_backup_file_name")) sqlite.prepare("ALTER TABLE clinic_settings ADD COLUMN gdrive_last_backup_file_name TEXT").run();
+  if (!sCols.has("gdrive_auto_backup_interval")) sqlite.prepare("ALTER TABLE clinic_settings ADD COLUMN gdrive_auto_backup_interval TEXT DEFAULT 'DAILY'").run();
+} catch (migrErr) {
+  // Ignore migration column addition errors if already present
+}
+
 // Auto-seed sample IPD admissions and lab investigations if admissions table is empty
 try {
   const ipdCount = sqlite.prepare('SELECT COUNT(*) as count FROM ipd_admissions').get() as { count: number } | undefined;
@@ -671,5 +804,183 @@ try {
 } catch (ipdSeedErr) {
   console.error('Failed to auto-seed sample IPD data:', ipdSeedErr);
 }
+
+// Auto-seed sample Pharmacy Inventory
+try {
+  const pharmCount = sqlite.prepare('SELECT COUNT(*) as count FROM pharmacy_inventory').get() as { count: number } | undefined;
+  if (!pharmCount || pharmCount.count === 0) {
+    const insertPharm = sqlite.prepare(`
+      INSERT INTO pharmacy_inventory (
+        medicine_name, brand_name, category, batch_no, expiry_date,
+        quantity_in_stock, min_threshold, purchase_cost, mrp, selling_price,
+        rack_location, supplier_name, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    const now = Date.now();
+    const items = [
+      { name: 'Paracetamol 650mg', brand: 'Dolo 650', cat: 'Tablet', batch: 'DL-2026-08', exp: '2027-12-31', qty: 240, min: 50, cost: 1.20, mrp: 2.10, sp: 2.00, rack: 'Rack A-1', sup: 'Apex Pharma Distributors' },
+      { name: 'Amoxicillin + Potassium Clavulanate 625mg', brand: 'Augmentin 625 Duo', cat: 'Tablet', batch: 'AUG-8821', exp: '2027-08-31', qty: 95, min: 30, cost: 14.50, mrp: 22.00, sp: 20.00, rack: 'Rack A-2', sup: 'Glaxo Health India' },
+      { name: 'Pantoprazole 40mg', brand: 'Pan 40', cat: 'Tablet', batch: 'PN-4091', exp: '2028-01-31', qty: 180, min: 40, cost: 6.80, mrp: 11.50, sp: 10.50, rack: 'Rack A-3', sup: 'Alkem Laboratories' },
+      { name: 'Telmisartan 40mg + Amlodipine 5mg', brand: 'Telma-AM', cat: 'Tablet', batch: 'TAM-104', exp: '2027-10-31', qty: 120, min: 30, cost: 7.20, mrp: 13.00, sp: 12.00, rack: 'Rack B-1', sup: 'Glenmark Pharmaceuticals' },
+      { name: 'Metformin Hydrochloride 500mg SR', brand: 'Glycomet 500 SR', cat: 'Tablet', batch: 'GLY-773', exp: '2028-03-31', qty: 160, min: 40, cost: 2.10, mrp: 3.80, sp: 3.50, rack: 'Rack B-2', sup: 'USV Pharma' },
+      { name: 'Inj Ondansetron 4mg/2ml', brand: 'Emeset 2ml Inj', cat: 'Injection', batch: 'EMS-302', exp: '2027-09-30', qty: 45, min: 20, cost: 8.50, mrp: 16.00, sp: 15.00, rack: 'Cold Chain / Rack C-1', sup: 'Cipla Critical Care' },
+      { name: 'Inj Pantoprazole 40mg IV', brand: 'Pantocid IV', cat: 'Injection', batch: 'PTV-901', exp: '2027-06-30', qty: 38, min: 15, cost: 28.00, mrp: 52.00, sp: 48.00, rack: 'Rack C-2', sup: 'Sun Pharma' },
+      { name: 'Inj Ceftriaxone 1g', brand: 'Monocef 1g', cat: 'Injection', batch: 'MCF-554', exp: '2027-05-31', qty: 50, min: 25, cost: 35.00, mrp: 68.00, sp: 62.00, rack: 'Rack C-3', sup: 'Aristo Pharmaceuticals' },
+      { name: 'IV Ringer Lactate 500ml', brand: 'RL Infusion', cat: 'IV Fluid', batch: 'RL-2026-B', exp: '2028-06-30', qty: 62, min: 25, cost: 32.00, mrp: 58.00, sp: 55.00, rack: 'IV Fluid Bay - Shelf 1', sup: 'Otsuka / Baxter India' },
+      { name: 'IV Normal Saline 0.9% 500ml', brand: 'NS Infusion', cat: 'IV Fluid', batch: 'NS-881', exp: '2028-05-31', qty: 70, min: 30, cost: 28.00, mrp: 52.00, sp: 50.00, rack: 'IV Fluid Bay - Shelf 2', sup: 'Otsuka / Baxter India' },
+      { name: 'IV Dextrose Normal Saline 500ml', brand: 'DNS Infusion', cat: 'IV Fluid', batch: 'DNS-411', exp: '2028-04-30', qty: 48, min: 20, cost: 30.00, mrp: 55.00, sp: 52.00, rack: 'IV Fluid Bay - Shelf 3', sup: 'Otsuka / Baxter India' },
+      { name: 'Duolin Respules (Levosalbutamol + Ipratropium)', brand: 'Duolin 2.5ml Respule', cat: 'Inhaler', batch: 'DLN-092', exp: '2027-04-30', qty: 85, min: 30, cost: 11.00, mrp: 21.00, sp: 19.00, rack: 'Rack D-1', sup: 'Cipla Respiratory' },
+      { name: 'Budecort 0.5mg Respules (Budesonide)', brand: 'Budecort 2ml', cat: 'Inhaler', batch: 'BDC-619', exp: '2027-07-31', qty: 60, min: 25, cost: 16.50, mrp: 31.00, sp: 28.00, rack: 'Rack D-2', sup: 'Cipla Respiratory' },
+      { name: 'Disposable Syringes 5ml with 24G Needle', brand: 'Dispovan 5ml', cat: 'Surgical Consumable', batch: 'DSP-2601', exp: '2029-12-31', qty: 350, min: 100, cost: 3.50, mrp: 7.50, sp: 7.00, rack: 'Consumables Bin 1', sup: 'Hindustan Syringes (HMD)' },
+      { name: 'IV Cannula 20G (Pink) with Port', brand: 'Venflon 20G', cat: 'Surgical Consumable', batch: 'VNF-892', exp: '2028-11-30', qty: 110, min: 40, cost: 18.00, mrp: 45.00, sp: 40.00, rack: 'Consumables Bin 2', sup: 'BD India' },
+      { name: 'Sterile Gauze Swabs 10cm x 10cm', brand: 'MedGauze Pack', cat: 'Surgical Consumable', batch: 'GZ-110', exp: '2028-09-30', qty: 18, min: 30, cost: 4.00, mrp: 9.00, sp: 8.00, rack: 'Consumables Bin 3', sup: 'Surgical Care Supplies' },
+    ];
+
+    for (const item of items) {
+      insertPharm.run(
+        item.name, item.brand, item.cat, item.batch, item.exp,
+        item.qty, item.min, item.cost, item.mrp, item.sp,
+        item.rack, item.sup, now, now
+      );
+    }
+  }
+} catch (pharmSeedErr) {
+  console.error('Failed to auto-seed pharmacy inventory:', pharmSeedErr);
+}
+
+// Auto-seed sample Appointments and Token Queue
+try {
+  const apptCount = sqlite.prepare('SELECT COUNT(*) as count FROM appointments').get() as { count: number } | undefined;
+  if (!apptCount || apptCount.count === 0) {
+    const patientsList = sqlite.prepare('SELECT id, name FROM patients ORDER BY id ASC').all() as { id: number; name: string }[];
+    if (patientsList && patientsList.length >= 2) {
+      const todayStr = new Date().toISOString().split('T')[0];
+      const insertAppt = sqlite.prepare(`
+        INSERT INTO appointments (
+          token_no, appointment_date, time_slot, patient_id, doctor_id, doctor_name,
+          type, status, chief_complaint, notes, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+
+      const now = Date.now();
+      insertAppt.run(
+        1, todayStr, '09:30 AM', patientsList[0].id, 1, 'Dr. Nitin Hiralal Sonare',
+        'OPD_CONSULTATION', 'COMPLETED', 'Routine hypertension review and blood pressure check',
+        'BP was well controlled at 126/82. Prescription renewed.', now - 7200000
+      );
+
+      insertAppt.run(
+        2, todayStr, '10:15 AM', patientsList[1].id, 1, 'Dr. Nitin Hiralal Sonare',
+        'OPD_CONSULTATION', 'IN_CONSULTATION', 'Persistent dry cough and mild fever x 3 days',
+        'Under physical examination currently in Consulting Room 1.', now - 1800000
+      );
+
+      if (patientsList.length >= 3) {
+        insertAppt.run(
+          3, todayStr, '11:00 AM', patientsList[2].id, 2, 'Dr. Rajesh Sharma',
+          'FOLLOW_UP', 'WAITING', 'Follow-up for acute gastroenteritis review',
+          'Waiting in reception waiting lounge.', now - 900000
+        );
+      }
+    }
+  }
+} catch (apptSeedErr) {
+  console.error('Failed to auto-seed appointments:', apptSeedErr);
+}
+
+// Auto-seed sample Inpatient Nurse eMAR records
+try {
+  const emarCount = sqlite.prepare('SELECT COUNT(*) as count FROM emar_records').get() as { count: number } | undefined;
+  if (!emarCount || emarCount.count === 0) {
+    const adm = sqlite.prepare("SELECT id FROM ipd_admissions WHERE status = 'ADMITTED' ORDER BY id ASC LIMIT 1").get() as { id: number } | undefined;
+    if (adm) {
+      const now = Date.now();
+      const hourMs = 3600 * 1000;
+      const insertEmar = sqlite.prepare(`
+        INSERT INTO emar_records (
+          admission_id, medication_name, dosage, route, scheduled_time,
+          administered_at, status, nurse_name, notes, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+
+      insertEmar.run(
+        adm.id, 'IV Ringer Lactate 500ml', '500ml IV @ 75ml/hr', 'IV Infusion',
+        now - (6 * hourMs), now - (6 * hourMs) + 300000, 'GIVEN',
+        'Sister Priya Nair', 'Infusion completed uneventfully. Cannula site healthy.', now - (7 * hourMs)
+      );
+
+      insertEmar.run(
+        adm.id, 'Inj Pantoprazole 40mg IV', '40mg IV stat OD', 'IV Bolus',
+        now - (5 * hourMs), now - (5 * hourMs) + 120000, 'GIVEN',
+        'Sister Priya Nair', 'Slow IV push over 3 minutes. Tolerated well.', now - (7 * hourMs)
+      );
+
+      insertEmar.run(
+        adm.id, 'Duolin 2.5ml + Budecort 0.5mg Nebulization', '1 respule each in nebulizer', 'Nebulization',
+        now - (2 * hourMs), now - (2 * hourMs) + 60000, 'GIVEN',
+        'Sister Priya Nair', 'Nebulized with O2 at 6 L/min. Rhonchi significantly reduced.', now - (7 * hourMs)
+      );
+
+      insertEmar.run(
+        adm.id, 'Duolin 2.5ml + Budecort 0.5mg Nebulization', '1 respule each in nebulizer', 'Nebulization',
+        now + (2 * hourMs), null, 'PENDING',
+        null, 'Scheduled for afternoon 02:00 PM shift', now - (7 * hourMs)
+      );
+
+      insertEmar.run(
+        adm.id, 'IV DNS 500ml with 1 amp KCl', '500ml IV @ 60ml/hr', 'IV Infusion',
+        now + (4 * hourMs), null, 'PENDING',
+        null, 'Scheduled for evening 04:00 PM shift', now - (7 * hourMs)
+      );
+    }
+  }
+} catch (emarSeedErr) {
+  console.error('Failed to auto-seed eMAR records:', emarSeedErr);
+}
+
+// Auto-seed sample Clinical Consent and IPD Advance Deposit
+try {
+  const consentCount = sqlite.prepare('SELECT COUNT(*) as count FROM clinical_consents').get() as { count: number } | undefined;
+  if (!consentCount || consentCount.count === 0) {
+    const adm = sqlite.prepare("SELECT id, patient_id FROM ipd_admissions WHERE status = 'ADMITTED' ORDER BY id ASC LIMIT 1").get() as { id: number; patient_id: number } | undefined;
+    if (adm) {
+      const now = Date.now();
+      sqlite.prepare(`
+        INSERT INTO clinical_consents (
+          patient_id, admission_id, consent_type, title, content,
+          signed_by_name, relationship, witness_name, doctor_signature, signed_at, ip_address, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        adm.patient_id, adm.id, 'GENERAL_ADMISSION',
+        'General Inpatient Admission & Medical Treatment Consent',
+        'I hereby authorize the medical officers, attending physicians, and nursing staff of MedScript Hospital to administer such diagnostic procedures, clinical examinations, intravenous therapies, and routine inpatient care as deemed necessary for medical management.',
+        'Suresh Sonare', 'Son', 'Sister Priya Nair (Staff Nurse)', 'VERIFIED_DIGITAL_DOCTOR_SEAL',
+        now - 86400000, '127.0.0.1', now - 86400000
+      );
+
+      sqlite.prepare(`
+        INSERT INTO ipd_deposits (
+          admission_id, patient_id, receipt_no, amount, payment_method,
+          transaction_ref, type, notes, collected_by, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        adm.id, adm.patient_id, 'DEP-20260926-001', 10000.00, 'UPI',
+        'UPI-REF-99482184', 'ADVANCE',
+        'Initial admission deposit collected at bed booking in Semi-Private Ward',
+        'Sunita Verma (Reception)', now - 86400000
+      );
+    }
+  }
+} catch (consentDepErr) {
+  console.error('Failed to auto-seed consent & deposit:', consentDepErr);
+}
+
+// Update sample patients with realistic allergies, blood group, and ABHA address
+try {
+  sqlite.prepare("UPDATE patients SET allergies = 'Sulfa drugs, Dust mite', blood_group = 'B+', abha_address = 'lalman@abdm' WHERE id = 9 AND (allergies IS NULL OR allergies = '')").run();
+  sqlite.prepare("UPDATE patients SET allergies = 'Penicillins, Cephalosporins', blood_group = 'A+', abha_address = 'ramesh.sharma@abdm' WHERE id = 8 AND (allergies IS NULL OR allergies = '')").run();
+  sqlite.prepare("UPDATE patients SET allergies = 'NSAIDs (Diclofenac/Ibuprofen)', blood_group = 'O+', abha_address = 'sunita.v@abdm' WHERE id = 7 AND (allergies IS NULL OR allergies = '')").run();
+} catch {}
 
 export const db = drizzle(sqlite, { schema });

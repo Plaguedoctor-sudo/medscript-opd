@@ -1,5 +1,5 @@
 import { db } from "@/db";
-import { prescriptions, patients, ipdAdmissions, labReports } from "@/db/schema";
+import { prescriptions, patients, ipdAdmissions, labReports, appointments, pharmacyInventory } from "@/db/schema";
 import { desc, eq, or, like } from "drizzle-orm";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,6 +19,8 @@ import {
   MessageCircle,
   Bed,
   FlaskConical,
+  CalendarCheck,
+  Pill,
 } from "lucide-react";
 import { DashboardSearch } from "@/components/DashboardSearch";
 import { formatDate } from "@/lib/utils";
@@ -99,13 +101,20 @@ export default async function DashboardPage({
     .orderBy(desc(prescriptions.createdAt))
     .limit(25);
 
-  const [totalPatients, totalPrescriptions, activeIpdAdmissions, totalLabReports, settings] = await Promise.all([
+  const todayStr = new Date().toISOString().split('T')[0];
+
+  const [totalPatients, totalPrescriptions, activeIpdAdmissions, totalLabReports, todayAppointments, inventoryItems, settings] = await Promise.all([
     db.select({ id: patients.id }).from(patients),
     db.select({ id: prescriptions.id }).from(prescriptions),
     db.select({ id: ipdAdmissions.id }).from(ipdAdmissions).where(eq(ipdAdmissions.status, 'ADMITTED')),
     db.select({ id: labReports.id }).from(labReports),
+    db.select({ id: appointments.id, status: appointments.status }).from(appointments).where(eq(appointments.appointmentDate, todayStr)),
+    db.select({ id: pharmacyInventory.id, currentStock: pharmacyInventory.quantityInStock, minStockLevel: pharmacyInventory.minThreshold }).from(pharmacyInventory),
     db.query.clinicSettings.findFirst(),
   ]);
+
+  const waitingQueueCount = todayAppointments.filter((a) => a.status === 'WAITING' || a.status === 'BOOKED').length;
+  const lowStockCount = inventoryItems.filter((i) => i.currentStock <= i.minStockLevel).length;
 
   const typedResults = results as ConsultationRow[];
 
@@ -136,9 +145,19 @@ export default async function DashboardPage({
             <UserProfileMenu user={currentUser} role={role} securityEnabled={securityEnabled} />
             <PrivacyShield />
             <SecurityAlertBell initialStats={securityAlertsData} />
+            <Link href="/appointments">
+              <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
+                <CalendarCheck className="w-4 h-4 text-blue-600" /> Queue
+              </Button>
+            </Link>
             <Link href="/patients">
               <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
                 <Users className="w-4 h-4" /> Patients
+              </Button>
+            </Link>
+            <Link href="/inventory">
+              <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
+                <Pill className="w-4 h-4 text-emerald-600" /> Pharmacy
               </Button>
             </Link>
             <Link href="/ipd">
@@ -234,36 +253,65 @@ export default async function DashboardPage({
         )}
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
-          <Link href="/patients" className="block group">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3 mb-8">
+          <Link href="/appointments" className="block group">
             <Card className="hover:border-blue-400 hover:shadow-md transition-all cursor-pointer h-full">
-              <CardContent className="pt-5 pb-5 px-4 flex flex-col justify-between h-full">
+              <CardContent className="pt-4 pb-4 px-3 flex flex-col justify-between h-full">
                 <div className="flex items-center justify-between mb-2">
-                  <div className="p-2.5 bg-blue-100 rounded-lg text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors">
-                    <Users className="w-5 h-5" />
+                  <div className="p-2 bg-blue-100 rounded-lg text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                    <CalendarCheck className="w-4 h-4" />
                   </div>
-                  <span className="text-[11px] text-blue-600 font-medium">All &rarr;</span>
+                  <span className="text-[10px] text-blue-600 font-medium">Queue &rarr;</span>
                 </div>
                 <div>
-                  <p className="text-xs font-medium text-slate-500">Total Patients</p>
-                  <h3 className="text-2xl font-bold text-slate-900">{totalPatients.length}</h3>
+                  <p className="text-[11px] font-medium text-slate-500">OPD Queue</p>
+                  <div className="flex items-baseline gap-1.5">
+                    <h3 className="text-xl font-bold text-slate-900">{todayAppointments.length}</h3>
+                    <span className="text-[11px] text-amber-600 font-medium">
+                      ({waitingQueueCount} wait)
+                    </span>
+                  </div>
                 </div>
               </CardContent>
             </Card>
           </Link>
 
-          <Link href="/reports" className="block group">
-            <Card className="hover:border-emerald-400 hover:shadow-md transition-all cursor-pointer h-full">
-              <CardContent className="pt-5 pb-5 px-4 flex flex-col justify-between h-full">
+          <Link href="/patients" className="block group">
+            <Card className="hover:border-blue-400 hover:shadow-md transition-all cursor-pointer h-full">
+              <CardContent className="pt-4 pb-4 px-3 flex flex-col justify-between h-full">
                 <div className="flex items-center justify-between mb-2">
-                  <div className="p-2.5 bg-emerald-100 rounded-lg text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
-                    <BarChart3 className="w-5 h-5" />
+                  <div className="p-2 bg-slate-100 rounded-lg text-slate-600 group-hover:bg-slate-700 group-hover:text-white transition-colors">
+                    <Users className="w-4 h-4" />
                   </div>
-                  <span className="text-[11px] text-emerald-600 font-medium">Audit &rarr;</span>
+                  <span className="text-[10px] text-blue-600 font-medium">All &rarr;</span>
                 </div>
                 <div>
-                  <p className="text-xs font-medium text-slate-500">Prescriptions</p>
-                  <h3 className="text-2xl font-bold text-slate-900">{totalPrescriptions.length}</h3>
+                  <p className="text-[11px] font-medium text-slate-500">Patients</p>
+                  <h3 className="text-xl font-bold text-slate-900">{totalPatients.length}</h3>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+
+          <Link href="/inventory" className="block group">
+            <Card className="hover:border-emerald-400 hover:shadow-md transition-all cursor-pointer h-full">
+              <CardContent className="pt-4 pb-4 px-3 flex flex-col justify-between h-full">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="p-2 bg-emerald-100 rounded-lg text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+                    <Pill className="w-4 h-4" />
+                  </div>
+                  <span className="text-[10px] text-emerald-600 font-medium">Stock &rarr;</span>
+                </div>
+                <div>
+                  <p className="text-[11px] font-medium text-slate-500">Pharmacy</p>
+                  <div className="flex items-baseline gap-1.5">
+                    <h3 className="text-xl font-bold text-slate-900">{inventoryItems.length}</h3>
+                    {lowStockCount > 0 && (
+                      <span className="text-[10px] font-semibold text-rose-600 bg-rose-50 px-1 rounded">
+                        {lowStockCount} low
+                      </span>
+                    )}
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -271,16 +319,16 @@ export default async function DashboardPage({
 
           <Link href="/ipd" className="block group">
             <Card className="hover:border-purple-400 hover:shadow-md transition-all cursor-pointer h-full">
-              <CardContent className="pt-5 pb-5 px-4 flex flex-col justify-between h-full">
+              <CardContent className="pt-4 pb-4 px-3 flex flex-col justify-between h-full">
                 <div className="flex items-center justify-between mb-2">
-                  <div className="p-2.5 bg-purple-100 rounded-lg text-purple-600 group-hover:bg-purple-600 group-hover:text-white transition-colors">
-                    <Bed className="w-5 h-5" />
+                  <div className="p-2 bg-purple-100 rounded-lg text-purple-600 group-hover:bg-purple-600 group-hover:text-white transition-colors">
+                    <Bed className="w-4 h-4" />
                   </div>
-                  <span className="text-[11px] text-purple-600 font-medium">Census &rarr;</span>
+                  <span className="text-[10px] text-purple-600 font-medium">Wards &rarr;</span>
                 </div>
                 <div>
-                  <p className="text-xs font-medium text-slate-500">Active IPD</p>
-                  <h3 className="text-2xl font-bold text-purple-700">{activeIpdAdmissions.length}</h3>
+                  <p className="text-[11px] font-medium text-slate-500">Active IPD</p>
+                  <h3 className="text-xl font-bold text-purple-700">{activeIpdAdmissions.length}</h3>
                 </div>
               </CardContent>
             </Card>
@@ -288,33 +336,50 @@ export default async function DashboardPage({
 
           <Link href="/labs" className="block group">
             <Card className="hover:border-indigo-400 hover:shadow-md transition-all cursor-pointer h-full">
-              <CardContent className="pt-5 pb-5 px-4 flex flex-col justify-between h-full">
+              <CardContent className="pt-4 pb-4 px-3 flex flex-col justify-between h-full">
                 <div className="flex items-center justify-between mb-2">
-                  <div className="p-2.5 bg-indigo-100 rounded-lg text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-colors">
-                    <FlaskConical className="w-5 h-5" />
+                  <div className="p-2 bg-indigo-100 rounded-lg text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-colors">
+                    <FlaskConical className="w-4 h-4" />
                   </div>
-                  <span className="text-[11px] text-indigo-600 font-medium">Hub &rarr;</span>
+                  <span className="text-[10px] text-indigo-600 font-medium">Hub &rarr;</span>
                 </div>
                 <div>
-                  <p className="text-xs font-medium text-slate-500">Lab Reports</p>
-                  <h3 className="text-2xl font-bold text-indigo-700">{totalLabReports.length}</h3>
+                  <p className="text-[11px] font-medium text-slate-500">Lab Reports</p>
+                  <h3 className="text-xl font-bold text-indigo-700">{totalLabReports.length}</h3>
                 </div>
               </CardContent>
             </Card>
           </Link>
 
-          <Link href="/prescription/new" className="block col-span-2 md:col-span-1 h-full">
-            <Card className="bg-gradient-to-r from-blue-600 to-blue-700 text-white cursor-pointer hover:from-blue-700 hover:to-blue-800 transition-all shadow-sm h-full">
-              <CardContent className="pt-5 pb-5 px-4 flex flex-col justify-between h-full">
+          <Link href="/reports" className="block group">
+            <Card className="hover:border-blue-400 hover:shadow-md transition-all cursor-pointer h-full">
+              <CardContent className="pt-4 pb-4 px-3 flex flex-col justify-between h-full">
                 <div className="flex items-center justify-between mb-2">
-                  <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
-                    <PlusCircle className="w-5 h-5 text-white" />
+                  <div className="p-2 bg-blue-50 rounded-lg text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                    <BarChart3 className="w-4 h-4" />
                   </div>
-                  <span className="text-[11px] text-blue-100 font-medium">New Rx &rarr;</span>
+                  <span className="text-[10px] text-blue-600 font-medium">Audit &rarr;</span>
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold">Consultation</h3>
-                  <p className="text-blue-100 text-[11px] mt-0.5">Issue digital Rx</p>
+                  <p className="text-[11px] font-medium text-slate-500">Prescriptions</p>
+                  <h3 className="text-xl font-bold text-slate-900">{totalPrescriptions.length}</h3>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+
+          <Link href="/prescription/new" className="block col-span-2 md:col-span-1 xl:col-span-1 h-full">
+            <Card className="bg-gradient-to-r from-blue-600 to-blue-700 text-white cursor-pointer hover:from-blue-700 hover:to-blue-800 transition-all shadow-xs h-full">
+              <CardContent className="pt-4 pb-4 px-3 flex flex-col justify-between h-full">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center">
+                    <PlusCircle className="w-4 h-4 text-white" />
+                  </div>
+                  <span className="text-[10px] text-blue-100 font-medium">New Rx &rarr;</span>
+                </div>
+                <div>
+                  <h3 className="text-xs font-bold leading-tight">Consultation</h3>
+                  <p className="text-blue-100 text-[10px] mt-0.5">Start Visit</p>
                 </div>
               </CardContent>
             </Card>

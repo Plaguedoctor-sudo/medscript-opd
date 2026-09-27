@@ -20,6 +20,9 @@ export interface PrescriptionFormData {
   patientGender?: string;
   patientPhone?: string;
   abhaId?: string;
+  allergies?: string;
+  bloodGroup?: string;
+  abhaAddress?: string;
   weight?: string;
   bp?: string;
   pulse?: string;
@@ -152,6 +155,9 @@ export async function createPrescription(formData: PrescriptionFormData) {
       gender: ["Male", "Female", "Other"].includes(rawGender) ? rawGender : "Other",
       phone: sanitizeString(formData.patientPhone, 25),
       abhaId: sanitizeString(formData.abhaId, 30),
+      allergies: sanitizeString(formData.allergies, 500),
+      bloodGroup: sanitizeString(formData.bloodGroup, 10),
+      abhaAddress: sanitizeString(formData.abhaAddress, 100),
     };
 
     const [newPatient] = await db.insert(patients).values(patientData).returning();
@@ -334,6 +340,9 @@ export async function updatePatient(
     gender: string;
     phone?: string | null;
     abhaId?: string | null;
+    allergies?: string | null;
+    bloodGroup?: string | null;
+    abhaAddress?: string | null;
   }
 ) {
   await requireAuth(`/patient/${id}`);
@@ -354,6 +363,9 @@ export async function updatePatient(
       gender: ["Male", "Female", "Other"].includes(rawGender) ? rawGender : "Other",
       phone: sanitizeString(data.phone, 25),
       abhaId: sanitizeString(data.abhaId, 30),
+      allergies: sanitizeString(data.allergies, 500),
+      bloodGroup: sanitizeString(data.bloodGroup, 10),
+      abhaAddress: sanitizeString(data.abhaAddress, 100),
     })
     .where(eq(patients.id, id));
 
@@ -366,6 +378,8 @@ export async function updatePatient(
   revalidatePath("/");
   revalidatePath("/patients");
   revalidatePath(`/patient/${id}`);
+  revalidatePath("/appointments");
+  revalidatePath("/ipd");
 
   return { success: true };
 }

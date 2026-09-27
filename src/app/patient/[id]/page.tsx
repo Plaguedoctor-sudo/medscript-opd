@@ -23,6 +23,7 @@ import {
   HeartPulse,
   Clock,
   CheckCircle2,
+  AlertTriangle,
 } from "lucide-react";
 import { Medication, Patient, Prescription, IpdAdmission, LabReport, LabResultParameter } from "@/types";
 import { EditPatientModal } from "./EditPatientModal";
@@ -148,6 +149,11 @@ export default async function PatientProfilePage({ params }: { params: Promise<{
                       Reg No: {typedPatient.regNo}
                     </span>
                   )}
+                  {typedPatient.bloodGroup && (
+                    <span className="font-mono text-xs font-bold bg-rose-100 text-rose-800 border border-rose-200 px-2.5 py-0.5 rounded-full">
+                      Blood Group: {typedPatient.bloodGroup}
+                    </span>
+                  )}
                 </div>
                 <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-slate-500 text-sm">
                   <span className="flex items-center gap-1">
@@ -167,7 +173,26 @@ export default async function PatientProfilePage({ params }: { params: Promise<{
                       icon={<Fingerprint className="w-3.5 h-3.5 text-slate-400" />}
                     />
                   )}
+                  {typedPatient.abhaAddress && (
+                    <span className="text-xs text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded font-mono">
+                      ABHA: {typedPatient.abhaAddress}
+                    </span>
+                  )}
                 </div>
+                {typedPatient.allergies ? (
+                  <div className="mt-2.5 p-2 bg-rose-50 border border-rose-300 rounded-lg flex items-center gap-2 text-rose-900 text-xs font-medium">
+                    <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+                    <span>
+                      <strong className="text-rose-800 uppercase tracking-wide">Known Allergies: </strong>
+                      {typedPatient.allergies}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="mt-2 text-xs text-slate-400 flex items-center gap-1.5">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                    <span>No known drug allergies (NKDA) reported</span>
+                  </div>
+                )}
               </div>
             </div>
             <div className="flex flex-wrap gap-2">

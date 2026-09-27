@@ -4,7 +4,7 @@ import { getLabReports } from "./actions";
 import { LabDashboard } from "./LabDashboard";
 import { getSecurityAlerts } from "@/lib/security-engine";
 import Link from "next/link";
-import { FlaskConical, Users, BarChart3, Settings, Receipt, ChevronLeft, Bed } from "lucide-react";
+import { FlaskConical, Users, BarChart3, Settings, Receipt, ChevronLeft, Bed, CalendarCheck, Pill } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { UserProfileMenu } from "@/components/UserProfileMenu";
 import { SecurityAlertBell } from "@/components/SecurityAlertBell";
@@ -69,6 +69,16 @@ export default async function LabsPage({
             <UserProfileMenu user={currentUser} role={role} securityEnabled={securityEnabled} />
             <PrivacyShield />
             <SecurityAlertBell initialStats={securityAlertsData} />
+            <Link href="/appointments">
+              <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
+                <CalendarCheck className="w-4 h-4 text-blue-600" /> Queue
+              </Button>
+            </Link>
+            <Link href="/inventory">
+              <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
+                <Pill className="w-4 h-4 text-emerald-600" /> Pharmacy
+              </Button>
+            </Link>
             <Link href="/patients">
               <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
                 <Users className="w-4 h-4" /> Patients

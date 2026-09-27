@@ -43,12 +43,20 @@ import {
   Loader2,
   ExternalLink,
   ShieldCheck,
+  AlertTriangle,
 } from "lucide-react";
+import { EmarRecord, ClinicalConsent, IpdDeposit } from "@/types";
+import { NurseEmarSection } from "@/components/ipd/NurseEmarSection";
+import { ClinicalConsentsSection } from "@/components/ipd/ClinicalConsentsSection";
+import { IpdDepositsSection } from "@/components/ipd/IpdDepositsSection";
 
 interface IpdCaseSheetProps {
   admission: IpdAdmissionWithPatient;
   rounds: IpdRound[];
   labReportsList: LabReportWithPatient[];
+  emarRecords?: EmarRecord[];
+  consents?: ClinicalConsent[];
+  deposits?: IpdDeposit[];
   settings: ClinicSettings | null;
   userRole?: string;
 }
@@ -57,6 +65,9 @@ export function IpdCaseSheet({
   admission,
   rounds,
   labReportsList,
+  emarRecords = [],
+  consents = [],
+  deposits = [],
   settings,
   userRole,
 }: IpdCaseSheetProps) {
@@ -536,6 +547,18 @@ export function IpdCaseSheet({
             </span>
           </div>
 
+          {admission.patient.allergies && (
+            <div className="col-span-2 sm:col-span-4 bg-rose-50 border border-rose-200 text-rose-800 p-2.5 rounded-lg flex items-center gap-2 font-bold text-xs">
+              <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+              <span>Documented Patient Allergies: {admission.patient.allergies}</span>
+              {admission.patient.bloodGroup && (
+                <span className="ml-auto px-2 py-0.5 rounded bg-rose-200 text-rose-900 text-[10px] font-black">
+                  Blood Group: {admission.patient.bloodGroup}
+                </span>
+              )}
+            </div>
+          )}
+
           <div>
             <span className="text-slate-400 block font-medium">ADMISSION DATE & TIME</span>
             <span className="font-semibold text-slate-800">{formatDate(admission.admissionDate)}</span>
@@ -781,7 +804,31 @@ export function IpdCaseSheet({
           )}
         </div>
 
-        {/* SECTION 3: Discharge Summary (if discharged) */}
+        {/* SECTION 3: Nurse eMAR (Bedside Medication Administration Record) */}
+        <NurseEmarSection
+          admissionId={admission.id}
+          initialRecords={emarRecords}
+          userRole={userRole}
+        />
+
+        {/* SECTION 4: Clinical Consent Forms & Touch Signature Pad */}
+        <ClinicalConsentsSection
+          admissionId={admission.id}
+          patientId={admission.patient.id}
+          patientName={admission.patient.name}
+          initialConsents={consents}
+          userRole={userRole}
+        />
+
+        {/* SECTION 5: Inpatient Advance Deposits & Financial Ledger */}
+        <IpdDepositsSection
+          admissionId={admission.id}
+          patientId={admission.patient.id}
+          initialDeposits={deposits}
+          userRole={userRole}
+        />
+
+        {/* SECTION 6: Discharge Summary (if discharged) */}
         {!isAdmitted && (
           <div className="border-2 border-emerald-200 rounded-xl p-5 bg-emerald-50/30 mb-8">
             <h2 className="text-sm font-bold text-emerald-950 uppercase tracking-wider mb-3 flex items-center gap-2">

@@ -2,7 +2,7 @@ import { getReportsData } from "./actions";
 import ReportsView from "./ReportsView";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, BarChart3, Settings, PlusCircle, Users, Receipt, Bed, FlaskConical } from "lucide-react";
+import { ArrowLeft, BarChart3, Settings, PlusCircle, Users, Receipt, Bed, FlaskConical, CalendarCheck, Pill } from "lucide-react";
 import { requireRole, getSecurityConfig, getCurrentUserRole, getCurrentUser } from "@/lib/auth";
 import { LockDeskButton } from "@/components/LockDeskButton";
 import { SecurityAlertBell } from "@/components/SecurityAlertBell";
@@ -51,6 +51,16 @@ export default async function ReportsPage() {
           <div className="flex items-center gap-2.5">
             <UserProfileMenu user={currentUser} role={role} securityEnabled={securityEnabled} />
             <SecurityAlertBell />
+            <Link href="/appointments">
+              <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600 hidden sm:inline-flex">
+                <CalendarCheck className="w-3.5 h-3.5 text-blue-600" /> Queue
+              </Button>
+            </Link>
+            <Link href="/inventory">
+              <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600 hidden sm:inline-flex">
+                <Pill className="w-3.5 h-3.5 text-emerald-600" /> Pharmacy
+              </Button>
+            </Link>
             <Link href="/ipd">
               <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600 hidden sm:inline-flex">
                 <Bed className="w-3.5 h-3.5 text-purple-600" /> IPD

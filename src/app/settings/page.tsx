@@ -2,7 +2,7 @@ import { getSettings } from "./actions";
 import SettingsForm from "./SettingsForm";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Settings, BarChart3, Bed, FlaskConical } from "lucide-react";
+import { ArrowLeft, Settings, BarChart3, Bed, FlaskConical, CalendarCheck, Pill, Users } from "lucide-react";
 import { requireRole, getSecurityConfig, getCurrentUserRole, getCurrentUser } from "@/lib/auth";
 import { getLocalBackupSnapshots } from "./backup-actions";
 import { LockDeskButton } from "@/components/LockDeskButton";
@@ -12,12 +12,14 @@ import { UserProfileMenu } from "@/components/UserProfileMenu";
 import { SecurityAlertBell } from "@/components/SecurityAlertBell";
 import { StaffManagementSection } from "./StaffManagementSection";
 import { getStaffUsers } from "@/app/login/actions";
+import { getGoogleDriveConfigAction } from "./actions";
+import { GoogleDriveBackupCard } from "@/components/GoogleDriveBackupCard";
 
 export const dynamic = 'force-dynamic';
 
 export default async function SettingsPage() {
   await requireRole(['admin_doctor', 'doctor'], '/settings');
-  const [settings, securityConfig, backupSnapshots, recentAuditLogs, role, currentUser, staffUsers] = await Promise.all([
+  const [settings, securityConfig, backupSnapshots, recentAuditLogs, role, currentUser, staffUsers, gdriveConfig] = await Promise.all([
     getSettings(),
     getSecurityConfig(),
     getLocalBackupSnapshots(),
@@ -25,6 +27,7 @@ export default async function SettingsPage() {
     getCurrentUserRole(),
     getCurrentUser(),
     getStaffUsers(),
+    getGoogleDriveConfigAction(),
   ]);
 
   return (
@@ -52,6 +55,21 @@ export default async function SettingsPage() {
             />
             <PrivacyShield />
             <SecurityAlertBell />
+            <Link href="/appointments">
+              <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
+                <CalendarCheck className="w-4 h-4 text-blue-600" /> Queue
+              </Button>
+            </Link>
+            <Link href="/inventory">
+              <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
+                <Pill className="w-4 h-4 text-emerald-600" /> Pharmacy
+              </Button>
+            </Link>
+            <Link href="/patients">
+              <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
+                <Users className="w-4 h-4" /> Patients
+              </Button>
+            </Link>
             <Link href="/ipd">
               <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
                 <Bed className="w-4 h-4 text-purple-600" /> IPD
@@ -76,6 +94,9 @@ export default async function SettingsPage() {
         <StaffManagementSection
           initialStaffUsers={staffUsers}
           currentRole={role}
+        />
+        <GoogleDriveBackupCard
+          initialConfig={gdriveConfig}
         />
         <SettingsForm
           settings={settings}

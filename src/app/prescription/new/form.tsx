@@ -10,6 +10,8 @@ import { createPrescription, updatePrescription, searchPatients, getPatientById 
 import { Icd10Search } from "@/components/Icd10Search";
 import { DrugInteractionAlert } from "@/components/DrugInteractionAlert";
 import { checkDrugInteractions } from "@/lib/drug-interactions";
+import { DrugAllergyAlert } from "@/components/DrugAllergyAlert";
+import { checkDrugAllergyConflict, AllergyConflict } from "@/lib/allergy-checker";
 import Link from "next/link";
 import {
   Plus,
@@ -195,6 +197,23 @@ export default function NewPrescriptionForm({
   const detectedInteractions = useMemo(() => {
     return checkDrugInteractions(medications);
   }, [medications]);
+
+  // Real-time Drug-Allergy Conflict Detection
+  const detectedAllergyConflicts = useMemo(() => {
+    if (!selectedPatient?.allergies || !medications || medications.length === 0) {
+      return [];
+    }
+    const conflicts: AllergyConflict[] = [];
+    for (const med of medications) {
+      if (med.name && med.name.trim()) {
+        const conflict = checkDrugAllergyConflict(selectedPatient.allergies, med.name);
+        if (conflict) {
+          conflicts.push(conflict);
+        }
+      }
+    }
+    return conflicts;
+  }, [selectedPatient, medications]);
 
   // Drug Library Search & Formulary State
   const [activeSearchIndex, setActiveSearchIndex] = useState<number | null>(null);
@@ -660,9 +679,22 @@ export default function NewPrescriptionForm({
                     </span>
                   )}
                 </div>
-                <div className="text-xs text-slate-600">
-                  {selectedPatient.age}y / {selectedPatient.gender} {selectedPatient.phone ? `• ${selectedPatient.phone}` : ""} {selectedPatient.abhaId ? `• ABHA: ${selectedPatient.abhaId}` : ""}
+                <div className="text-xs text-slate-600 flex items-center gap-2 flex-wrap mt-0.5">
+                  <span>{selectedPatient.age}y / {selectedPatient.gender}</span>
+                  {selectedPatient.phone && <span>• {selectedPatient.phone}</span>}
+                  {selectedPatient.bloodGroup && (
+                    <span className="px-1.5 py-0.2 rounded bg-rose-100 text-rose-800 text-[10px] font-bold">
+                      {selectedPatient.bloodGroup}
+                    </span>
+                  )}
+                  {selectedPatient.abhaId && <span>• ABHA: {selectedPatient.abhaId}</span>}
                 </div>
+                {selectedPatient.allergies && (
+                  <div className="mt-1 text-[11px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-md inline-flex items-center gap-1">
+                    <AlertCircle className="w-3.5 h-3.5 text-rose-600" />
+                    Documented Allergies: {selectedPatient.allergies}
+                  </div>
+                )}
               </div>
             </div>
             {!isEditMode && (
@@ -991,6 +1023,15 @@ export default function NewPrescriptionForm({
           </div>
         </CardContent>
       </Card>
+
+      {/* Real-time Clinical Drug-Allergy Safety Alert */}
+      <DrugAllergyAlert
+        conflicts={detectedAllergyConflicts}
+        onRemoveMedication={(name) => {
+          setMedications((prev) => prev.filter((m) => m.name !== name));
+          toast.success(`Removed allergen-conflicting drug "${name}".`);
+        }}
+      />
 
       {/* Real-time Clinical Drug-Drug Interaction Checker Alert */}
       <DrugInteractionAlert interactions={detectedInteractions} />

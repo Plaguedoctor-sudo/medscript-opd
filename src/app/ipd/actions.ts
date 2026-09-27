@@ -1,9 +1,10 @@
 'use server'
 
 import { db, sqlite } from "@/db";
-import { ipdAdmissions, ipdRounds, labReports, patients } from "@/db/schema";
+import { ipdAdmissions, ipdRounds, labReports, patients, emarRecords, clinicalConsents, ipdDeposits } from "@/db/schema";
 import { eq, desc, or, like, and } from "drizzle-orm";
-import { requireAuth, getCurrentUserRole } from "@/lib/auth";
+import { revalidatePath } from "next/cache";
+import { requireAuth, getCurrentUserRole, getCurrentUser } from "@/lib/auth";
 import { logAuditEvent } from "@/lib/audit";
 import {
   IpdAdmissionWithPatient,
@@ -12,6 +13,11 @@ import {
   IpdVitals,
   LabReportWithPatient,
   ClinicSettings,
+  EmarRecord,
+  EmarStatus,
+  ClinicalConsent,
+  ConsentType,
+  IpdDeposit,
 } from "@/types";
 
 export interface IpdFilterOptions {
@@ -161,6 +167,9 @@ export async function getIpdAdmissionById(id: number): Promise<{
   admission: IpdAdmissionWithPatient | null;
   rounds: IpdRound[];
   labReportsList: LabReportWithPatient[];
+  emarRecordsList: EmarRecord[];
+  consentsList: ClinicalConsent[];
+  depositsList: IpdDeposit[];
   settings: ClinicSettings | null;
 }> {
   await requireAuth(`/ipd/${id}`);
@@ -192,6 +201,9 @@ export async function getIpdAdmissionById(id: number): Promise<{
         phone: patients.phone,
         regNo: patients.regNo,
         abhaId: patients.abhaId,
+        abhaAddress: patients.abhaAddress,
+        allergies: patients.allergies,
+        bloodGroup: patients.bloodGroup,
         createdAt: patients.createdAt,
       },
     })
@@ -202,7 +214,7 @@ export async function getIpdAdmissionById(id: number): Promise<{
 
   if (!row || row.length === 0) {
     const settings = (await db.query.clinicSettings.findFirst()) || null;
-    return { admission: null, rounds: [], labReportsList: [], settings };
+    return { admission: null, rounds: [], labReportsList: [], emarRecordsList: [], consentsList: [], depositsList: [], settings };
   }
 
   // Fetch all clinical progress rounds for this admission
@@ -248,12 +260,36 @@ export async function getIpdAdmissionById(id: number): Promise<{
     .where(eq(labReports.ipdAdmissionId, id))
     .orderBy(desc(labReports.createdAt));
 
+  // Fetch eMAR records for this admission
+  const emarRecordsList = (await db
+    .select()
+    .from(emarRecords)
+    .where(eq(emarRecords.admissionId, id))
+    .orderBy(emarRecords.scheduledTime)) as EmarRecord[];
+
+  // Fetch clinical consent forms
+  const consentsList = (await db
+    .select()
+    .from(clinicalConsents)
+    .where(eq(clinicalConsents.admissionId, id))
+    .orderBy(desc(clinicalConsents.id))) as ClinicalConsent[];
+
+  // Fetch advance deposits
+  const depositsList = (await db
+    .select()
+    .from(ipdDeposits)
+    .where(eq(ipdDeposits.admissionId, id))
+    .orderBy(desc(ipdDeposits.id))) as IpdDeposit[];
+
   const settings = (await db.query.clinicSettings.findFirst()) || null;
 
   return {
     admission: row[0] as IpdAdmissionWithPatient,
     rounds: rounds as IpdRound[],
     labReportsList: linkedLabs as LabReportWithPatient[],
+    emarRecordsList,
+    consentsList,
+    depositsList,
     settings,
   };
 }
@@ -462,5 +498,255 @@ export async function deleteIpdRound(roundId: number): Promise<{ success: boolea
     const errorMsg = err instanceof Error ? err.message : "Failed to delete round.";
     console.error("Failed to delete IPD round:", err);
     return { success: false, error: errorMsg };
+  }
+}
+
+// ==========================================
+// Nurse eMAR (Medication Administration) Actions
+// ==========================================
+
+export async function addEmarRecordAction(data: {
+  admissionId: number;
+  medicationName: string;
+  dosage: string;
+  route?: string;
+  scheduledTime: number;
+  notes?: string;
+}): Promise<{ success: boolean; id?: number; error?: string }> {
+  await requireAuth('/ipd');
+  const role = await getCurrentUserRole();
+  const user = await getCurrentUser();
+
+  try {
+    const res = sqlite
+      .prepare(`
+        INSERT INTO emar_records (
+          admission_id, medication_name, dosage, route, scheduled_time,
+          status, notes, created_at
+        ) VALUES (?, ?, ?, ?, ?, 'PENDING', ?, ?)
+      `)
+      .run(
+        data.admissionId,
+        data.medicationName.trim(),
+        data.dosage.trim(),
+        data.route || 'Oral',
+        data.scheduledTime,
+        data.notes?.trim() || null,
+        Date.now()
+      );
+
+    await logAuditEvent({
+      action: 'EMAR_DOSE_SCHEDULED',
+      actorRole: role.toUpperCase(),
+      details: `Scheduled ${data.medicationName} (${data.dosage}) for Admission #${data.admissionId} by ${user?.name || role}`,
+      status: 'SUCCESS',
+    });
+
+    revalidatePath(`/ipd/${data.admissionId}`);
+    return { success: true, id: Number(res.lastInsertRowid) };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { success: false, error: msg };
+  }
+}
+
+export async function updateEmarDoseStatusAction(
+  id: number,
+  status: EmarStatus,
+  admissionId: number,
+  notes?: string
+): Promise<{ success: boolean; error?: string }> {
+  await requireAuth('/ipd');
+  const role = await getCurrentUserRole();
+  const user = await getCurrentUser();
+
+  try {
+    const now = Date.now();
+    const nurseName = user?.name || (role === 'nurse' ? 'Staff Nurse' : 'Attending Staff');
+
+    sqlite
+      .prepare(`
+        UPDATE emar_records
+        SET
+          status = ?,
+          administered_at = ?,
+          nurse_name = ?,
+          notes = CASE WHEN ? IS NOT NULL AND length(?) > 0 THEN ? ELSE notes END
+        WHERE id = ?
+      `)
+      .run(
+        status,
+        status === 'GIVEN' ? now : null,
+        nurseName,
+        notes?.trim() || null,
+        notes?.trim() || null,
+        notes?.trim() || null,
+        id
+      );
+
+    await logAuditEvent({
+      action: 'EMAR_DOSE_ADMINISTERED',
+      actorRole: role.toUpperCase(),
+      details: `Marked eMAR dose #${id} as ${status} by ${nurseName}`,
+      status: 'SUCCESS',
+    });
+
+    revalidatePath(`/ipd/${admissionId}`);
+    return { success: true };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { success: false, error: msg };
+  }
+}
+
+export async function deleteEmarRecordAction(
+  id: number,
+  admissionId: number
+): Promise<{ success: boolean; error?: string }> {
+  await requireAuth('/ipd');
+  const role = await getCurrentUserRole();
+
+  if (role !== 'admin_doctor' && role !== 'doctor' && role !== 'nurse') {
+    return { success: false, error: 'Unauthorized to cancel eMAR orders.' };
+  }
+
+  try {
+    sqlite.prepare('DELETE FROM emar_records WHERE id = ?').run(id);
+
+    await logAuditEvent({
+      action: 'EMAR_DOSE_DELETED',
+      actorRole: role.toUpperCase(),
+      details: `Removed scheduled eMAR dose #${id}`,
+      status: 'WARNING',
+    });
+
+    revalidatePath(`/ipd/${admissionId}`);
+    return { success: true };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { success: false, error: msg };
+  }
+}
+
+// ==========================================
+// Clinical Consent Forms & Touch Signature Pad
+// ==========================================
+
+export async function createClinicalConsentAction(data: {
+  patientId: number;
+  admissionId?: number;
+  consentType: ConsentType;
+  title: string;
+  content: string;
+  patientSignature?: string;
+  signedByName: string;
+  relationship: string;
+  witnessName?: string;
+  doctorSignature?: string;
+}): Promise<{ success: boolean; id?: number; error?: string }> {
+  await requireAuth('/ipd');
+  const role = await getCurrentUserRole();
+  const user = await getCurrentUser();
+
+  try {
+    const now = Date.now();
+    const docSig = data.doctorSignature || (user?.name ? `DIGITALLY_SEALED_${user.name}` : 'DIGITALLY_SEALED');
+
+    const res = sqlite
+      .prepare(`
+        INSERT INTO clinical_consents (
+          patient_id, admission_id, consent_type, title, content,
+          patient_signature, signed_by_name, relationship, witness_name,
+          doctor_signature, signed_at, ip_address, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '127.0.0.1', ?)
+      `)
+      .run(
+        data.patientId,
+        data.admissionId || null,
+        data.consentType,
+        data.title.trim(),
+        data.content.trim(),
+        data.patientSignature || null,
+        data.signedByName.trim(),
+        data.relationship.trim() || 'Self',
+        data.witnessName?.trim() || null,
+        docSig,
+        now,
+        now
+      );
+
+    await logAuditEvent({
+      action: 'CLINICAL_CONSENT_SIGNED',
+      actorRole: role.toUpperCase(),
+      details: `Consent "${data.title}" executed for Patient ID ${data.patientId} by ${data.signedByName} (${data.relationship})`,
+      status: 'SUCCESS',
+    });
+
+    if (data.admissionId) {
+      revalidatePath(`/ipd/${data.admissionId}`);
+    }
+    return { success: true, id: Number(res.lastInsertRowid) };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { success: false, error: msg };
+  }
+}
+
+// ==========================================
+// Inpatient Advance Deposits & Ledger
+// ==========================================
+
+export async function addIpdDepositAction(data: {
+  admissionId: number;
+  patientId: number;
+  amount: number;
+  paymentMethod: string;
+  transactionRef?: string;
+  type: 'ADVANCE' | 'TOP_UP' | 'REFUND';
+  notes?: string;
+}): Promise<{ success: boolean; receiptNo?: string; error?: string }> {
+  await requireAuth('/ipd');
+  const role = await getCurrentUserRole();
+  const user = await getCurrentUser();
+
+  try {
+    const now = Date.now();
+    const d = new Date();
+    const datePrefix = `DEP-${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
+    const seq = Math.floor(1000 + Math.random() * 9000);
+    const receiptNo = `${datePrefix}-${seq}`;
+
+    sqlite
+      .prepare(`
+        INSERT INTO ipd_deposits (
+          admission_id, patient_id, receipt_no, amount, payment_method,
+          transaction_ref, type, notes, collected_by, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `)
+      .run(
+        data.admissionId,
+        data.patientId,
+        receiptNo,
+        Math.abs(data.amount),
+        data.paymentMethod || 'Cash',
+        data.transactionRef?.trim() || null,
+        data.type || 'ADVANCE',
+        data.notes?.trim() || null,
+        user?.name || role,
+        now
+      );
+
+    await logAuditEvent({
+      action: 'IPD_DEPOSIT_COLLECTED',
+      actorRole: role.toUpperCase(),
+      details: `Collected ${data.type} of ₹${data.amount} via ${data.paymentMethod} (Receipt: ${receiptNo}) for Admission #${data.admissionId}`,
+      status: 'SUCCESS',
+    });
+
+    revalidatePath(`/ipd/${data.admissionId}`);
+    return { success: true, receiptNo };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { success: false, error: msg };
   }
 }

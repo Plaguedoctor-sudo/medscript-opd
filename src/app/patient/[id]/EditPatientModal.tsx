@@ -18,9 +18,15 @@ import {
 import { Patient } from "@/types";
 import { updatePatient, deletePatient } from "@/app/prescription/new/actions";
 import { toast } from "@/components/ui/toast";
-import { Edit, Loader2, Trash2 } from "lucide-react";
+import { Edit, Loader2, Trash2, AlertTriangle } from "lucide-react";
 
-export function EditPatientModal({ patient }: { patient: Patient }) {
+export function EditPatientModal({
+  patient,
+  triggerButton,
+}: {
+  patient: Patient;
+  triggerButton?: React.ReactNode;
+}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -30,6 +36,9 @@ export function EditPatientModal({ patient }: { patient: Patient }) {
   const [gender, setGender] = useState(patient.gender);
   const [phone, setPhone] = useState(patient.phone || "");
   const [abhaId, setAbhaId] = useState(patient.abhaId || "");
+  const [bloodGroup, setBloodGroup] = useState(patient.bloodGroup || "");
+  const [allergies, setAllergies] = useState(patient.allergies || "");
+  const [abhaAddress, setAbhaAddress] = useState(patient.abhaAddress || "");
 
   const handleDelete = async () => {
     if (
@@ -71,6 +80,9 @@ export function EditPatientModal({ patient }: { patient: Patient }) {
         gender,
         phone: phone || null,
         abhaId: abhaId || null,
+        allergies: allergies || null,
+        bloodGroup: bloodGroup || null,
+        abhaAddress: abhaAddress || null,
       });
 
       toast.show({
@@ -93,10 +105,8 @@ export function EditPatientModal({ patient }: { patient: Patient }) {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button variant="outline" size="sm" className="gap-1.5" />}>
-        <Edit className="w-3.5 h-3.5" /> Edit Patient
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
+      <DialogTrigger render={triggerButton ? (triggerButton as React.ReactElement) : <Button variant="outline" size="sm" className="gap-1.5"><Edit className="w-3.5 h-3.5" /> Edit Patient</Button>} />
+      <DialogContent className="sm:max-w-lg">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle>Edit Patient Details</DialogTitle>
@@ -160,24 +170,75 @@ export function EditPatientModal({ patient }: { patient: Patient }) {
               </div>
             </div>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="edit-phone">Contact Phone</Label>
-              <Input
-                id="edit-phone"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="+91 9876543210"
-              />
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-phone">Contact Phone</Label>
+                <Input
+                  id="edit-phone"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="+91 9876543210"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-blood-group">Blood Group</Label>
+                <select
+                  id="edit-blood-group"
+                  value={bloodGroup}
+                  onChange={(e) => setBloodGroup(e.target.value)}
+                  className="w-full h-9 px-3 border border-slate-300 rounded-md bg-white text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-semibold"
+                >
+                  <option value="">Unknown</option>
+                  <option value="A+">A+</option>
+                  <option value="A-">A-</option>
+                  <option value="B+">B+</option>
+                  <option value="B-">B-</option>
+                  <option value="O+">O+</option>
+                  <option value="O-">O-</option>
+                  <option value="AB+">AB+</option>
+                  <option value="AB-">AB-</option>
+                </select>
+              </div>
             </div>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="edit-abha">ABHA ID (Ayushman Bharat)</Label>
+            <div className="space-y-1.5 bg-rose-50/60 p-3 rounded-lg border border-rose-200">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="edit-allergies" className="text-xs font-semibold text-rose-800 flex items-center gap-1.5">
+                  <AlertTriangle className="w-3.5 h-3.5 text-rose-600" /> Known Allergies / Contraindications
+                </Label>
+                <span className="text-[10px] text-rose-600 font-medium">Auto Safety Guard</span>
+              </div>
               <Input
-                id="edit-abha"
-                value={abhaId}
-                onChange={(e) => setAbhaId(e.target.value)}
-                placeholder="14-digit ABHA Number"
+                id="edit-allergies"
+                value={allergies}
+                onChange={(e) => setAllergies(e.target.value)}
+                placeholder="e.g. Penicillin, Sulfa, Paracetamol, Aspirin / NSAIDs"
+                className="bg-white border-rose-300 focus:border-rose-500 text-sm"
               />
+              <p className="text-[10px] text-rose-600">
+                Prescriptions and admissions will instantly raise red cross-reactivity alerts when flagged drugs are added.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-abha">ABHA ID (Ayushman Bharat)</Label>
+                <Input
+                  id="edit-abha"
+                  value={abhaId}
+                  onChange={(e) => setAbhaId(e.target.value)}
+                  placeholder="14-digit ABHA Number"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-abha-address">ABHA Address</Label>
+                <Input
+                  id="edit-abha-address"
+                  value={abhaAddress}
+                  onChange={(e) => setAbhaAddress(e.target.value)}
+                  placeholder="e.g. user@abdm"
+                />
+              </div>
             </div>
           </div>
 

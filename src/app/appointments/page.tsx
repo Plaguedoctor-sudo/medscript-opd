@@ -1,25 +1,36 @@
 import { db } from "@/db";
 import { requireAuth, getCurrentUserRole, getSecurityConfig, getCurrentUser } from "@/lib/auth";
-import { getIpdAdmissions } from "./actions";
-import { IpdDashboard } from "./IpdDashboard";
+import { getAppointments } from "./actions";
+import { AppointmentDashboard } from "./AppointmentDashboard";
 import { getSecurityAlerts } from "@/lib/security-engine";
 import Link from "next/link";
-import { Bed, Users, BarChart3, Settings, Receipt, ChevronLeft, FlaskConical, CalendarCheck, Pill } from "lucide-react";
+import {
+  CalendarCheck,
+  Users,
+  BarChart3,
+  Settings,
+  Receipt,
+  ChevronLeft,
+  FlaskConical,
+  Bed,
+  Pill,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { UserProfileMenu } from "@/components/UserProfileMenu";
 import { SecurityAlertBell } from "@/components/SecurityAlertBell";
 import { LockDeskButton } from "@/components/LockDeskButton";
 import { PrivacyShield } from "@/components/PrivacyShield";
+import { Patient } from "@/types";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-export default async function IpdPage({
+export default async function AppointmentsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; status?: string; ward?: string }>;
+  searchParams: Promise<{ date?: string }>;
 }) {
-  await requireAuth("/ipd");
+  await requireAuth("/appointments");
   const [{ securityEnabled }, role, currentUser, resolvedParams, securityAlertsData] = await Promise.all([
     getSecurityConfig(),
     getCurrentUserRole(),
@@ -28,13 +39,30 @@ export default async function IpdPage({
     getSecurityAlerts({ unacknowledgedOnly: false, limit: 30 }),
   ]);
 
-  const { admissions, stats } = await getIpdAdmissions({
-    query: resolvedParams?.q,
-    status: resolvedParams?.status,
-    ward: resolvedParams?.ward,
-  });
+  const todayStr = new Date().toISOString().split('T')[0];
+  const selectedDate = resolvedParams?.date || todayStr;
 
-  const clinicSettings = await db.query.clinicSettings.findFirst();
+  const [{ appointments, stats }, patientsRows, clinicSettings] = await Promise.all([
+    getAppointments(selectedDate),
+    db.query.patients.findMany({
+      orderBy: (p, { asc }) => [asc(p.name)],
+    }),
+    db.query.clinicSettings.findFirst(),
+  ]);
+
+  const allPatients: Patient[] = patientsRows.map((p) => ({
+    id: p.id,
+    name: p.name,
+    age: p.age,
+    gender: p.gender,
+    phone: p.phone,
+    regNo: p.regNo,
+    allergies: p.allergies,
+    bloodGroup: p.bloodGroup,
+    abhaId: p.abhaId,
+    abhaAddress: p.abhaAddress,
+    createdAt: p.createdAt,
+  }));
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -46,14 +74,14 @@ export default async function IpdPage({
               <ChevronLeft className="w-5 h-5" />
             </Link>
             <Link href="/" className="flex items-center gap-2.5">
-              <div className="w-8 h-8 bg-purple-600 rounded-lg flex items-center justify-center shadow-xs">
-                <Bed className="text-white w-5 h-5" />
+              <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center shadow-xs">
+                <CalendarCheck className="text-white w-5 h-5" />
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="text-lg font-bold text-slate-900 tracking-tight">MedScript IPD</span>
-                  <span className="text-xs bg-purple-50 text-purple-700 px-2 py-0.5 rounded-full font-semibold border border-purple-200">
-                    Inpatient Department
+                  <span className="text-lg font-bold text-slate-900 tracking-tight">MedScript Queue</span>
+                  <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-semibold border border-blue-200">
+                    OPD Appointments &amp; Tokens
                   </span>
                 </div>
                 {clinicSettings?.clinicName && (
@@ -69,19 +97,15 @@ export default async function IpdPage({
             <UserProfileMenu user={currentUser} role={role} securityEnabled={securityEnabled} />
             <PrivacyShield />
             <SecurityAlertBell initialStats={securityAlertsData} />
-            <Link href="/appointments">
-              <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
-                <CalendarCheck className="w-4 h-4 text-blue-600" /> Queue
-              </Button>
-            </Link>
+
             <Link href="/inventory">
               <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
                 <Pill className="w-4 h-4 text-emerald-600" /> Pharmacy
               </Button>
             </Link>
-            <Link href="/patients">
+            <Link href="/ipd">
               <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
-                <Users className="w-4 h-4" /> Patients
+                <Bed className="w-4 h-4 text-purple-600" /> IPD
               </Button>
             </Link>
             <Link href="/labs">
@@ -94,9 +118,9 @@ export default async function IpdPage({
                 <Receipt className="w-4 h-4 text-emerald-600" /> Billing
               </Button>
             </Link>
-            <Link href="/reports">
+            <Link href="/patients">
               <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
-                <BarChart3 className="w-4 h-4 text-blue-600" /> Reports
+                <Users className="w-4 h-4" /> Patients
               </Button>
             </Link>
             <Link href="/settings">
@@ -110,13 +134,12 @@ export default async function IpdPage({
       </nav>
 
       <main className="container mx-auto px-4 py-8 max-w-6xl">
-        <IpdDashboard
-          admissions={admissions}
-          stats={stats}
+        <AppointmentDashboard
+          initialAppointments={appointments}
+          initialStats={stats}
+          selectedDate={selectedDate}
+          allPatients={allPatients}
           userRole={role}
-          initialQuery={resolvedParams?.q || ""}
-          initialStatus={resolvedParams?.status || "ADMITTED"}
-          initialWard={resolvedParams?.ward || "All"}
         />
       </main>
     </div>

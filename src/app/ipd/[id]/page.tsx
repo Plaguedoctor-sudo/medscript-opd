@@ -92,6 +92,9 @@ export default async function IpdAdmissionPage({
           admission={data.admission}
           rounds={data.rounds}
           labReportsList={data.labReportsList}
+          emarRecords={data.emarRecordsList || []}
+          consents={data.consentsList || []}
+          deposits={data.depositsList || []}
           settings={data.settings}
           userRole={role}
         />

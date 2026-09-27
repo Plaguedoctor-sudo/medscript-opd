@@ -6,6 +6,9 @@ export interface Patient {
   gender: string;
   phone: string | null;
   abhaId: string | null;
+  abhaAddress?: string | null;
+  allergies?: string | null; // e.g. "Penicillins, Sulfa, Paracetamol"
+  bloodGroup?: string | null; // e.g. "O+", "B+", "A+", "AB-"
   createdAt: Date | null;
 }
 
@@ -215,4 +218,125 @@ export interface StaffUser {
 }
 
 export type SafeStaffUser = Omit<StaffUser, 'passwordHash'>;
+
+// Pharmacy & Inventory
+export type MedicineCategory = 'Tablet' | 'Capsule' | 'Syrup' | 'Injection' | 'IV Fluid' | 'Ointment' | 'Drops' | 'Inhaler' | 'Surgical Consumable' | 'Other';
+
+export interface PharmacyInventoryItem {
+  id: number;
+  medicineName: string;
+  brandName?: string | null;
+  category: MedicineCategory | string;
+  batchNo: string;
+  expiryDate: string; // YYYY-MM-DD
+  quantityInStock: number;
+  minThreshold: number;
+  purchaseCost: number;
+  mrp: number;
+  sellingPrice: number;
+  rackLocation?: string | null;
+  supplierName?: string | null;
+  createdAt: Date | null;
+  updatedAt?: Date | null;
+}
+
+export interface PharmacyTransaction {
+  id: number;
+  inventoryId: number;
+  type: 'INWARD' | 'DISPENSED' | 'ADJUSTMENT' | 'EXPIRED';
+  quantity: number;
+  patientId?: number | null;
+  prescriptionId?: number | null;
+  admissionId?: number | null;
+  remarks?: string | null;
+  createdAt: Date | null;
+}
+
+// OPD Appointments & Token Queue
+export type AppointmentStatus = 'SCHEDULED' | 'WAITING' | 'IN_CONSULTATION' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW';
+export type AppointmentType = 'OPD_CONSULTATION' | 'FOLLOW_UP' | 'EMERGENCY' | 'VACCINATION';
+
+export interface Appointment {
+  id: number;
+  tokenNo: number;
+  appointmentDate: string; // YYYY-MM-DD
+  timeSlot?: string | null;
+  patientId: number;
+  doctorId?: number | null;
+  doctorName?: string | null;
+  type: AppointmentType;
+  status: AppointmentStatus;
+  chiefComplaint?: string | null;
+  notes?: string | null;
+  createdAt: Date | null;
+}
+
+export interface AppointmentWithPatient extends Appointment {
+  patient: Patient;
+}
+
+// Inpatient Nurse eMAR
+export type EmarStatus = 'PENDING' | 'GIVEN' | 'WITHHELD' | 'REFUSED';
+
+export interface EmarRecord {
+  id: number;
+  admissionId: number;
+  medicationName: string;
+  dosage: string;
+  route?: string | null; // Oral, IV, IM, SC, Topical, Nebulization
+  scheduledTime: Date;
+  administeredAt?: Date | null;
+  status: EmarStatus;
+  nurseName?: string | null;
+  notes?: string | null;
+  createdAt: Date | null;
+}
+
+// Clinical Consents & Digital Signature
+export type ConsentType = 'GENERAL_ADMISSION' | 'SURGICAL_PROCEDURE' | 'HIGH_RISK' | 'DISCHARGE_LAMA' | 'DATA_SHARING_ABDM';
+
+export interface ClinicalConsent {
+  id: number;
+  patientId: number;
+  admissionId?: number | null;
+  consentType: ConsentType;
+  title: string;
+  content: string;
+  patientSignature?: string | null; // Base64 data URL png
+  signedByName: string;
+  relationship: string; // 'Self', 'Spouse', 'Parent', 'Child', 'Guardian'
+  witnessName?: string | null;
+  doctorSignature?: string | null;
+  signedAt?: Date | null;
+  ipAddress?: string | null;
+  createdAt: Date | null;
+}
+
+// IPD Deposits & Advance Payments
+export interface IpdDeposit {
+  id: number;
+  admissionId: number;
+  patientId: number;
+  receiptNo: string;
+  amount: number;
+  paymentMethod: 'Cash' | 'UPI' | 'Card' | 'Bank Transfer' | string;
+  transactionRef?: string | null;
+  type: 'ADVANCE' | 'TOP_UP' | 'REFUND';
+  notes?: string | null;
+  collectedBy?: string | null;
+  createdAt: Date | null;
+}
+
+// Google Drive Cloud Backup Config
+export interface GoogleDriveBackupConfig {
+  enabled: boolean;
+  folderId?: string;
+  clientEmail?: string;
+  hasPrivateKey?: boolean;
+  lastBackupAt?: Date | null;
+  lastBackupStatus?: 'SUCCESS' | 'FAILURE' | 'IN_PROGRESS' | string | null;
+  lastBackupFileId?: string | null;
+  lastBackupFileName?: string | null;
+  autoBackupInterval?: 'DAILY' | 'TWICE_DAILY' | 'MANUAL';
+}
 

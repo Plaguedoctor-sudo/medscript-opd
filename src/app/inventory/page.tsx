@@ -1,10 +1,20 @@
 import { db } from "@/db";
 import { requireAuth, getCurrentUserRole, getSecurityConfig, getCurrentUser } from "@/lib/auth";
-import { getIpdAdmissions } from "./actions";
-import { IpdDashboard } from "./IpdDashboard";
+import { getPharmacyInventory } from "./actions";
+import { InventoryDashboard } from "./InventoryDashboard";
 import { getSecurityAlerts } from "@/lib/security-engine";
 import Link from "next/link";
-import { Bed, Users, BarChart3, Settings, Receipt, ChevronLeft, FlaskConical, CalendarCheck, Pill } from "lucide-react";
+import {
+  Pill,
+  Users,
+  BarChart3,
+  Settings,
+  Receipt,
+  ChevronLeft,
+  FlaskConical,
+  Bed,
+  CalendarCheck,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { UserProfileMenu } from "@/components/UserProfileMenu";
 import { SecurityAlertBell } from "@/components/SecurityAlertBell";
@@ -14,12 +24,12 @@ import { PrivacyShield } from "@/components/PrivacyShield";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-export default async function IpdPage({
+export default async function InventoryPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; status?: string; ward?: string }>;
+  searchParams: Promise<{ q?: string; category?: string; filter?: 'all' | 'low_stock' | 'expiring_soon' }>;
 }) {
-  await requireAuth("/ipd");
+  await requireAuth("/inventory");
   const [{ securityEnabled }, role, currentUser, resolvedParams, securityAlertsData] = await Promise.all([
     getSecurityConfig(),
     getCurrentUserRole(),
@@ -28,10 +38,10 @@ export default async function IpdPage({
     getSecurityAlerts({ unacknowledgedOnly: false, limit: 30 }),
   ]);
 
-  const { admissions, stats } = await getIpdAdmissions({
-    query: resolvedParams?.q,
-    status: resolvedParams?.status,
-    ward: resolvedParams?.ward,
+  const { items, stats } = await getPharmacyInventory({
+    search: resolvedParams?.q,
+    category: resolvedParams?.category,
+    filter: resolvedParams?.filter,
   });
 
   const clinicSettings = await db.query.clinicSettings.findFirst();
@@ -46,14 +56,14 @@ export default async function IpdPage({
               <ChevronLeft className="w-5 h-5" />
             </Link>
             <Link href="/" className="flex items-center gap-2.5">
-              <div className="w-8 h-8 bg-purple-600 rounded-lg flex items-center justify-center shadow-xs">
-                <Bed className="text-white w-5 h-5" />
+              <div className="w-8 h-8 bg-emerald-600 rounded-lg flex items-center justify-center shadow-xs">
+                <Pill className="text-white w-5 h-5" />
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="text-lg font-bold text-slate-900 tracking-tight">MedScript IPD</span>
-                  <span className="text-xs bg-purple-50 text-purple-700 px-2 py-0.5 rounded-full font-semibold border border-purple-200">
-                    Inpatient Department
+                  <span className="text-lg font-bold text-slate-900 tracking-tight">MedScript Pharmacy</span>
+                  <span className="text-xs bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full font-semibold border border-emerald-200">
+                    Formulary &amp; Stock
                   </span>
                 </div>
                 {clinicSettings?.clinicName && (
@@ -69,19 +79,15 @@ export default async function IpdPage({
             <UserProfileMenu user={currentUser} role={role} securityEnabled={securityEnabled} />
             <PrivacyShield />
             <SecurityAlertBell initialStats={securityAlertsData} />
+
             <Link href="/appointments">
               <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
                 <CalendarCheck className="w-4 h-4 text-blue-600" /> Queue
               </Button>
             </Link>
-            <Link href="/inventory">
+            <Link href="/ipd">
               <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
-                <Pill className="w-4 h-4 text-emerald-600" /> Pharmacy
-              </Button>
-            </Link>
-            <Link href="/patients">
-              <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
-                <Users className="w-4 h-4" /> Patients
+                <Bed className="w-4 h-4 text-purple-600" /> IPD
               </Button>
             </Link>
             <Link href="/labs">
@@ -94,9 +100,9 @@ export default async function IpdPage({
                 <Receipt className="w-4 h-4 text-emerald-600" /> Billing
               </Button>
             </Link>
-            <Link href="/reports">
+            <Link href="/patients">
               <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
-                <BarChart3 className="w-4 h-4 text-blue-600" /> Reports
+                <Users className="w-4 h-4" /> Patients
               </Button>
             </Link>
             <Link href="/settings">
@@ -110,13 +116,10 @@ export default async function IpdPage({
       </nav>
 
       <main className="container mx-auto px-4 py-8 max-w-6xl">
-        <IpdDashboard
-          admissions={admissions}
+        <InventoryDashboard
+          initialItems={items}
           stats={stats}
           userRole={role}
-          initialQuery={resolvedParams?.q || ""}
-          initialStatus={resolvedParams?.status || "ADMITTED"}
-          initialWard={resolvedParams?.ward || "All"}
         />
       </main>
     </div>

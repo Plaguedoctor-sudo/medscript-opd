@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import Link from "next/link";
-import { Users, PlusCircle, ArrowLeft, Phone, Fingerprint, BarChart3, FileSpreadsheet, Receipt, Bed, FlaskConical } from "lucide-react";
+import { Users, PlusCircle, ArrowLeft, Phone, Fingerprint, BarChart3, FileSpreadsheet, Receipt, Bed, FlaskConical, CalendarCheck, Pill, AlertTriangle, Edit } from "lucide-react";
 import { DashboardSearch } from "@/components/DashboardSearch";
 import { Patient } from "@/types";
 import { requireAuth, getSecurityConfig, getCurrentUserRole, getCurrentUser } from "@/lib/auth";
@@ -14,6 +14,7 @@ import { PrivacyShield } from "@/components/PrivacyShield";
 import { UserProfileMenu } from "@/components/UserProfileMenu";
 import { MaskedIdentifier } from "@/components/MaskedIdentifier";
 import { SecurityAlertBell } from "@/components/SecurityAlertBell";
+import { EditPatientModal } from "@/app/patient/[id]/EditPatientModal";
 
 export const dynamic = 'force-dynamic';
 
@@ -86,6 +87,16 @@ export default async function PatientsPage({ searchParams }: { searchParams: Pro
             <UserProfileMenu user={currentUser} role={role} securityEnabled={securityEnabled} />
             <PrivacyShield />
             <SecurityAlertBell />
+            <Link href="/appointments">
+              <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
+                <CalendarCheck className="w-4 h-4 text-blue-600" /> Queue
+              </Button>
+            </Link>
+            <Link href="/inventory">
+              <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
+                <Pill className="w-4 h-4 text-emerald-600" /> Pharmacy
+              </Button>
+            </Link>
             <Link href="/ipd">
               <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
                 <Bed className="w-4 h-4 text-purple-600" /> IPD
@@ -176,9 +187,26 @@ export default async function PatientsPage({ searchParams }: { searchParams: Pro
                           </span>
                         </TableCell>
                         <TableCell className="font-semibold text-slate-900">
-                          <Link href={`/patient/${patient.id}`} className="text-blue-600 hover:underline">
-                            {patient.name}
-                          </Link>
+                          <div className="flex flex-col gap-0.5">
+                            <div className="flex items-center gap-1.5">
+                              <Link href={`/patient/${patient.id}`} className="text-blue-600 hover:underline">
+                                {patient.name}
+                              </Link>
+                              {patient.bloodGroup && (
+                                <span className="font-mono text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200 px-1.5 py-0.2 rounded">
+                                  {patient.bloodGroup}
+                                </span>
+                              )}
+                            </div>
+                            {patient.allergies && (
+                              <div className="inline-flex items-center gap-1 text-[11px] font-medium text-rose-700 bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded max-w-fit">
+                                <AlertTriangle className="w-3 h-3 text-rose-600 shrink-0" />
+                                <span className="truncate max-w-[200px]" title={patient.allergies}>
+                                  {patient.allergies}
+                                </span>
+                              </div>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell className="text-slate-700">
                           {patient.age}y / {patient.gender}
@@ -203,15 +231,23 @@ export default async function PatientsPage({ searchParams }: { searchParams: Pro
                           </span>
                         </TableCell>
                         <TableCell className="text-right whitespace-nowrap">
-                          <div className="flex items-center justify-end gap-2">
+                          <div className="flex items-center justify-end gap-1.5">
+                            <EditPatientModal
+                              patient={patient}
+                              triggerButton={
+                                <Button variant="ghost" size="sm" className="h-8 px-2 text-slate-600 hover:text-slate-900 gap-1 text-xs" title="Edit demographics & allergies">
+                                  <Edit className="w-3.5 h-3.5" /> Edit
+                                </Button>
+                              }
+                            />
                             <Link href={`/patient/${patient.id}`}>
-                              <Button variant="outline" size="sm" className="h-8">
+                              <Button variant="outline" size="sm" className="h-8 text-xs">
                                 History
                               </Button>
                             </Link>
                             {(role === 'admin_doctor' || role === 'doctor') && (
                               <Link href={`/prescription/new?patientId=${patient.id}`}>
-                                <Button size="sm" className="h-8 gap-1 shadow-2xs">
+                                <Button size="sm" className="h-8 gap-1 shadow-2xs text-xs">
                                   <PlusCircle className="w-3.5 h-3.5" /> Consult
                                 </Button>
                               </Link>

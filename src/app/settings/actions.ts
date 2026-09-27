@@ -341,3 +341,174 @@ export async function seedDemoData(): Promise<void> {
   revalidatePath("/prescription", "layout");
 }
 
+// ==========================================
+// Google Drive Cloud Backup Actions
+// ==========================================
+
+import {
+  testGoogleDriveConnection,
+  backupDatabaseToGoogleDrive,
+  GoogleDriveBackupResult,
+} from "@/lib/gdrive-backup";
+import { sqlite } from "@/db";
+
+export async function getGoogleDriveConfigAction() {
+  await requireRole(['doctor', 'admin_doctor'], '/settings');
+  try {
+    const row = sqlite
+      .prepare(`
+        SELECT
+          gdrive_backup_enabled as enabled,
+          gdrive_folder_id as folderId,
+          gdrive_client_email as clientEmail,
+          CASE WHEN gdrive_private_key IS NOT NULL AND length(gdrive_private_key) > 20 THEN 1 ELSE 0 END as hasPrivateKey,
+          gdrive_last_backup_at as lastBackupAt,
+          gdrive_last_backup_status as lastBackupStatus,
+          gdrive_last_backup_file_id as lastBackupFileId,
+          gdrive_last_backup_file_name as lastBackupFileName,
+          gdrive_auto_backup_interval as autoBackupInterval
+        FROM clinic_settings
+        WHERE id = 1
+      `)
+      .get() as {
+        enabled?: number;
+        folderId?: string | null;
+        clientEmail?: string | null;
+        hasPrivateKey?: number;
+        lastBackupAt?: number | null;
+        lastBackupStatus?: string | null;
+        lastBackupFileId?: string | null;
+        lastBackupFileName?: string | null;
+        autoBackupInterval?: string | null;
+      } | undefined;
+
+    return {
+      enabled: Boolean(row?.enabled),
+      folderId: row?.folderId || "",
+      clientEmail: row?.clientEmail || "",
+      hasPrivateKey: Boolean(row?.hasPrivateKey),
+      lastBackupAt: row?.lastBackupAt ? new Date(row.lastBackupAt) : null,
+      lastBackupStatus: row?.lastBackupStatus || null,
+      lastBackupFileId: row?.lastBackupFileId || null,
+      lastBackupFileName: row?.lastBackupFileName || null,
+      autoBackupInterval: (row?.autoBackupInterval || "DAILY") as 'DAILY' | 'TWICE_DAILY' | 'MANUAL',
+    };
+  } catch (err) {
+    console.error("Failed to load Google Drive settings:", err);
+    return {
+      enabled: false,
+      folderId: "",
+      clientEmail: "",
+      hasPrivateKey: false,
+      lastBackupAt: null,
+      lastBackupStatus: null,
+      lastBackupFileId: null,
+      lastBackupFileName: null,
+      autoBackupInterval: "DAILY" as const,
+    };
+  }
+}
+
+export async function saveGoogleDriveConfigAction(data: {
+  enabled: boolean;
+  clientEmail: string;
+  privateKey?: string;
+  folderId?: string;
+  encryptionKey?: string;
+  autoBackupInterval?: 'DAILY' | 'TWICE_DAILY' | 'MANUAL';
+}): Promise<{ success: boolean; error?: string }> {
+  const role = await requireRole(['doctor', 'admin_doctor'], '/settings');
+
+  try {
+    const cleanEmail = (data.clientEmail || "").trim();
+    const cleanFolderId = (data.folderId || "").trim();
+    const cleanPrivateKey = (data.privateKey || "").trim();
+    const cleanEncryptionKey = (data.encryptionKey || "").trim();
+    const interval = data.autoBackupInterval || "DAILY";
+
+    // If private key was provided, update it; otherwise preserve existing
+    if (cleanPrivateKey) {
+      sqlite
+        .prepare(`
+          UPDATE clinic_settings
+          SET
+            gdrive_backup_enabled = ?,
+            gdrive_client_email = ?,
+            gdrive_private_key = ?,
+            gdrive_folder_id = ?,
+            gdrive_auto_backup_interval = ?
+            ${cleanEncryptionKey ? ', gdrive_encryption_key = ?' : ''}
+          WHERE id = 1
+        `)
+        .run(
+          ...(cleanEncryptionKey
+            ? [data.enabled ? 1 : 0, cleanEmail, cleanPrivateKey, cleanFolderId, interval, cleanEncryptionKey]
+            : [data.enabled ? 1 : 0, cleanEmail, cleanPrivateKey, cleanFolderId, interval])
+        );
+    } else {
+      sqlite
+        .prepare(`
+          UPDATE clinic_settings
+          SET
+            gdrive_backup_enabled = ?,
+            gdrive_client_email = ?,
+            gdrive_folder_id = ?,
+            gdrive_auto_backup_interval = ?
+            ${cleanEncryptionKey ? ', gdrive_encryption_key = ?' : ''}
+          WHERE id = 1
+        `)
+        .run(
+          ...(cleanEncryptionKey
+            ? [data.enabled ? 1 : 0, cleanEmail, cleanFolderId, interval, cleanEncryptionKey]
+            : [data.enabled ? 1 : 0, cleanEmail, cleanFolderId, interval])
+        );
+    }
+
+    await logAuditEvent({
+      action: 'GOOGLE_DRIVE_CONFIG_UPDATED',
+      actorRole: role.toUpperCase(),
+      details: `Google Drive cloud backup settings updated (Enabled: ${data.enabled}, Target: ${cleanEmail})`,
+      status: 'SUCCESS',
+    });
+
+    revalidatePath("/settings");
+    return { success: true };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { success: false, error: msg };
+  }
+}
+
+export async function testGoogleDriveAction(data: {
+  clientEmail: string;
+  privateKey?: string;
+  folderId?: string;
+}): Promise<{ success: boolean; message: string }> {
+  await requireRole(['doctor', 'admin_doctor'], '/settings');
+
+  let keyToUse = data.privateKey?.trim();
+  if (!keyToUse) {
+    const existing = sqlite
+      .prepare('SELECT gdrive_private_key FROM clinic_settings WHERE id = 1')
+      .get() as { gdrive_private_key?: string } | undefined;
+    keyToUse = existing?.gdrive_private_key || undefined;
+  }
+
+  if (!keyToUse) {
+    return { success: false, message: 'Private key is required to test Google Drive authentication.' };
+  }
+
+  return testGoogleDriveConnection({
+    clientEmail: data.clientEmail.trim(),
+    privateKey: keyToUse,
+    folderId: data.folderId?.trim(),
+  });
+}
+
+export async function triggerGoogleDriveBackupNowAction(): Promise<GoogleDriveBackupResult> {
+  const role = await requireRole(['doctor', 'admin_doctor'], '/settings');
+  const result = await backupDatabaseToGoogleDrive({ actorRole: role.toUpperCase() });
+  revalidatePath("/settings");
+  return result;
+}
+

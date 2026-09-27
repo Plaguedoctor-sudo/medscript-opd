@@ -9,6 +9,9 @@ export const patients = sqliteTable("patients", {
   gender: text("gender").notNull(), // Male, Female, Other
   phone: text("phone"),
   abhaId: text("abha_id"),
+  abhaAddress: text("abha_address"),
+  allergies: text("allergies"),
+  bloodGroup: text("blood_group"),
   createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
 });
 
@@ -17,6 +20,8 @@ export const patientsRelations = relations(patients, ({ many }) => ({
   invoices: many(invoices),
   admissions: many(ipdAdmissions),
   labReports: many(labReports),
+  appointments: many(appointments),
+  consents: many(clinicalConsents),
 }));
 
 export const prescriptions = sqliteTable("prescriptions", {
@@ -84,6 +89,17 @@ export const clinicSettings = sqliteTable("clinic_settings", {
   lockdownTriggeredAt: integer("lockdown_triggered_at", { mode: "timestamp" }),
   deceptionModeActive: integer("deception_mode_active", { mode: "boolean" }).$defaultFn(() => false),
   sessionRevokedBefore: integer("session_revoked_before", { mode: "timestamp" }),
+  // Google Drive Cloud Backup
+  gdriveBackupEnabled: integer("gdrive_backup_enabled", { mode: "boolean" }).$defaultFn(() => false),
+  gdriveFolderId: text("gdrive_folder_id"),
+  gdriveClientEmail: text("gdrive_client_email"),
+  gdrivePrivateKey: text("gdrive_private_key"),
+  gdriveEncryptionKey: text("gdrive_encryption_key"),
+  gdriveLastBackupAt: integer("gdrive_last_backup_at", { mode: "timestamp" }),
+  gdriveLastBackupStatus: text("gdrive_last_backup_status"),
+  gdriveLastBackupFileId: text("gdrive_last_backup_file_id"),
+  gdriveLastBackupFileName: text("gdrive_last_backup_file_name"),
+  gdriveAutoBackupInterval: text("gdrive_auto_backup_interval").default("DAILY"),
 });
 
 export const auditLogs = sqliteTable("audit_logs", {
@@ -176,6 +192,9 @@ export const ipdAdmissionsRelations = relations(ipdAdmissions, ({ one, many }) =
   }),
   rounds: many(ipdRounds),
   labReports: many(labReports),
+  emarRecords: many(emarRecords),
+  consents: many(clinicalConsents),
+  deposits: many(ipdDeposits),
 }));
 
 export const ipdRounds = sqliteTable("ipd_rounds", {
@@ -252,4 +271,158 @@ export const staffUsers = sqliteTable("staff_users", {
   lastLoginAt: integer("last_login_at", { mode: "timestamp" }),
   createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
 });
+
+// Pharmacy & Consumables Inventory
+export const pharmacyInventory = sqliteTable("pharmacy_inventory", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  medicineName: text("medicine_name").notNull(),
+  brandName: text("brand_name"),
+  category: text("category").notNull().default("Tablet"), // Tablet, Capsule, Syrup, Injection, IV Fluid, Ointment, Surgical Consumable
+  batchNo: text("batch_no").notNull(),
+  expiryDate: text("expiry_date").notNull(), // YYYY-MM-DD
+  quantityInStock: integer("quantity_in_stock").notNull().default(0),
+  minThreshold: integer("min_threshold").notNull().default(20),
+  purchaseCost: real("purchase_cost").notNull().default(0),
+  mrp: real("mrp").notNull().default(0),
+  sellingPrice: real("selling_price").notNull().default(0),
+  rackLocation: text("rack_location"), // e.g. "Rack A-2"
+  supplierName: text("supplier_name"),
+  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+});
+
+export const pharmacyTransactions = sqliteTable("pharmacy_transactions", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  inventoryId: integer("inventory_id")
+    .notNull()
+    .references(() => pharmacyInventory.id),
+  type: text("type").notNull(), // 'INWARD' | 'DISPENSED' | 'ADJUSTMENT' | 'EXPIRED'
+  quantity: integer("quantity").notNull(),
+  patientId: integer("patient_id").references(() => patients.id),
+  prescriptionId: integer("prescription_id").references(() => prescriptions.id),
+  admissionId: integer("admission_id").references(() => ipdAdmissions.id),
+  remarks: text("remarks"),
+  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+});
+
+export const pharmacyTransactionsRelations = relations(pharmacyTransactions, ({ one }) => ({
+  inventory: one(pharmacyInventory, {
+    fields: [pharmacyTransactions.inventoryId],
+    references: [pharmacyInventory.id],
+  }),
+  patient: one(patients, {
+    fields: [pharmacyTransactions.patientId],
+    references: [patients.id],
+  }),
+}));
+
+// OPD Appointments & Waiting Room Token Queue
+export const appointments = sqliteTable("appointments", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  tokenNo: integer("token_no").notNull(),
+  appointmentDate: text("appointment_date").notNull(), // YYYY-MM-DD
+  timeSlot: text("time_slot"), // e.g. "10:30 AM"
+  patientId: integer("patient_id")
+    .notNull()
+    .references(() => patients.id),
+  doctorId: integer("doctor_id").references(() => staffUsers.id),
+  doctorName: text("doctor_name"),
+  type: text("type").notNull().default("OPD_CONSULTATION"), // 'OPD_CONSULTATION' | 'FOLLOW_UP' | 'EMERGENCY' | 'VACCINATION'
+  status: text("status").notNull().default("SCHEDULED"), // 'SCHEDULED' | 'WAITING' | 'IN_CONSULTATION' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW'
+  chiefComplaint: text("chief_complaint"),
+  notes: text("notes"),
+  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+});
+
+export const appointmentsRelations = relations(appointments, ({ one }) => ({
+  patient: one(patients, {
+    fields: [appointments.patientId],
+    references: [patients.id],
+  }),
+}));
+
+// Inpatient Nurse eMAR (Electronic Medication Administration Record)
+export const emarRecords = sqliteTable("emar_records", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  admissionId: integer("admission_id")
+    .notNull()
+    .references(() => ipdAdmissions.id),
+  medicationName: text("medication_name").notNull(),
+  dosage: text("dosage").notNull(),
+  route: text("route").default("Oral"), // Oral, IV, IM, SC, Topical, Nebulization
+  scheduledTime: integer("scheduled_time", { mode: "timestamp" }).notNull(),
+  administeredAt: integer("administered_at", { mode: "timestamp" }),
+  status: text("status").notNull().default("PENDING"), // 'PENDING' | 'GIVEN' | 'WITHHELD' | 'REFUSED'
+  nurseName: text("nurse_name"),
+  notes: text("notes"),
+  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+});
+
+export const emarRecordsRelations = relations(emarRecords, ({ one }) => ({
+  admission: one(ipdAdmissions, {
+    fields: [emarRecords.admissionId],
+    references: [ipdAdmissions.id],
+  }),
+}));
+
+// Clinical Consents & Digital Signature Pad
+export const clinicalConsents = sqliteTable("clinical_consents", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  patientId: integer("patient_id")
+    .notNull()
+    .references(() => patients.id),
+  admissionId: integer("admission_id").references(() => ipdAdmissions.id),
+  consentType: text("consent_type").notNull(), // 'GENERAL_ADMISSION' | 'SURGICAL_PROCEDURE' | 'HIGH_RISK' | 'DISCHARGE_LAMA' | 'DATA_SHARING_ABDM'
+  title: text("title").notNull(),
+  content: text("content").notNull(),
+  patientSignature: text("patient_signature"), // Base64 data URL PNG
+  signedByName: text("signed_by_name").notNull(),
+  relationship: text("relationship").notNull().default("Self"), // 'Self' | 'Spouse' | 'Parent' | 'Child' | 'Guardian'
+  witnessName: text("witness_name"),
+  doctorSignature: text("doctor_signature"),
+  signedAt: integer("signed_at", { mode: "timestamp" }),
+  ipAddress: text("ip_address"),
+  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+});
+
+export const clinicalConsentsRelations = relations(clinicalConsents, ({ one }) => ({
+  patient: one(patients, {
+    fields: [clinicalConsents.patientId],
+    references: [patients.id],
+  }),
+  admission: one(ipdAdmissions, {
+    fields: [clinicalConsents.admissionId],
+    references: [ipdAdmissions.id],
+  }),
+}));
+
+// Inpatient Advance Deposits & Ledger
+export const ipdDeposits = sqliteTable("ipd_deposits", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  admissionId: integer("admission_id")
+    .notNull()
+    .references(() => ipdAdmissions.id),
+  patientId: integer("patient_id")
+    .notNull()
+    .references(() => patients.id),
+  receiptNo: text("receipt_no").notNull().unique(),
+  amount: real("amount").notNull().default(0),
+  paymentMethod: text("payment_method").notNull().default("Cash"), // 'Cash' | 'UPI' | 'Card' | 'Bank Transfer'
+  transactionRef: text("transaction_ref"),
+  type: text("type").notNull().default("ADVANCE"), // 'ADVANCE' | 'TOP_UP' | 'REFUND'
+  notes: text("notes"),
+  collectedBy: text("collected_by"),
+  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+});
+
+export const ipdDepositsRelations = relations(ipdDeposits, ({ one }) => ({
+  admission: one(ipdAdmissions, {
+    fields: [ipdDeposits.admissionId],
+    references: [ipdAdmissions.id],
+  }),
+  patient: one(patients, {
+    fields: [ipdDeposits.patientId],
+    references: [patients.id],
+  }),
+}));
 
