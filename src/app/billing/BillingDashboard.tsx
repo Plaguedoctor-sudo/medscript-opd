@@ -7,14 +7,11 @@ import {
   Receipt,
   PlusCircle,
   Search,
-  Filter,
   CreditCard,
   CheckCircle2,
   Clock,
-  AlertCircle,
   Printer,
   Trash2,
-  Eye,
   RefreshCw,
   TrendingUp,
   DollarSign,
@@ -29,8 +26,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from '@/components/ui/toast';
 import { BillingSummary, createInvoiceAction, updateInvoiceStatusAction, deleteInvoiceAction, searchPatientsForBilling } from './actions';
-import { InvoiceItem, InvoiceWithPatient, Patient, InvoiceItemCategory } from '@/types';
+import { InvoiceItem, Patient, InvoiceItemCategory } from '@/types';
 import { formatDate } from '@/lib/utils';
+
+let nextItemIdCounter = 0;
+function getNextItemId(): string {
+  nextItemIdCounter += 1;
+  return `item_${Date.now()}_${nextItemIdCounter}`;
+}
 
 const COMMON_OPD_SERVICES: { description: string; category: InvoiceItemCategory; unitPrice: number }[] = [
   { description: 'OPD Consultation Fee', category: 'Consultation', unitPrice: 300 },
@@ -115,7 +118,7 @@ export function BillingDashboard({
   const handleAddItem = (preset?: { description: string; category: InvoiceItemCategory; unitPrice: number }) => {
     const newItem: InvoiceItem = preset
       ? {
-          id: Math.random().toString(36).substring(7),
+          id: getNextItemId(),
           description: preset.description,
           category: preset.category,
           quantity: 1,
@@ -123,7 +126,7 @@ export function BillingDashboard({
           total: preset.unitPrice,
         }
       : {
-          id: Math.random().toString(36).substring(7),
+          id: getNextItemId(),
           description: '',
           category: 'Procedure',
           quantity: 1,
@@ -133,7 +136,7 @@ export function BillingDashboard({
     setItems((prev) => [...prev, newItem]);
   };
 
-  const handleUpdateItem = (id: string, field: keyof InvoiceItem, value: any) => {
+  const handleUpdateItem = (id: string, field: keyof InvoiceItem, value: string | number) => {
     setItems((prev) =>
       prev.map((item) => {
         if (item.id !== id) return item;
@@ -323,7 +326,7 @@ export function BillingDashboard({
         <Card className="bg-blue-50/50 border-blue-200/60 shadow-2xs">
           <CardHeader className="p-4 pb-2">
             <CardTitle className="text-xs font-semibold text-blue-700 uppercase tracking-wider flex items-center justify-between">
-              Today's OPD Revenue
+              Today&apos;s OPD Revenue
               <DollarSign className="w-4 h-4 text-blue-600" />
             </CardTitle>
           </CardHeader>
@@ -331,7 +334,7 @@ export function BillingDashboard({
             <div className="text-2xl font-extrabold text-blue-800">
               ₹{summary.todayBilled.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
-            <p className="text-[11px] text-blue-600 mt-1">Generated during today's clinic hours</p>
+            <p className="text-[11px] text-blue-600 mt-1">Generated during today&apos;s clinic hours</p>
           </CardContent>
         </Card>
       </div>
@@ -623,7 +626,7 @@ export function BillingDashboard({
                   </button>
                 </div>
                 <div className="p-3 space-y-2">
-                  {items.map((item, idx) => (
+                  {items.map((item) => (
                     <div key={item.id} className="grid grid-cols-12 gap-2 items-center">
                       <div className="col-span-5">
                         <Input

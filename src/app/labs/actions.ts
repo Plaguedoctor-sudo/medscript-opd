@@ -281,7 +281,7 @@ export async function createLabReport(input: CreateLabReportInput): Promise<{
 
     await logAuditEvent({
       action: isCompleted ? 'LAB_REPORT_COMPLETED' : 'LAB_REPORT_CREATED',
-      actorRole: role === 'doctor' ? 'DOCTOR' : 'RECEPTIONIST',
+      actorRole: role.toUpperCase(),
       details: `Lab Report ${reportNo} (${input.testName}) created for Patient ID #${input.patientId}`,
       status: 'SUCCESS',
     });
@@ -330,7 +330,7 @@ export async function updateLabReport(
 
     await logAuditEvent({
       action: data.status === 'COMPLETED' ? 'LAB_REPORT_COMPLETED' : 'LAB_REPORT_UPDATED',
-      actorRole: role === 'doctor' ? 'DOCTOR' : 'RECEPTIONIST',
+      actorRole: role.toUpperCase(),
       details: `Lab Report #${id} updated (Status: ${data.status || 'UNCHANGED'})`,
       status: 'SUCCESS',
     });
@@ -355,7 +355,7 @@ export async function deleteLabReport(id: number): Promise<{ success: boolean; e
 
     await logAuditEvent({
       action: 'LAB_REPORT_DELETED',
-      actorRole: role === 'doctor' ? 'DOCTOR' : 'RECEPTIONIST',
+      actorRole: role.toUpperCase(),
       details: `Lab Report #${id} deleted`,
       status: 'WARNING',
     });
@@ -376,7 +376,7 @@ export async function logLabReportAction(id: number, channel: 'PRINT' | 'WHATSAP
   const role = await getCurrentUserRole();
   await logAuditEvent({
     action: channel === 'PRINT' ? 'LAB_REPORT_PRINTED' : 'LAB_REPORT_DISPATCHED',
-    actorRole: role === 'doctor' ? 'DOCTOR' : 'RECEPTIONIST',
+    actorRole: role.toUpperCase(),
     details: `Lab Report #${id} ${channel === 'PRINT' ? 'printed' : 'dispatched via WhatsApp'}`,
     status: 'SUCCESS',
   });

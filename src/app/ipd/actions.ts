@@ -324,7 +324,7 @@ export async function createIpdAdmission(input: CreateIpdAdmissionInput): Promis
 
     await logAuditEvent({
       action: 'IPD_ADMISSION_CREATED',
-      actorRole: role === 'doctor' ? 'DOCTOR' : 'RECEPTIONIST',
+      actorRole: role.toUpperCase(),
       details: `IPD Admission ${admissionNo} created for Patient ID #${input.patientId} in ${input.ward} (${input.bedNo})`,
       status: 'SUCCESS',
     });
@@ -370,7 +370,7 @@ export async function dischargeIpdPatient(
 
     await logAuditEvent({
       action: 'IPD_PATIENT_DISCHARGED',
-      actorRole: role === 'doctor' ? 'DOCTOR' : 'RECEPTIONIST',
+      actorRole: role.toUpperCase(),
       details: `IPD Admission #${admissionId} discharged (Condition: ${data.dischargeCondition || 'Stable'})`,
       status: 'SUCCESS',
     });
@@ -405,7 +405,7 @@ export async function addIpdRound(
   }
 
   try {
-    const author = data.doctorOrStaff?.trim() || (userRole === 'doctor' ? settings?.doctorName || 'Dr. On Duty' : 'Staff Nurse');
+    const author = data.doctorOrStaff?.trim() || ((userRole === 'admin_doctor' || userRole === 'doctor') ? settings?.doctorName || 'Dr. On Duty' : 'Staff Nurse');
 
     const [inserted] = await db
       .insert(ipdRounds)
@@ -413,7 +413,7 @@ export async function addIpdRound(
         admissionId,
         roundDate: new Date(),
         doctorOrStaff: author,
-        role: data.role || (userRole === 'doctor' ? 'DOCTOR' : 'NURSE'),
+        role: data.role || ((userRole === 'admin_doctor' || userRole === 'doctor') ? 'DOCTOR' : 'NURSE'),
         notes: data.notes.trim(),
         treatmentOrders: data.treatmentOrders?.trim() || null,
         vitals: data.vitals ? JSON.stringify(data.vitals) : null,
@@ -423,7 +423,7 @@ export async function addIpdRound(
 
     await logAuditEvent({
       action: 'IPD_ROUND_ADDED',
-      actorRole: userRole === 'doctor' ? 'DOCTOR' : 'RECEPTIONIST',
+      actorRole: userRole.toUpperCase(),
       details: `Clinical round added to IPD Admission #${admissionId} by ${author}`,
       status: 'SUCCESS',
     });
@@ -448,7 +448,7 @@ export async function deleteIpdRound(roundId: number): Promise<{ success: boolea
 
     await logAuditEvent({
       action: 'IPD_ROUND_DELETED',
-      actorRole: role === 'doctor' ? 'DOCTOR' : 'RECEPTIONIST',
+      actorRole: role.toUpperCase(),
       details: `Clinical round #${roundId} deleted`,
       status: 'WARNING',
     });

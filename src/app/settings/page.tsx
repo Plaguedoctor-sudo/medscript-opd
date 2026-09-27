@@ -3,24 +3,28 @@ import SettingsForm from "./SettingsForm";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Settings, BarChart3, Bed, FlaskConical } from "lucide-react";
-import { requireRole, getSecurityConfig, getCurrentUserRole } from "@/lib/auth";
+import { requireRole, getSecurityConfig, getCurrentUserRole, getCurrentUser } from "@/lib/auth";
 import { getLocalBackupSnapshots } from "./backup-actions";
 import { LockDeskButton } from "@/components/LockDeskButton";
 import { getRecentAuditLogs } from "@/lib/audit";
 import { PrivacyShield } from "@/components/PrivacyShield";
-import { UserRoleBadge } from "@/components/UserRoleBadge";
+import { UserProfileMenu } from "@/components/UserProfileMenu";
 import { SecurityAlertBell } from "@/components/SecurityAlertBell";
+import { StaffManagementSection } from "./StaffManagementSection";
+import { getStaffUsers } from "@/app/login/actions";
 
 export const dynamic = 'force-dynamic';
 
 export default async function SettingsPage() {
-  await requireRole(['doctor'], '/settings');
-  const [settings, securityConfig, backupSnapshots, recentAuditLogs, role] = await Promise.all([
+  await requireRole(['admin_doctor', 'doctor'], '/settings');
+  const [settings, securityConfig, backupSnapshots, recentAuditLogs, role, currentUser, staffUsers] = await Promise.all([
     getSettings(),
     getSecurityConfig(),
     getLocalBackupSnapshots(),
     getRecentAuditLogs(30),
     getCurrentUserRole(),
+    getCurrentUser(),
+    getStaffUsers(),
   ]);
 
   return (
@@ -41,7 +45,11 @@ export default async function SettingsPage() {
             </div>
           </div>
           <div className="flex items-center gap-2.5">
-            <UserRoleBadge role={role} securityEnabled={securityConfig.securityEnabled} />
+            <UserProfileMenu
+              user={currentUser}
+              role={role}
+              securityEnabled={securityConfig.securityEnabled}
+            />
             <PrivacyShield />
             <SecurityAlertBell />
             <Link href="/ipd">
@@ -64,7 +72,11 @@ export default async function SettingsPage() {
         </div>
       </nav>
 
-      <main className="container mx-auto px-4 py-8">
+      <main className="container mx-auto px-4 py-8 space-y-8">
+        <StaffManagementSection
+          initialStaffUsers={staffUsers}
+          currentRole={role}
+        />
         <SettingsForm
           settings={settings}
           securityConfig={securityConfig}

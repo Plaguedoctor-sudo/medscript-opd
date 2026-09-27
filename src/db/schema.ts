@@ -236,3 +236,20 @@ export const labReportsRelations = relations(labReports, ({ one }) => ({
   }),
 }));
 
+export const staffUsers = sqliteTable("staff_users", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  loginId: text("login_id").notNull().unique(), // e.g. 'admin', 'doctor', 'nurse', 'receptionist', 'labtech'
+  passwordHash: text("password_hash").notNull(), // scrypt memory-hard hash
+  name: text("name").notNull(), // Full Name e.g. "Dr. Admin (CMO)"
+  role: text("role").notNull().default("DOCTOR"), // 'ADMIN_DOCTOR' | 'DOCTOR' | 'NURSE' | 'RECEPTIONIST' | 'LAB_TECHNICIAN'
+  subRole: text("sub_role"), // e.g. "Chief Medical Officer", "Consulting Physician", "Inpatient Staff Nurse"
+  department: text("department"), // e.g. "Administration", "General Medicine", "IPD Ward", "Pathology"
+  phone: text("phone"),
+  email: text("email"),
+  qualifications: text("qualifications"), // e.g. "MBBS, MD", "B.Sc Nursing", "DMLT"
+  regNumber: text("reg_number"), // License / Council Reg No.
+  isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
+  lastLoginAt: integer("last_login_at", { mode: "timestamp" }),
+  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+});
+

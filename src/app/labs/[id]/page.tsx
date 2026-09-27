@@ -1,12 +1,11 @@
 import { notFound } from "next/navigation";
-import { requireAuth, getCurrentUserRole, getSecurityConfig } from "@/lib/auth";
+import { requireAuth, getCurrentUserRole, getSecurityConfig, getCurrentUser } from "@/lib/auth";
 import { getLabReportById } from "../actions";
 import { LabReportView } from "./LabReportView";
 import Link from "next/link";
 import { FlaskConical, Users, Settings, Receipt, ChevronLeft, Bed } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { UserRoleBadge } from "@/components/UserRoleBadge";
-import { LockDeskButton } from "@/components/LockDeskButton";
+import { UserProfileMenu } from "@/components/UserProfileMenu";
 import { PrivacyShield } from "@/components/PrivacyShield";
 import { SecurityAlertBell } from "@/components/SecurityAlertBell";
 
@@ -22,9 +21,10 @@ export default async function LabReportPage({
   const reportId = parseInt(id, 10);
   if (isNaN(reportId)) notFound();
 
-  const [{ securityEnabled }, role, data] = await Promise.all([
+  const [{ securityEnabled }, role, currentUser, data] = await Promise.all([
     getSecurityConfig(),
     getCurrentUserRole(),
+    getCurrentUser(),
     getLabReportById(reportId),
   ]);
 
@@ -60,7 +60,7 @@ export default async function LabReportPage({
           </div>
 
           <div className="flex items-center gap-2.5">
-            <UserRoleBadge role={role} securityEnabled={securityEnabled} />
+            <UserProfileMenu user={currentUser} role={role} securityEnabled={securityEnabled} />
             <PrivacyShield />
             <SecurityAlertBell />
             <Link href="/patients">
@@ -83,7 +83,6 @@ export default async function LabReportPage({
                 <Settings className="w-4 h-4" /> Settings
               </Button>
             </Link>
-            {securityEnabled && <LockDeskButton />}
           </div>
         </div>
       </nav>

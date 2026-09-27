@@ -12,7 +12,7 @@ import {
   toggleDeceptionMode,
   SecurityAlertStats,
 } from "@/lib/security-engine";
-import { getCurrentUserRole, requireAuth } from "@/lib/auth";
+import { getCurrentUserRole, getCurrentUser, requireAuth } from "@/lib/auth";
 import { logAuditEvent } from "@/lib/audit";
 
 export async function getSecurityAlertsAction(): Promise<SecurityAlertStats> {
@@ -35,17 +35,20 @@ export async function acknowledgeAlertAction(
   id: number
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const role = await getCurrentUserRole();
+    const [role, currentUser] = await Promise.all([
+      getCurrentUserRole(),
+      getCurrentUser(),
+    ]);
     if (!role) {
       return { success: false, error: "Unauthorized: Active session required." };
     }
-    const actorName = role === "doctor" ? "Doctor" : "Authorized Staff";
+    const actorName = currentUser?.name || (role === "admin_doctor" ? "Admin Doctor" : role === "doctor" ? "Doctor" : "Authorized Staff");
 
     const ok = await acknowledgeAlert(id, actorName);
     if (ok) {
       await logAuditEvent({
         action: "SECURITY_ALERT_ACKNOWLEDGED",
-        actorRole: role === "doctor" ? "DOCTOR" : "RECEPTIONIST",
+        actorRole: role.toUpperCase(),
         details: `Alert #${id} acknowledged and reviewed by ${actorName}`,
         status: "SUCCESS",
       });
@@ -64,17 +67,20 @@ export async function acknowledgeAllAlertsAction(): Promise<{
   error?: string;
 }> {
   try {
-    const role = await getCurrentUserRole();
+    const [role, currentUser] = await Promise.all([
+      getCurrentUserRole(),
+      getCurrentUser(),
+    ]);
     if (!role) {
       return { success: false, error: "Unauthorized: Active session required." };
     }
-    const actorName = role === "doctor" ? "Doctor" : "Authorized Staff";
+    const actorName = currentUser?.name || (role === "admin_doctor" ? "Admin Doctor" : role === "doctor" ? "Doctor" : "Authorized Staff");
 
     const ok = await acknowledgeAllAlerts(actorName);
     if (ok) {
       await logAuditEvent({
         action: "SECURITY_ALERT_ACKNOWLEDGED",
-        actorRole: role === "doctor" ? "DOCTOR" : "RECEPTIONIST",
+        actorRole: role.toUpperCase(),
         details: `All active security alerts acknowledged and reviewed by ${actorName}`,
         status: "SUCCESS",
       });

@@ -8,10 +8,10 @@ import Link from "next/link";
 import { Users, PlusCircle, ArrowLeft, Phone, Fingerprint, BarChart3, FileSpreadsheet, Receipt, Bed, FlaskConical } from "lucide-react";
 import { DashboardSearch } from "@/components/DashboardSearch";
 import { Patient } from "@/types";
-import { requireAuth, getSecurityConfig, getCurrentUserRole } from "@/lib/auth";
+import { requireAuth, getSecurityConfig, getCurrentUserRole, getCurrentUser } from "@/lib/auth";
 import { LockDeskButton } from "@/components/LockDeskButton";
 import { PrivacyShield } from "@/components/PrivacyShield";
-import { UserRoleBadge } from "@/components/UserRoleBadge";
+import { UserProfileMenu } from "@/components/UserProfileMenu";
 import { MaskedIdentifier } from "@/components/MaskedIdentifier";
 import { SecurityAlertBell } from "@/components/SecurityAlertBell";
 
@@ -19,9 +19,10 @@ export const dynamic = 'force-dynamic';
 
 export default async function PatientsPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   await requireAuth('/patients');
-  const [{ securityEnabled }, role] = await Promise.all([
+  const [{ securityEnabled }, role, currentUser] = await Promise.all([
     getSecurityConfig(),
     getCurrentUserRole(),
+    getCurrentUser(),
   ]);
   const query = (await searchParams)?.q;
   const clean = query ? query.trim() : "";
@@ -82,7 +83,7 @@ export default async function PatientsPage({ searchParams }: { searchParams: Pro
             </div>
           </div>
           <div className="flex items-center gap-2.5">
-            <UserRoleBadge role={role} securityEnabled={securityEnabled} />
+            <UserProfileMenu user={currentUser} role={role} securityEnabled={securityEnabled} />
             <PrivacyShield />
             <SecurityAlertBell />
             <Link href="/ipd">
@@ -105,7 +106,7 @@ export default async function PatientsPage({ searchParams }: { searchParams: Pro
                 <BarChart3 className="w-4 h-4 text-blue-600" /> Reports & Export
               </Button>
             </Link>
-            {role === 'doctor' && (
+            {(role === 'admin_doctor' || role === 'doctor') && (
               <Link href="/prescription/new">
                 <Button size="sm" className="gap-1.5 text-xs shadow-xs">
                   <PlusCircle className="w-4 h-4" /> New Consultation
@@ -208,7 +209,7 @@ export default async function PatientsPage({ searchParams }: { searchParams: Pro
                                 History
                               </Button>
                             </Link>
-                            {role === 'doctor' && (
+                            {(role === 'admin_doctor' || role === 'doctor') && (
                               <Link href={`/prescription/new?patientId=${patient.id}`}>
                                 <Button size="sm" className="h-8 gap-1 shadow-2xs">
                                   <PlusCircle className="w-3.5 h-3.5" /> Consult

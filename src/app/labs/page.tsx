@@ -1,12 +1,12 @@
 import { db } from "@/db";
-import { requireAuth, getCurrentUserRole, getSecurityConfig } from "@/lib/auth";
+import { requireAuth, getCurrentUserRole, getSecurityConfig, getCurrentUser } from "@/lib/auth";
 import { getLabReports } from "./actions";
 import { LabDashboard } from "./LabDashboard";
 import { getSecurityAlerts } from "@/lib/security-engine";
 import Link from "next/link";
 import { FlaskConical, Users, BarChart3, Settings, Receipt, ChevronLeft, Bed } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { UserRoleBadge } from "@/components/UserRoleBadge";
+import { UserProfileMenu } from "@/components/UserProfileMenu";
 import { SecurityAlertBell } from "@/components/SecurityAlertBell";
 import { LockDeskButton } from "@/components/LockDeskButton";
 import { PrivacyShield } from "@/components/PrivacyShield";
@@ -20,9 +20,10 @@ export default async function LabsPage({
   searchParams: Promise<{ q?: string; status?: string; category?: string }>;
 }) {
   await requireAuth("/labs");
-  const [{ securityEnabled }, role, resolvedParams, securityAlertsData] = await Promise.all([
+  const [{ securityEnabled }, role, currentUser, resolvedParams, securityAlertsData] = await Promise.all([
     getSecurityConfig(),
     getCurrentUserRole(),
+    getCurrentUser(),
     searchParams,
     getSecurityAlerts({ unacknowledgedOnly: false, limit: 30 }),
   ]);
@@ -65,7 +66,7 @@ export default async function LabsPage({
           </div>
 
           <div className="flex items-center gap-2.5">
-            <UserRoleBadge role={role} securityEnabled={securityEnabled} />
+            <UserProfileMenu user={currentUser} role={role} securityEnabled={securityEnabled} />
             <PrivacyShield />
             <SecurityAlertBell initialStats={securityAlertsData} />
             <Link href="/patients">

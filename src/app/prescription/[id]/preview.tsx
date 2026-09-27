@@ -27,7 +27,7 @@ import {
 } from 'lucide-react';
 import { deletePrescription } from '@/app/prescription/new/actions';
 import { toast } from '@/components/ui/toast';
-import { ClinicSettings, SafeClinicSettings, Patient, Prescription, Medication } from '@/types';
+import { ClinicSettings, SafeClinicSettings, Patient, Prescription, Medication, UserRole } from '@/types';
 import { formatDate } from '@/lib/utils';
 import { DigitalRxSeal } from '@/components/DigitalRxSeal';
 import { logClinicalAuditAction } from '@/app/login/actions';
@@ -40,7 +40,7 @@ interface PrescriptionPreviewProps {
   patient: Patient;
   settings: SafeClinicSettings | ClinicSettings;
   isDefaultSettings?: boolean;
-  userRole?: 'doctor' | 'receptionist';
+  userRole?: UserRole;
   autoPrint?: boolean;
   autoSend?: 'whatsapp' | 'sms' | null;
 }
@@ -329,7 +329,7 @@ export default function PrescriptionPreview({
           </Link>
 
           {/* Clinical Controls */}
-          {userRole !== 'receptionist' ? (
+          {(userRole === 'admin_doctor' || userRole === 'doctor') ? (
             <>
               <Link href={`/prescription/${prescription.id}/edit`}>
                 <Button variant="outline" size="sm" className="gap-1.5">

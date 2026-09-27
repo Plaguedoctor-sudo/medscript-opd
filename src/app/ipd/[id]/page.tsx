@@ -1,12 +1,11 @@
 import { notFound } from "next/navigation";
-import { requireAuth, getCurrentUserRole, getSecurityConfig } from "@/lib/auth";
+import { requireAuth, getCurrentUserRole, getSecurityConfig, getCurrentUser } from "@/lib/auth";
 import { getIpdAdmissionById } from "../actions";
 import { IpdCaseSheet } from "./IpdCaseSheet";
 import Link from "next/link";
 import { Bed, Users, Settings, Receipt, ChevronLeft, FlaskConical } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { UserRoleBadge } from "@/components/UserRoleBadge";
-import { LockDeskButton } from "@/components/LockDeskButton";
+import { UserProfileMenu } from "@/components/UserProfileMenu";
 import { PrivacyShield } from "@/components/PrivacyShield";
 import { SecurityAlertBell } from "@/components/SecurityAlertBell";
 
@@ -22,9 +21,10 @@ export default async function IpdAdmissionPage({
   const admissionId = parseInt(id, 10);
   if (isNaN(admissionId)) notFound();
 
-  const [{ securityEnabled }, role, data] = await Promise.all([
+  const [{ securityEnabled }, role, currentUser, data] = await Promise.all([
     getSecurityConfig(),
     getCurrentUserRole(),
+    getCurrentUser(),
     getIpdAdmissionById(admissionId),
   ]);
 
@@ -60,7 +60,7 @@ export default async function IpdAdmissionPage({
           </div>
 
           <div className="flex items-center gap-2.5">
-            <UserRoleBadge role={role} securityEnabled={securityEnabled} />
+            <UserProfileMenu user={currentUser} role={role} securityEnabled={securityEnabled} />
             <PrivacyShield />
             <SecurityAlertBell />
             <Link href="/patients">
@@ -83,7 +83,6 @@ export default async function IpdAdmissionPage({
                 <Settings className="w-4 h-4" /> Settings
               </Button>
             </Link>
-            {securityEnabled && <LockDeskButton />}
           </div>
         </div>
       </nav>

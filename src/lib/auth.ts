@@ -5,10 +5,16 @@ import { eq } from 'drizzle-orm';
 import { redirect } from 'next/navigation';
 import crypto from 'crypto';
 
+import { SafeStaffUser } from '@/types';
+
 export const SESSION_COOKIE_NAME = 'medscript_session';
 const SESSION_DURATION_MS = 24 * 60 * 60 * 1000; // 24 hours
 
-export type UserRole = 'doctor' | 'receptionist';
+export type UserRole = 'admin_doctor' | 'doctor' | 'nurse' | 'receptionist' | 'lab_technician';
+
+export function isValidUserRole(role: string): role is UserRole {
+  return ['admin_doctor', 'doctor', 'nurse', 'receptionist', 'lab_technician'].includes(role);
+}
 
 let cachedSessionSecret: string | null = null;
 
@@ -129,17 +135,18 @@ export function verifyPinHash(inputPin: string, storedHash: string): boolean {
 }
 
 /**
- * Creates a cryptographically signed session token encoding the user role
- * Format: `${timestamp}.${role}.${signature}`
+ * Creates a cryptographically signed session token encoding the user role and user ID
+ * Format: `${timestamp}.${role}.${userId}.${signature}`
  */
-export function createSessionToken(role: UserRole = 'doctor'): string {
+export function createSessionToken(role: UserRole = 'doctor', userId?: number): string {
   const secret = getSessionSecret();
   const timestamp = Date.now().toString();
+  const uId = userId ? userId.toString() : '0';
   const signature = crypto
     .createHmac('sha256', secret)
-    .update(`session:${timestamp}:${role}`)
+    .update(`session:${timestamp}:${role}:${uId}`)
     .digest('hex');
-  return `${timestamp}.${role}.${signature}`;
+  return `${timestamp}.${role}.${uId}.${signature}`;
 }
 
 /**
@@ -154,18 +161,59 @@ export function revokeAllSessions(): void {
   }
 }
 
+export interface ParsedSessionToken {
+  valid: boolean;
+  role: UserRole;
+  userId?: number;
+}
+
 /**
  * Parses and verifies the authenticity and revocation status of a session token
  */
-export function parseSessionToken(token: string | undefined | null): { valid: boolean; role: UserRole } {
+export function parseSessionToken(token: string | undefined | null): ParsedSessionToken {
   if (!token || typeof token !== 'string') return { valid: false, role: 'receptionist' };
   const parts = token.split('.');
   const secret = getSessionSecret();
 
+  // Modern Format: timestamp.role.userId.signature
+  if (parts.length === 4) {
+    const [timestampStr, roleStr, userIdStr, signature] = parts;
+    const role: UserRole = isValidUserRole(roleStr) ? roleStr : 'doctor';
+    const expectedSignature = crypto
+      .createHmac('sha256', secret)
+      .update(`session:${timestampStr}:${roleStr}:${userIdStr}`)
+      .digest('hex');
+
+    if (!safeCompare(signature, expectedSignature)) {
+      return { valid: false, role: 'receptionist' };
+    }
+
+    const timestamp = parseInt(timestampStr, 10);
+    const userId = parseInt(userIdStr, 10);
+    if (isNaN(timestamp)) return { valid: false, role: 'receptionist' };
+
+    const age = Date.now() - timestamp;
+    if (age < 0 || age > SESSION_DURATION_MS) return { valid: false, role: 'receptionist' };
+
+    // Check server-side revocation timestamp
+    try {
+      const row = sqlite
+        .prepare('SELECT session_revoked_before FROM clinic_settings WHERE id = 1')
+        .get() as { session_revoked_before?: number | null } | undefined;
+      if (row && row.session_revoked_before && timestamp < row.session_revoked_before) {
+        return { valid: false, role: 'receptionist' };
+      }
+    } catch {
+      // Ignore if column not present yet
+    }
+
+    return { valid: true, role, userId: isNaN(userId) || userId === 0 ? undefined : userId };
+  }
+
   // Format: timestamp.role.signature
   if (parts.length === 3) {
     const [timestampStr, roleStr, signature] = parts;
-    const role: UserRole = roleStr === 'receptionist' ? 'receptionist' : 'doctor';
+    const role: UserRole = isValidUserRole(roleStr) ? roleStr : 'doctor';
     const expectedSignature = crypto
       .createHmac('sha256', secret)
       .update(`session:${timestampStr}:${role}`)
@@ -295,9 +343,76 @@ export async function getSecurityConfig(): Promise<{
   }
 }
 
+export async function getCurrentUser(): Promise<SafeStaffUser | null> {
+  const cookieStore = await cookies();
+  const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
+  const parsed = parseSessionToken(token);
+
+  if (!parsed.valid) {
+    const { securityEnabled } = await getSecurityConfig();
+    if (!securityEnabled) {
+      try {
+        const defaultAdmin = sqlite
+          .prepare(
+            'SELECT id, login_id as loginId, name, role, sub_role as subRole, department, phone, email, qualifications, reg_number as regNumber, is_active as isActive, created_at as createdAt FROM staff_users WHERE role = ? LIMIT 1'
+          )
+          .get('admin_doctor') as SafeStaffUser | undefined;
+        return defaultAdmin || {
+          id: 1,
+          loginId: 'admin',
+          name: 'Dr. Admin (CMO)',
+          role: 'admin_doctor',
+          subRole: 'Chief Medical Officer & Hospital Admin',
+          department: 'Administration & OPD',
+          isActive: true,
+        };
+      } catch {
+        return {
+          id: 1,
+          loginId: 'admin',
+          name: 'Dr. Admin (CMO)',
+          role: 'admin_doctor',
+          subRole: 'Chief Medical Officer & Hospital Admin',
+          department: 'Administration & OPD',
+          isActive: true,
+        };
+      }
+    }
+    return null;
+  }
+
+  // Look up user by ID from session
+  if (parsed.userId && parsed.userId > 0) {
+    try {
+      const user = sqlite
+        .prepare(
+          'SELECT id, login_id as loginId, name, role, sub_role as subRole, department, phone, email, qualifications, reg_number as regNumber, is_active as isActive, created_at as createdAt FROM staff_users WHERE id = ?'
+        )
+        .get(parsed.userId) as SafeStaffUser | undefined;
+      if (user && Boolean(user.isActive)) {
+        return user;
+      }
+    } catch {
+      // Fall through to role lookup
+    }
+  }
+
+  // Fallback: look up first active user by role
+  try {
+    const userByRole = sqlite
+      .prepare(
+        'SELECT id, login_id as loginId, name, role, sub_role as subRole, department, phone, email, qualifications, reg_number as regNumber, is_active as isActive, created_at as createdAt FROM staff_users WHERE role = ? AND is_active = 1 LIMIT 1'
+      )
+      .get(parsed.role) as SafeStaffUser | undefined;
+    if (userByRole) return userByRole;
+  } catch {}
+
+  return null;
+}
+
 export async function getCurrentUserRole(): Promise<UserRole> {
   const { securityEnabled } = await getSecurityConfig();
-  if (!securityEnabled) return 'doctor'; // If security disabled, all users have full clinical access
+  if (!securityEnabled) return 'admin_doctor'; // If security disabled, sovereign local doctor has full authority
 
   const cookieStore = await cookies();
   const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
@@ -322,19 +437,29 @@ export async function requireAuth(redirectPath = '/'): Promise<void> {
 }
 
 /**
- * Enforces role-based access control. If the current user doesn't have an allowed role,
- * redirects to home or unauthorized page.
+ * Enforces role-based access control.
+ * Admin Doctor has full authorities across the entire hospital system.
  */
-export async function requireRole(allowedRoles: UserRole[] = ['doctor'], redirectPath = '/'): Promise<UserRole> {
+export async function requireRole(allowedRoles: UserRole[] = ['doctor', 'admin_doctor'], redirectPath = '/'): Promise<UserRole> {
   await requireAuth(redirectPath);
   const role = await getCurrentUserRole();
 
-  if (!allowedRoles.includes(role)) {
-    // If receptionist tries to access a doctor-only clinical route, redirect to home
-    redirect('/?unauthorized=clinical_doctor_required');
+  // Admin Doctor has full unrestricted authority
+  if (role === 'admin_doctor') {
+    return role;
   }
 
-  return role;
+  // Exact role match
+  if (allowedRoles.includes(role)) {
+    return role;
+  }
+
+  // If 'doctor' is allowed and role is doctor
+  if (allowedRoles.includes('doctor') && role === 'doctor') {
+    return role;
+  }
+
+  redirect('/?unauthorized=access_denied_role_' + role);
 }
 
 export async function isAuthenticated(): Promise<boolean> {
@@ -344,4 +469,25 @@ export async function isAuthenticated(): Promise<boolean> {
   const cookieStore = await cookies();
   const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
   return verifySessionToken(token);
+}
+
+// Role Authority Helpers
+export function isAdminDoctor(role: UserRole): boolean {
+  return role === 'admin_doctor';
+}
+
+export function isDoctor(role: UserRole): boolean {
+  return role === 'admin_doctor' || role === 'doctor';
+}
+
+export function isNurse(role: UserRole): boolean {
+  return role === 'admin_doctor' || role === 'nurse';
+}
+
+export function isReceptionist(role: UserRole): boolean {
+  return role === 'admin_doctor' || role === 'receptionist';
+}
+
+export function isLabTech(role: UserRole): boolean {
+  return role === 'admin_doctor' || role === 'lab_technician';
 }

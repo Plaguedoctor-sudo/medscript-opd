@@ -1,14 +1,14 @@
 import { db } from '@/db';
 import { patients, prescriptions } from '@/db/schema';
 import { eq } from 'drizzle-orm';
-import { requireAuth, getCurrentUserRole, getSecurityConfig } from '@/lib/auth';
+import { requireAuth, getCurrentUserRole, getSecurityConfig, getCurrentUser } from '@/lib/auth';
 import { getBillingSummary } from './actions';
 import { BillingDashboard } from './BillingDashboard';
 import { getSecurityAlerts } from '@/lib/security-engine';
 import Link from 'next/link';
 import { FileText, Users, BarChart3, Settings, Receipt, ChevronLeft, Bed, FlaskConical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { UserRoleBadge } from '@/components/UserRoleBadge';
+import { UserProfileMenu } from '@/components/UserProfileMenu';
 import { SecurityAlertBell } from '@/components/SecurityAlertBell';
 import { LockDeskButton } from '@/components/LockDeskButton';
 import { PrivacyShield } from '@/components/PrivacyShield';
@@ -22,9 +22,10 @@ export default async function BillingPage({
   searchParams: Promise<{ patientId?: string; prescriptionId?: string; q?: string; status?: string }>;
 }) {
   await requireAuth('/billing');
-  const [{ securityEnabled }, role, resolvedParams, securityAlertsData] = await Promise.all([
+  const [{ securityEnabled }, role, currentUser, resolvedParams, securityAlertsData] = await Promise.all([
     getSecurityConfig(),
     getCurrentUserRole(),
+    getCurrentUser(),
     searchParams,
     getSecurityAlerts({ unacknowledgedOnly: false, limit: 30 }),
   ]);
@@ -79,7 +80,7 @@ export default async function BillingPage({
           </div>
 
           <div className="flex items-center gap-2.5">
-            <UserRoleBadge role={role} securityEnabled={securityEnabled} />
+            <UserProfileMenu user={currentUser} role={role} securityEnabled={securityEnabled} />
             <PrivacyShield />
             <SecurityAlertBell initialStats={securityAlertsData} />
             <Link href="/patients">

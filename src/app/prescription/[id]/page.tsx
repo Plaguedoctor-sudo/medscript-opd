@@ -38,7 +38,7 @@ export default async function PrescriptionPage({
   // Log clinical audit event for record viewing
   await logAuditEvent({
     action: 'PRESCRIPTION_VIEWED',
-    actorRole: role === 'doctor' ? 'DOCTOR' : 'RECEPTIONIST',
+    actorRole: role.toUpperCase(),
     details: `Prescription #${prescriptionId} viewed for patient ${patient.name} (Patient ID: ${patient.id})`,
     status: 'SUCCESS',
   });

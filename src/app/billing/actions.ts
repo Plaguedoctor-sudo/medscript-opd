@@ -211,7 +211,7 @@ export async function createInvoiceAction(data: {
 
     await logAuditEvent({
       action: 'INVOICE_CREATED',
-      actorRole: role === 'doctor' ? 'DOCTOR' : 'RECEPTIONIST',
+      actorRole: role.toUpperCase(),
       details: `Generated OPD Invoice ${invoiceNo} for ${patientExists.name} (Amount: ₹${totalAmount.toFixed(2)}, Status: ${data.paymentStatus})`,
       status: 'SUCCESS',
     });
@@ -344,7 +344,7 @@ export async function updateInvoiceStatusAction(
 
     await logAuditEvent({
       action: 'INVOICE_UPDATED',
-      actorRole: role === 'doctor' ? 'DOCTOR' : 'RECEPTIONIST',
+      actorRole: role.toUpperCase(),
       details: `Updated Invoice ${inv.invoiceNo} status to ${status} (${paymentMethod || inv.paymentMethod})`,
       status: 'SUCCESS',
     });

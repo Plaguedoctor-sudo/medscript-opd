@@ -30,11 +30,11 @@ import { PatientVitalsAnalytics } from "./PatientVitalsAnalytics";
 import { AdmitPatientModal } from "@/app/ipd/AdmitPatientModal";
 import { LabEntryModal } from "@/app/labs/LabEntryModal";
 import { formatDate } from "@/lib/utils";
-import { requireAuth, getSecurityConfig, getCurrentUserRole } from "@/lib/auth";
+import { requireAuth, getSecurityConfig, getCurrentUserRole, getCurrentUser } from "@/lib/auth";
 import { logAuditEvent } from "@/lib/audit";
 import { LockDeskButton } from "@/components/LockDeskButton";
 import { PrivacyShield } from "@/components/PrivacyShield";
-import { UserRoleBadge } from "@/components/UserRoleBadge";
+import { UserProfileMenu } from "@/components/UserProfileMenu";
 import { MaskedIdentifier } from "@/components/MaskedIdentifier";
 import { SecurityAlertBell } from "@/components/SecurityAlertBell";
 
@@ -43,9 +43,10 @@ export const dynamic = 'force-dynamic';
 export default async function PatientProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   await requireAuth(`/patient/${id}`);
-  const [{ securityEnabled }, role] = await Promise.all([
+  const [{ securityEnabled }, role, currentUser] = await Promise.all([
     getSecurityConfig(),
     getCurrentUserRole(),
+    getCurrentUser(),
   ]);
   const patientId = parseInt(id, 10);
 
@@ -58,7 +59,7 @@ export default async function PatientProfilePage({ params }: { params: Promise<{
   // Log clinical audit trail for record viewing
   await logAuditEvent({
     action: 'PATIENT_VIEWED',
-    actorRole: role === 'doctor' ? 'DOCTOR' : 'RECEPTIONIST',
+    actorRole: role.toUpperCase(),
     details: `Patient medical profile viewed: ${patient.name} (Patient ID: ${patient.id}, Reg: ${patient.regNo || 'N/A'})`,
     status: 'SUCCESS',
   });
@@ -96,7 +97,7 @@ export default async function PatientProfilePage({ params }: { params: Promise<{
             <h1 className="text-xl font-bold text-slate-900">Patient Profile</h1>
           </div>
           <div className="flex items-center gap-2.5">
-            <UserRoleBadge role={role} securityEnabled={securityEnabled} />
+            <UserProfileMenu user={currentUser} role={role} securityEnabled={securityEnabled} />
             <PrivacyShield />
             <SecurityAlertBell />
             <EditPatientModal patient={typedPatient} />
@@ -118,7 +119,7 @@ export default async function PatientProfilePage({ params }: { params: Promise<{
                 </Button>
               }
             />
-            {role === 'doctor' && (
+            {(role === 'admin_doctor' || role === 'doctor') && (
               <Link href={`/prescription/new?patientId=${typedPatient.id}`}>
                 <Button size="sm" className="gap-1.5 shadow-xs">
                   <PlusCircle className="w-4 h-4" /> New Consultation

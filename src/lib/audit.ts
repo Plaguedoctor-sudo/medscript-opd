@@ -53,11 +53,15 @@ export type AuditAction =
   | 'SECURITY_LOCKDOWN_TRIGGERED'
   | 'SECURITY_LOCKDOWN_LIFTED'
   | 'DECEPTION_DATA_SERVED'
-  | 'DECEPTION_MODE_TOGGLED';
+  | 'DECEPTION_MODE_TOGGLED'
+  | 'STAFF_USER_CREATED'
+  | 'STAFF_USER_UPDATED'
+  | 'STAFF_USER_DELETED'
+  | 'STAFF_PASSWORD_RESET';
 
 export type AuditStatus = 'SUCCESS' | 'FAILURE' | 'WARNING';
 
-export type ActorRole = 'DOCTOR' | 'RECEPTIONIST' | 'SYSTEM';
+export type ActorRole = 'ADMIN_DOCTOR' | 'DOCTOR' | 'NURSE' | 'RECEPTIONIST' | 'LAB_TECHNICIAN' | 'SYSTEM' | string;
 
 export interface AuditLogItem {
   id: number;
@@ -67,6 +71,24 @@ export interface AuditLogItem {
   details: string | null;
   ipAddress: string | null;
   status: string;
+}
+
+export function formatActorRole(role?: string | null): ActorRole {
+  if (!role) return 'DOCTOR';
+  switch (role.toLowerCase()) {
+    case 'admin_doctor':
+      return 'ADMIN_DOCTOR';
+    case 'doctor':
+      return 'DOCTOR';
+    case 'nurse':
+      return 'NURSE';
+    case 'receptionist':
+      return 'RECEPTIONIST';
+    case 'lab_technician':
+      return 'LAB_TECHNICIAN';
+    default:
+      return role.toUpperCase();
+  }
 }
 
 export async function logAuditEvent({
@@ -84,11 +106,12 @@ export async function logAuditEvent({
 }): Promise<void> {
   try {
     const ip = ipAddress || (await getClientIp());
+    const normalizedRole = formatActorRole(actorRole);
 
     await db.insert(auditLogs).values({
       timestamp: new Date(),
       action,
-      actorRole,
+      actorRole: normalizedRole,
       details: details ? details.slice(0, 1000) : null,
       ipAddress: ip,
       status,
@@ -98,7 +121,7 @@ export async function logAuditEvent({
     const { evaluateAuditAnomaly } = await import('./security-engine');
     await evaluateAuditAnomaly({
       action,
-      actorRole,
+      actorRole: normalizedRole,
       details,
       status,
       ipAddress: ip,

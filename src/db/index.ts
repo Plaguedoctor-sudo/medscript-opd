@@ -3,6 +3,7 @@ import Database from 'better-sqlite3';
 import * as schema from './schema';
 import path from 'path';
 import fs from 'fs';
+import crypto from 'crypto';
 
 const dbPath = process.env.DATABASE_PATH || path.resolve(process.cwd(), 'sqlite.db');
 export const sqlite = new Database(dbPath);
@@ -167,7 +168,128 @@ sqlite.exec(`
   CREATE INDEX IF NOT EXISTS idx_lab_reports_no ON lab_reports(report_no);
   CREATE INDEX IF NOT EXISTS idx_lab_reports_rx ON lab_reports(prescription_id);
   CREATE INDEX IF NOT EXISTS idx_lab_reports_ipd ON lab_reports(ipd_admission_id);
+
+  CREATE TABLE IF NOT EXISTS staff_users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    login_id TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    name TEXT NOT NULL,
+    role TEXT NOT NULL DEFAULT 'DOCTOR',
+    sub_role TEXT,
+    department TEXT,
+    phone TEXT,
+    email TEXT,
+    qualifications TEXT,
+    reg_number TEXT,
+    is_active INTEGER NOT NULL DEFAULT 1,
+    last_login_at INTEGER,
+    created_at INTEGER
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_staff_users_login ON staff_users(login_id);
+  CREATE INDEX IF NOT EXISTS idx_staff_users_role ON staff_users(role);
 `);
+
+// Auto-seed default staff profiles across all major roles and subcategories
+try {
+  const staffCount = sqlite.prepare('SELECT COUNT(*) as count FROM staff_users').get() as { count: number } | undefined;
+  if (!staffCount || staffCount.count === 0) {
+    const hashDefaultPassword = (pwd: string): string => {
+      const salt = crypto.randomBytes(16).toString('hex');
+      const derived = crypto.scryptSync(pwd, salt, 32, {
+        N: 16384,
+        r: 8,
+        p: 1,
+        maxmem: 32 * 1024 * 1024,
+      });
+      return `scrypt:v1:${salt}:${derived.toString('hex')}`;
+    };
+
+    const insertStaff = sqlite.prepare(`
+      INSERT INTO staff_users (login_id, password_hash, name, role, sub_role, department, phone, email, qualifications, reg_number, is_active, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
+    `);
+
+    const now = Date.now();
+
+    // 1. Admin Doctor (Main one with full authorities)
+    insertStaff.run(
+      'admin',
+      hashDefaultPassword('admin123'),
+      'Dr. Admin (CMO)',
+      'admin_doctor',
+      'Chief Medical Officer & Hospital Admin',
+      'Administration & OPD',
+      '+91 98765 43210',
+      'admin@medscript.clinic',
+      'MBBS, MD (General Medicine)',
+      'MCI-ADMIN-001',
+      now
+    );
+
+    // 2. Doctor (Clinical Consulting Physician)
+    insertStaff.run(
+      'doctor',
+      hashDefaultPassword('doctor123'),
+      'Dr. Rajesh Sharma',
+      'doctor',
+      'Consulting Physician',
+      'General Medicine & OPD',
+      '+91 98765 43211',
+      'sharma.r@medscript.clinic',
+      'MBBS, DNB (Family Medicine)',
+      'MCI-DOC-1048',
+      now
+    );
+
+    // 3. Nurse (Inpatient Staff Nurse)
+    insertStaff.run(
+      'nurse',
+      hashDefaultPassword('nurse123'),
+      'Sister Priya Nair',
+      'nurse',
+      'Head Inpatient Staff Nurse',
+      'IPD & Critical Care Ward',
+      '+91 98765 43212',
+      'priya.nair@medscript.clinic',
+      'B.Sc Nursing, RN',
+      'INC-NUR-8421',
+      now
+    );
+
+    // 4. Receptionist (Front Desk & Patient Intake)
+    insertStaff.run(
+      'receptionist',
+      hashDefaultPassword('reception123'),
+      'Sunita Verma',
+      'receptionist',
+      'Front Desk & Patient Intake Officer',
+      'Patient Registration & Billing',
+      '+91 98765 43213',
+      'reception@medscript.clinic',
+      'B.A., Medical Reception & Triage',
+      'FD-REC-301',
+      now
+    );
+
+    // 5. Lab Technician (Pathology & Lab Diagnostics)
+    insertStaff.run(
+      'labtech',
+      hashDefaultPassword('lab123'),
+      'Ramesh Kumar',
+      'lab_technician',
+      'Senior Medical Laboratory Technologist',
+      'Clinical Pathology & Biochemistry',
+      '+91 98765 43214',
+      'lab@medscript.clinic',
+      'B.Sc MLT, DMLT',
+      'MLT-LAB-559',
+      now
+    );
+  }
+} catch (seedErr) {
+  console.error('Failed to seed default staff users:', seedErr);
+}
 
 // Auto-migrate newly added columns if existing DB
 try {

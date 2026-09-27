@@ -22,10 +22,10 @@ import {
 } from "lucide-react";
 import { DashboardSearch } from "@/components/DashboardSearch";
 import { formatDate } from "@/lib/utils";
-import { requireAuth, getSecurityConfig, getCurrentUserRole } from "@/lib/auth";
+import { requireAuth, getSecurityConfig, getCurrentUserRole, getCurrentUser } from "@/lib/auth";
 import { LockDeskButton } from "@/components/LockDeskButton";
 import { PrivacyShield } from "@/components/PrivacyShield";
-import { UserRoleBadge } from "@/components/UserRoleBadge";
+import { UserProfileMenu } from "@/components/UserProfileMenu";
 import { SecurityAlertBell } from "@/components/SecurityAlertBell";
 import { DoctorSecurityBanner } from "@/components/DoctorSecurityBanner";
 import { LockdownBanner } from "@/components/LockdownBanner";
@@ -53,9 +53,10 @@ export default async function DashboardPage({
   searchParams: Promise<{ q?: string; unauthorized?: string }>;
 }) {
   await requireAuth('/');
-  const [{ securityEnabled }, role, resolvedParams, securityAlertsData, lockdownStatus] = await Promise.all([
+  const [{ securityEnabled }, role, currentUser, resolvedParams, securityAlertsData, lockdownStatus] = await Promise.all([
     getSecurityConfig(),
     getCurrentUserRole(),
+    getCurrentUser(),
     searchParams,
     getSecurityAlerts({ unacknowledgedOnly: false, limit: 30 }),
     getLockdownStatus(),
@@ -132,7 +133,7 @@ export default async function DashboardPage({
             </div>
           </Link>
           <div className="flex items-center gap-2.5">
-            <UserRoleBadge role={role} securityEnabled={securityEnabled} />
+            <UserProfileMenu user={currentUser} role={role} securityEnabled={securityEnabled} />
             <PrivacyShield />
             <SecurityAlertBell initialStats={securityAlertsData} />
             <Link href="/patients">
@@ -165,7 +166,7 @@ export default async function DashboardPage({
                 <Settings className="w-4 h-4" /> Settings
               </Button>
             </Link>
-            {role === 'doctor' ? (
+            {(role === 'admin_doctor' || role === 'doctor') ? (
               <Link href="/prescription/new">
                 <Button size="sm" className="gap-1.5 text-xs shadow-xs">
                   <PlusCircle className="w-4 h-4" /> New Consultation
@@ -193,20 +194,20 @@ export default async function DashboardPage({
         />
 
         {/* Role Access Warning Banner */}
-        {unauthorized === 'clinical_doctor_required' && (
+        {(unauthorized === 'clinical_doctor_required' || unauthorized?.startsWith('access_denied_role_')) && (
           <div className="mb-6 p-4 bg-amber-50 border border-amber-300 rounded-xl flex items-center justify-between gap-3 text-amber-900 shadow-2xs animate-in fade-in">
             <div className="flex items-center gap-3">
               <AlertCircle className="w-5 h-5 text-amber-600 shrink-0" />
               <div>
-                <p className="font-semibold text-sm">Doctor Authorization Required</p>
+                <p className="font-semibold text-sm">Elevated Authorization Required</p>
                 <p className="text-xs text-amber-800 mt-0.5">
-                  Creating, modifying, or deleting clinical prescriptions is restricted to the Doctor role. Front desk staff can search patients and handle registration.
+                  This clinical or administrative action is restricted for your active role ({role}). Admin Doctor or Consulting Physician credentials are required.
                 </p>
               </div>
             </div>
-            <Link href="/login?redirect=/prescription/new">
+            <Link href={`/login?switch=true&redirect=${encodeURIComponent('/prescription/new')}`}>
               <Button size="sm" className="bg-amber-600 hover:bg-amber-700 text-white text-xs shrink-0">
-                Unlock as Doctor
+                Switch Account
               </Button>
             </Link>
           </div>

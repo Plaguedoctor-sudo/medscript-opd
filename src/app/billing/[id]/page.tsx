@@ -1,14 +1,13 @@
 import { notFound } from 'next/navigation';
-import { requireAuth, getCurrentUserRole, getSecurityConfig } from '@/lib/auth';
+import { requireAuth, getCurrentUserRole, getSecurityConfig, getCurrentUser } from '@/lib/auth';
 import { getInvoiceDetails } from '../actions';
 import { InvoiceView } from './InvoiceView';
 import { getSecurityAlerts } from '@/lib/security-engine';
 import Link from 'next/link';
 import { ChevronLeft, Receipt, Users, BarChart3, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { UserRoleBadge } from '@/components/UserRoleBadge';
+import { UserProfileMenu } from '@/components/UserProfileMenu';
 import { SecurityAlertBell } from '@/components/SecurityAlertBell';
-import { LockDeskButton } from '@/components/LockDeskButton';
 import { PrivacyShield } from '@/components/PrivacyShield';
 
 export const dynamic = 'force-dynamic';
@@ -27,10 +26,11 @@ export default async function InvoicePage({
     notFound();
   }
 
-  const [invoiceData, { securityEnabled }, role, securityAlertsData] = await Promise.all([
+  const [invoiceData, { securityEnabled }, role, currentUser, securityAlertsData] = await Promise.all([
     getInvoiceDetails(invoiceId),
     getSecurityConfig(),
     getCurrentUserRole(),
+    getCurrentUser(),
     getSecurityAlerts({ unacknowledgedOnly: false, limit: 30 }),
   ]);
 
@@ -63,7 +63,7 @@ export default async function InvoicePage({
           </div>
 
           <div className="flex items-center gap-2.5">
-            <UserRoleBadge role={role} securityEnabled={securityEnabled} />
+            <UserProfileMenu user={currentUser} role={role} securityEnabled={securityEnabled} />
             <PrivacyShield />
             <SecurityAlertBell initialStats={securityAlertsData} />
             <Link href="/billing">
@@ -86,7 +86,6 @@ export default async function InvoicePage({
                 <Settings className="w-4 h-4" /> Settings
               </Button>
             </Link>
-            {securityEnabled && <LockDeskButton />}
           </div>
         </div>
       </nav>

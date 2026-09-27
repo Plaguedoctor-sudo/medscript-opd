@@ -14,7 +14,9 @@ import {
   getSecurityConfig,
   getCurrentUserRole,
   UserRole,
+  isDoctor,
 } from '@/lib/auth';
+import { SafeStaffUser } from '@/types';
 import {
   getClientIp,
   checkPinRateLimit,
@@ -341,7 +343,7 @@ export async function updateSecuritySettings(
 
   // If desk security is active or PIN is configured, ONLY an authenticated Doctor can alter security
   if (pinConfigured || securityEnabled) {
-    if (currentRole !== 'doctor') {
+    if (!isDoctor(currentRole)) {
       return {
         success: false,
         message: 'Unauthorized: Verified Doctor session required to modify consultation desk security.',
@@ -474,8 +476,8 @@ export async function setupMfaAction(): Promise<{
   error?: string;
 }> {
   const role = await getCurrentUserRole();
-  if (role !== 'doctor') {
-    return { success: false, error: 'Unauthorized: Only the doctor can configure MFA.' };
+  if (!isDoctor(role)) {
+    return { success: false, error: 'Unauthorized: Doctor credentials required to configure MFA.' };
   }
 
   const settings = await db.query.clinicSettings.findFirst({
@@ -510,8 +512,8 @@ export async function confirmAndEnableMfaAction(
   hashedBackupCodes: string[]
 ): Promise<{ success: boolean; message: string }> {
   const role = await getCurrentUserRole();
-  if (role !== 'doctor') {
-    return { success: false, message: 'Unauthorized: Only the doctor can configure MFA.' };
+  if (!isDoctor(role)) {
+    return { success: false, message: 'Unauthorized: Doctor credentials required to configure MFA.' };
   }
 
   const isValid = verifyTotpToken(verificationCode, secret);
@@ -552,8 +554,8 @@ export async function confirmAndEnableMfaAction(
  */
 export async function disableMfaAction(pin: string): Promise<{ success: boolean; message: string }> {
   const role = await getCurrentUserRole();
-  if (role !== 'doctor') {
-    return { success: false, message: 'Unauthorized: Only the doctor can disable MFA.' };
+  if (!isDoctor(role)) {
+    return { success: false, message: 'Unauthorized: Doctor credentials required to disable MFA.' };
   }
 
   const settings = await db.query.clinicSettings.findFirst({
@@ -601,7 +603,7 @@ export async function logClinicalAuditAction(
   if (!role) {
     return; // Silently discard unauthenticated requests to prevent audit log flooding
   }
-  const actorRole = role === 'doctor' ? 'DOCTOR' : 'RECEPTIONIST';
+  const actorRole = role.toUpperCase();
   await logAuditEvent({
     action,
     actorRole,
@@ -623,7 +625,7 @@ export async function runDatabaseDiagnostics(): Promise<{
   totalSizeBytes: number;
 }> {
   const role = await getCurrentUserRole();
-  if (role !== 'doctor') {
+  if (!isDoctor(role)) {
     return {
       healthy: false,
       integrityResult: 'Unauthorized: Doctor credentials required',
@@ -665,5 +667,431 @@ export async function runDatabaseDiagnostics(): Promise<{
       pageCount: 0,
       totalSizeBytes: 0,
     };
+  }
+}
+
+export interface CreateStaffUserInput {
+  loginId: string;
+  password: string;
+  name: string;
+  role: UserRole;
+  subRole?: string;
+  department?: string;
+  phone?: string;
+  email?: string;
+  qualifications?: string;
+  regNumber?: string;
+}
+
+export interface UpdateStaffUserInput {
+  name: string;
+  role: UserRole;
+  subRole?: string;
+  department?: string;
+  phone?: string;
+  email?: string;
+  qualifications?: string;
+  regNumber?: string;
+  newPassword?: string;
+}
+
+/**
+ * Authenticates an individual staff member using their Login ID and Password
+ */
+export async function loginWithCredentials(
+  loginId: string,
+  password: string,
+  targetRedirect?: string
+): Promise<LoginResult & { user?: SafeStaffUser }> {
+  const cleanLoginId = loginId.trim().toLowerCase();
+  const cleanPassword = password.trim();
+  const clientIp = await getClientIp();
+
+  if (!cleanLoginId || !cleanPassword) {
+    return { success: false, error: 'Please enter both your Login ID and Password.' };
+  }
+
+  // 1. Check rate limit
+  const rateLimitStatus = checkPinRateLimit(clientIp);
+  if (!rateLimitStatus.allowed) {
+    await logAuditEvent({
+      action: 'AUTH_LOCKOUT',
+      details: `Rate limit triggered: IP locked out for ${rateLimitStatus.retryAfterSeconds}s`,
+      status: 'WARNING',
+      ipAddress: clientIp,
+    });
+    return {
+      success: false,
+      error: `Access temporarily locked due to repeated incorrect attempts. Please retry in ${rateLimitStatus.retryAfterSeconds} seconds.`,
+    };
+  }
+
+  // 2. Fetch user by login_id
+  const user = sqlite
+    .prepare('SELECT * FROM staff_users WHERE LOWER(login_id) = ?')
+    .get(cleanLoginId) as {
+      id: number;
+      login_id: string;
+      password_hash: string;
+      name: string;
+      role: UserRole;
+      sub_role?: string | null;
+      department?: string | null;
+      phone?: string | null;
+      email?: string | null;
+      qualifications?: string | null;
+      reg_number?: string | null;
+      is_active: number;
+    } | undefined;
+
+  if (!user) {
+    const failedResult = recordFailedPinAttempt(clientIp);
+    await logAuditEvent({
+      action: 'AUTH_LOGIN_FAILURE',
+      details: `Failed login attempt for unknown Login ID '${cleanLoginId}'. Remaining attempts: ${failedResult.remainingAttempts}`,
+      status: 'FAILURE',
+      ipAddress: clientIp,
+    });
+    return {
+      success: false,
+      error: 'Invalid Login ID or Password.',
+    };
+  }
+
+  if (!Boolean(user.is_active)) {
+    return {
+      success: false,
+      error: 'This account has been deactivated. Please contact your Chief Medical Officer (Admin Doctor).',
+    };
+  }
+
+  // 3. Verify password
+  if (!verifyPinHash(cleanPassword, user.password_hash)) {
+    const failedResult = recordFailedPinAttempt(clientIp);
+    await logAuditEvent({
+      action: 'AUTH_LOGIN_FAILURE',
+      details: `Failed password attempt for '${user.name}' (${cleanLoginId}). Remaining attempts: ${failedResult.remainingAttempts}`,
+      status: 'FAILURE',
+      ipAddress: clientIp,
+    });
+    return {
+      success: false,
+      error: `Invalid Login ID or Password. ${failedResult.remainingAttempts} attempt(s) remaining before lockout.`,
+    };
+  }
+
+  // 4. Success: reset rate limit & update last login
+  resetPinRateLimit(clientIp);
+  sqlite.prepare('UPDATE staff_users SET last_login_at = ? WHERE id = ?').run(Date.now(), user.id);
+
+  // 5. Create and set cryptographic session token
+  const sessionToken = createSessionToken(user.role, user.id);
+  const cookieStore = await cookies();
+  cookieStore.set(SESSION_COOKIE_NAME, sessionToken, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/',
+    maxAge: 24 * 60 * 60, // 24 hours
+  });
+
+  await logAuditEvent({
+    action: 'AUTH_LOGIN_SUCCESS',
+    actorRole: user.role.toUpperCase(),
+    details: `Staff member '${user.name}' logged in successfully as ${user.role} (${cleanLoginId})`,
+    status: 'SUCCESS',
+    ipAddress: clientIp,
+  });
+
+  const safeUser: SafeStaffUser = {
+    id: user.id,
+    loginId: user.login_id,
+    name: user.name,
+    role: user.role,
+    subRole: user.sub_role,
+    department: user.department,
+    phone: user.phone,
+    email: user.email,
+    qualifications: user.qualifications,
+    regNumber: user.reg_number,
+    isActive: Boolean(user.is_active),
+  };
+
+  return {
+    success: true,
+    redirectUrl: targetRedirect || '/',
+    role: user.role,
+    user: safeUser,
+  };
+}
+
+/**
+ * Logs out the active user session and redirects to /login
+ */
+export async function logoutUser(): Promise<{ success: boolean }> {
+  const clientIp = await getClientIp();
+  const currentRole = await getCurrentUserRole();
+  const cookieStore = await cookies();
+  cookieStore.delete(SESSION_COOKIE_NAME);
+
+  await logAuditEvent({
+    action: 'AUTH_LOGOUT',
+    actorRole: currentRole.toUpperCase(),
+    details: 'User logged out of consultation desk',
+    status: 'SUCCESS',
+    ipAddress: clientIp,
+  });
+
+  redirect('/login');
+}
+
+/**
+ * Returns all registered staff profiles (safe view without password hashes)
+ */
+export async function getStaffUsers(): Promise<SafeStaffUser[]> {
+  try {
+    const rows = sqlite
+      .prepare(
+        'SELECT id, login_id as loginId, name, role, sub_role as subRole, department, phone, email, qualifications, reg_number as regNumber, is_active as isActive, last_login_at as lastLoginAt, created_at as createdAt FROM staff_users ORDER BY role = "admin_doctor" DESC, id ASC'
+      )
+      .all() as {
+        id: number;
+        loginId: string;
+        name: string;
+        role: UserRole;
+        subRole?: string | null;
+        department?: string | null;
+        phone?: string | null;
+        email?: string | null;
+        qualifications?: string | null;
+        regNumber?: string | null;
+        isActive: number;
+        lastLoginAt?: number | null;
+        createdAt?: number | null;
+      }[];
+
+    return rows.map((r) => ({
+      ...r,
+      isActive: Boolean(r.isActive),
+      lastLoginAt: r.lastLoginAt ? new Date(r.lastLoginAt) : null,
+      createdAt: r.createdAt ? new Date(r.createdAt) : null,
+    }));
+  } catch (err) {
+    console.error('Failed to get staff users:', err);
+    return [];
+  }
+}
+
+/**
+ * Creates a new staff member profile with dedicated Login ID & Password
+ * Protected: Admin Doctor authority required
+ */
+export async function createStaffUser(
+  input: CreateStaffUserInput
+): Promise<{ success: boolean; error?: string; userId?: number }> {
+  const currentRole = await getCurrentUserRole();
+  if (currentRole !== 'admin_doctor') {
+    return { success: false, error: 'Unauthorized: Only an Admin Doctor can create new staff profiles.' };
+  }
+
+  const cleanLoginId = input.loginId.trim().toLowerCase();
+  if (!cleanLoginId || cleanLoginId.length < 3) {
+    return { success: false, error: 'Login ID must be at least 3 characters long.' };
+  }
+
+  if (!input.name.trim()) {
+    return { success: false, error: 'Staff member name is required.' };
+  }
+
+  if (!input.password || input.password.length < 4) {
+    return { success: false, error: 'Password must be at least 4 characters long.' };
+  }
+
+  const existing = sqlite.prepare('SELECT id FROM staff_users WHERE LOWER(login_id) = ?').get(cleanLoginId);
+  if (existing) {
+    return { success: false, error: `Login ID '${cleanLoginId}' is already in use by another staff member.` };
+  }
+
+  try {
+    const passwordHash = hashPin(input.password);
+    const now = Date.now();
+    const result = sqlite
+      .prepare(`
+        INSERT INTO staff_users (login_id, password_hash, name, role, sub_role, department, phone, email, qualifications, reg_number, is_active, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
+      `)
+      .run(
+        cleanLoginId,
+        passwordHash,
+        input.name.trim(),
+        input.role,
+        input.subRole?.trim() || null,
+        input.department?.trim() || null,
+        input.phone?.trim() || null,
+        input.email?.trim() || null,
+        input.qualifications?.trim() || null,
+        input.regNumber?.trim() || null,
+        now
+      );
+
+    const newId = Number(result.lastInsertRowid);
+
+    await logAuditEvent({
+      action: 'STAFF_USER_CREATED',
+      actorRole: 'ADMIN_DOCTOR',
+      details: `Created new staff user '${input.name.trim()}' with role ${input.role} (${cleanLoginId})`,
+      status: 'SUCCESS',
+    });
+
+    revalidatePath('/settings');
+    return { success: true, userId: newId };
+  } catch (err: unknown) {
+    return { success: false, error: err instanceof Error ? err.message : 'Failed to create staff member.' };
+  }
+}
+
+/**
+ * Updates staff member details or resets their password
+ * Protected: Admin Doctor authority required
+ */
+export async function updateStaffUser(
+  id: number,
+  input: UpdateStaffUserInput
+): Promise<{ success: boolean; error?: string }> {
+  const currentRole = await getCurrentUserRole();
+  if (currentRole !== 'admin_doctor') {
+    return { success: false, error: 'Unauthorized: Only an Admin Doctor can update staff profiles.' };
+  }
+
+  try {
+    if (input.newPassword && input.newPassword.trim().length >= 4) {
+      const newHash = hashPin(input.newPassword.trim());
+      sqlite
+        .prepare(`
+          UPDATE staff_users
+          SET name = ?, role = ?, sub_role = ?, department = ?, phone = ?, email = ?, qualifications = ?, reg_number = ?, password_hash = ?
+          WHERE id = ?
+        `)
+        .run(
+          input.name.trim(),
+          input.role,
+          input.subRole?.trim() || null,
+          input.department?.trim() || null,
+          input.phone?.trim() || null,
+          input.email?.trim() || null,
+          input.qualifications?.trim() || null,
+          input.regNumber?.trim() || null,
+          newHash,
+          id
+        );
+    } else {
+      sqlite
+        .prepare(`
+          UPDATE staff_users
+          SET name = ?, role = ?, sub_role = ?, department = ?, phone = ?, email = ?, qualifications = ?, reg_number = ?
+          WHERE id = ?
+        `)
+        .run(
+          input.name.trim(),
+          input.role,
+          input.subRole?.trim() || null,
+          input.department?.trim() || null,
+          input.phone?.trim() || null,
+          input.email?.trim() || null,
+          input.qualifications?.trim() || null,
+          input.regNumber?.trim() || null,
+          id
+        );
+    }
+
+    await logAuditEvent({
+      action: 'STAFF_USER_UPDATED',
+      actorRole: 'ADMIN_DOCTOR',
+      details: `Updated staff profile id=${id} ('${input.name.trim()}', role: ${input.role})`,
+      status: 'SUCCESS',
+    });
+
+    revalidatePath('/settings');
+    return { success: true };
+  } catch (err: unknown) {
+    return { success: false, error: err instanceof Error ? err.message : 'Failed to update staff member.' };
+  }
+}
+
+/**
+ * Toggles active/inactive status of a staff member
+ * Protected: Admin Doctor authority required
+ */
+export async function toggleStaffUserStatus(
+  id: number,
+  isActive: boolean
+): Promise<{ success: boolean; error?: string }> {
+  const currentRole = await getCurrentUserRole();
+  if (currentRole !== 'admin_doctor') {
+    return { success: false, error: 'Unauthorized: Only an Admin Doctor can change account status.' };
+  }
+
+  // Prevent disabling the last admin doctor
+  if (!isActive) {
+    const adminCount = sqlite
+      .prepare('SELECT COUNT(*) as count FROM staff_users WHERE role = "admin_doctor" AND is_active = 1')
+      .get() as { count: number };
+    const target = sqlite.prepare('SELECT role FROM staff_users WHERE id = ?').get(id) as { role: string } | undefined;
+    if (target?.role === 'admin_doctor' && adminCount.count <= 1) {
+      return { success: false, error: 'Cannot deactivate the sole active Admin Doctor account.' };
+    }
+  }
+
+  try {
+    sqlite.prepare('UPDATE staff_users SET is_active = ? WHERE id = ?').run(isActive ? 1 : 0, id);
+    await logAuditEvent({
+      action: 'STAFF_USER_UPDATED',
+      actorRole: 'ADMIN_DOCTOR',
+      details: `Changed staff account id=${id} status to ${isActive ? 'ACTIVE' : 'DEACTIVATED'}`,
+      status: 'SUCCESS',
+    });
+    revalidatePath('/settings');
+    return { success: true };
+  } catch (err: unknown) {
+    return { success: false, error: err instanceof Error ? err.message : 'Failed to update status.' };
+  }
+}
+
+/**
+ * Permanently removes a staff member profile
+ * Protected: Admin Doctor authority required
+ */
+export async function deleteStaffUser(id: number): Promise<{ success: boolean; error?: string }> {
+  const currentRole = await getCurrentUserRole();
+  if (currentRole !== 'admin_doctor') {
+    return { success: false, error: 'Unauthorized: Only an Admin Doctor can delete staff accounts.' };
+  }
+
+  const target = sqlite.prepare('SELECT role, name FROM staff_users WHERE id = ?').get(id) as { role: string; name: string } | undefined;
+  if (!target) {
+    return { success: false, error: 'Staff member not found.' };
+  }
+
+  if (target.role === 'admin_doctor') {
+    const adminCount = sqlite
+      .prepare('SELECT COUNT(*) as count FROM staff_users WHERE role = "admin_doctor"')
+      .get() as { count: number };
+    if (adminCount.count <= 1) {
+      return { success: false, error: 'Cannot delete the sole Admin Doctor account.' };
+    }
+  }
+
+  try {
+    sqlite.prepare('DELETE FROM staff_users WHERE id = ?').run(id);
+    await logAuditEvent({
+      action: 'STAFF_USER_DELETED',
+      actorRole: 'ADMIN_DOCTOR',
+      details: `Deleted staff profile id=${id} (${target.name})`,
+      status: 'SUCCESS',
+    });
+    revalidatePath('/settings');
+    return { success: true };
+  } catch (err: unknown) {
+    return { success: false, error: err instanceof Error ? err.message : 'Failed to delete staff member.' };
   }
 }

@@ -31,7 +31,7 @@ export async function GET() {
 
     await logAuditEvent({
       action: 'DECEPTION_DATA_SERVED',
-      actorRole: role === 'doctor' ? 'DOCTOR' : 'RECEPTIONIST',
+      actorRole: role ? role.toUpperCase() : 'RECEPTIONIST',
       details: `Database export intercepted during breach containment. Served ${(decoyBuffer.length / 1024).toFixed(1)} KB of synthetic honeypot records with embedded canary tokens.`,
       status: 'WARNING',
     });
@@ -46,11 +46,11 @@ export async function GET() {
     });
   }
 
-  if (!authed || role !== 'doctor') {
+  if (!authed || (role !== 'admin_doctor' && role !== 'doctor')) {
     await logAuditEvent({
       action: 'BACKUP_SNAPSHOT_DOWNLOADED',
-      actorRole: role === 'doctor' ? 'DOCTOR' : 'RECEPTIONIST',
-      details: 'Unauthorized raw database download attempt blocked (Doctor role required)',
+      actorRole: role ? role.toUpperCase() : 'RECEPTIONIST',
+      details: 'Unauthorized raw database download attempt blocked (Doctor or Admin Doctor role required)',
       status: 'FAILURE',
     });
     return new NextResponse('Forbidden: Only verified Doctor accounts have authority to export the raw clinical database.', {

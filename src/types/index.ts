@@ -196,3 +196,23 @@ export interface LabReportWithPatient extends LabReport {
   admission?: IpdAdmission | null;
 }
 
+export type UserRole = 'admin_doctor' | 'doctor' | 'nurse' | 'receptionist' | 'lab_technician';
+
+export interface StaffUser {
+  id: number;
+  loginId: string;
+  name: string;
+  role: UserRole;
+  subRole?: string | null;
+  department?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  qualifications?: string | null;
+  regNumber?: string | null;
+  isActive: boolean;
+  lastLoginAt?: Date | null;
+  createdAt?: Date | null;
+}
+
+export type SafeStaffUser = Omit<StaffUser, 'passwordHash'>;
+

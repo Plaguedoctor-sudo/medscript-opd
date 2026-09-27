@@ -3,18 +3,21 @@ import ReportsView from "./ReportsView";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, BarChart3, Settings, PlusCircle, Users, Receipt, Bed, FlaskConical } from "lucide-react";
-import { requireRole, getSecurityConfig } from "@/lib/auth";
+import { requireRole, getSecurityConfig, getCurrentUserRole, getCurrentUser } from "@/lib/auth";
 import { LockDeskButton } from "@/components/LockDeskButton";
 import { SecurityAlertBell } from "@/components/SecurityAlertBell";
+import { UserProfileMenu } from "@/components/UserProfileMenu";
 import { db } from "@/db";
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 export default async function ReportsPage() {
-  await requireRole(['doctor'], '/reports');
-  const { securityEnabled } = await getSecurityConfig();
-  const [initialData, settings] = await Promise.all([
+  await requireRole(['admin_doctor', 'doctor'], '/reports');
+  const [{ securityEnabled }, role, currentUser, initialData, settings] = await Promise.all([
+    getSecurityConfig(),
+    getCurrentUserRole(),
+    getCurrentUser(),
     getReportsData({ range: "month" }),
     db.query.clinicSettings.findFirst(),
   ]);
@@ -46,6 +49,7 @@ export default async function ReportsPage() {
           </div>
 
           <div className="flex items-center gap-2.5">
+            <UserProfileMenu user={currentUser} role={role} securityEnabled={securityEnabled} />
             <SecurityAlertBell />
             <Link href="/ipd">
               <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600 hidden sm:inline-flex">
@@ -77,7 +81,6 @@ export default async function ReportsPage() {
                 <PlusCircle className="w-3.5 h-3.5" /> New Consultation
               </Button>
             </Link>
-            {securityEnabled && <LockDeskButton />}
           </div>
         </div>
       </nav>

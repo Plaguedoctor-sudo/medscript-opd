@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Search, Stethoscope, Check, X, Tag } from 'lucide-react';
-import { searchICD10, ICD10Diagnosis, formatICD10Diagnosis, ICD10_DATABASE } from '@/lib/icd10';
+import { searchICD10, ICD10Diagnosis, formatICD10Diagnosis } from '@/lib/icd10';
 
 interface Icd10SearchProps {
   value: string;
@@ -20,23 +20,24 @@ export function Icd10Search({
   placeholder = 'Search ICD-10 Code or Disease (e.g. I10, Diabetes, URTI, Fever)...',
 }: Icd10SearchProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [prevValue, setPrevValue] = useState(value);
   const [searchTerm, setSearchTerm] = useState(value || '');
-  const [results, setResults] = useState<ICD10Diagnosis[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Sync internal searchTerm if external value changes
-  useEffect(() => {
+  // Sync internal searchTerm if external value changes (React pattern: adjust state during render)
+  if (value !== prevValue) {
+    setPrevValue(value);
     setSearchTerm(value || '');
-  }, [value]);
+  }
 
-  // Update results based on search term & category filter
-  useEffect(() => {
+  // Derive results directly from searchTerm and category filter
+  const results = useMemo(() => {
     let items = searchICD10(searchTerm, 30);
     if (selectedCategory !== 'All') {
       items = items.filter((d) => d.category === selectedCategory);
     }
-    setResults(items);
+    return items;
   }, [searchTerm, selectedCategory]);
 
   // Close dropdown on outside click
