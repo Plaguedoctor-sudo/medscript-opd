@@ -340,3 +340,34 @@ export interface GoogleDriveBackupConfig {
   autoBackupInterval?: 'DAILY' | 'TWICE_DAILY' | 'MANUAL';
 }
 
+// Inpatient Nurse Fluid Balance & Input/Output Chart
+export type FluidEntryType = 'INTAKE' | 'OUTPUT';
+export type FluidRoute =
+  | 'IV_INFUSION'
+  | 'ORAL'
+  | 'RT_FEED'
+  | 'BLOOD'
+  | 'MEDICATION_DILUTION'
+  | 'URINE'
+  | 'VOMIT'
+  | 'DRAIN'
+  | 'STOOL'
+  | 'OTHER';
+export type FluidShift = 'MORNING' | 'EVENING' | 'NIGHT';
+
+export interface FluidBalanceRecord {
+  id: number;
+  admissionId: number;
+  entryType: FluidEntryType;
+  route: FluidRoute | string;
+  fluidName: string;
+  volumeMl: number;
+  shift: FluidShift | string;
+  recordedAt: Date;
+  nurseName: string;
+  role?: string | null;
+  appearance?: string | null;
+  notes?: string | null;
+  createdAt?: Date | null;
+}
+

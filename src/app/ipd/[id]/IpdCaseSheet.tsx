@@ -17,7 +17,7 @@ import {
   DialogClose,
 } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/toast";
-import { formatDate } from "@/lib/utils";
+import { formatDate, formatDateTime } from "@/lib/utils";
 import {
   IpdAdmissionWithPatient,
   IpdRound,
@@ -26,6 +26,10 @@ import {
   IpdDischargeCondition,
   ClinicSettings,
   LabResultParameter,
+  EmarRecord,
+  ClinicalConsent,
+  IpdDeposit,
+  FluidBalanceRecord,
 } from "@/types";
 import { addIpdRound, deleteIpdRound, dischargeIpdPatient } from "../actions";
 import { LabEntryModal } from "@/app/labs/LabEntryModal";
@@ -44,11 +48,12 @@ import {
   ExternalLink,
   ShieldCheck,
   AlertTriangle,
+  Droplets,
 } from "lucide-react";
-import { EmarRecord, ClinicalConsent, IpdDeposit } from "@/types";
 import { NurseEmarSection } from "@/components/ipd/NurseEmarSection";
 import { ClinicalConsentsSection } from "@/components/ipd/ClinicalConsentsSection";
 import { IpdDepositsSection } from "@/components/ipd/IpdDepositsSection";
+import { InputOutputChartSection } from "@/components/ipd/InputOutputChartSection";
 
 interface IpdCaseSheetProps {
   admission: IpdAdmissionWithPatient;
@@ -57,8 +62,10 @@ interface IpdCaseSheetProps {
   emarRecords?: EmarRecord[];
   consents?: ClinicalConsent[];
   deposits?: IpdDeposit[];
+  fluidBalanceRecords?: FluidBalanceRecord[];
   settings: ClinicSettings | null;
   userRole?: string;
+  currentStaffName?: string;
 }
 
 export function IpdCaseSheet({
@@ -68,8 +75,10 @@ export function IpdCaseSheet({
   emarRecords = [],
   consents = [],
   deposits = [],
+  fluidBalanceRecords = [],
   settings,
   userRole,
+  currentStaffName,
 }: IpdCaseSheetProps) {
   const router = useRouter();
 
@@ -80,6 +89,11 @@ export function IpdCaseSheet({
   const [treatmentOrders, setTreatmentOrders] = useState("");
   const [roundDoctor, setRoundDoctor] = useState(settings?.doctorName || "");
   const [roundRole, setRoundRole] = useState<"DOCTOR" | "NURSE">("DOCTOR");
+  const [roundDateTime, setRoundDateTime] = useState<string>(() => {
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  });
   const [roundVitals, setRoundVitals] = useState<IpdVitals>({
     bp: "",
     pulse: "",
@@ -132,6 +146,7 @@ export function IpdCaseSheet({
     setIsAddingRound(true);
     try {
       const res = await addIpdRound(admission.id, {
+        roundDate: roundDateTime ? new Date(roundDateTime) : new Date(),
         notes: roundNotes,
         treatmentOrders,
         doctorOrStaff: roundDoctor,
@@ -288,6 +303,19 @@ export function IpdCaseSheet({
                           <option value="NURSE">Staff Nurse (Ward Note)</option>
                         </select>
                       </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label className="text-xs font-semibold flex items-center gap-1.5">
+                        <Clock className="w-3.5 h-3.5 text-purple-600" /> Date & Exact Time of Assessment *
+                      </Label>
+                      <Input
+                        type="datetime-local"
+                        value={roundDateTime}
+                        onChange={(e) => setRoundDateTime(e.target.value)}
+                        required
+                        className="h-8 text-xs font-mono"
+                      />
                     </div>
 
                     <div className="space-y-1">
@@ -561,7 +589,7 @@ export function IpdCaseSheet({
 
           <div>
             <span className="text-slate-400 block font-medium">ADMISSION DATE & TIME</span>
-            <span className="font-semibold text-slate-800">{formatDate(admission.admissionDate)}</span>
+            <span className="font-semibold text-slate-800">{formatDateTime(admission.admissionDate)}</span>
           </div>
 
           <div>
@@ -570,9 +598,9 @@ export function IpdCaseSheet({
           </div>
 
           <div>
-            <span className="text-slate-400 block font-medium">DISCHARGE DATE</span>
+            <span className="text-slate-400 block font-medium">DISCHARGE DATE & TIME</span>
             <span className="font-semibold text-slate-800">
-              {admission.dischargeDate ? formatDate(admission.dischargeDate) : "Currently Admitted"}
+              {admission.dischargeDate ? formatDateTime(admission.dischargeDate) : "Currently Admitted"}
             </span>
           </div>
 
@@ -685,9 +713,9 @@ export function IpdCaseSheet({
                         <span className="text-[10px] font-semibold bg-purple-100 text-purple-800 px-2 py-0.5 rounded">
                           {round.role}
                         </span>
-                        <span className="text-xs text-slate-500 flex items-center gap-1">
-                          <Clock className="w-3 h-3 text-slate-400" />
-                          {round.roundDate ? formatDate(round.roundDate) : "N/A"}
+                        <span className="text-xs text-slate-500 flex items-center gap-1 font-medium">
+                          <Clock className="w-3.5 h-3.5 text-purple-500" />
+                          {round.roundDate ? formatDateTime(round.roundDate) : "N/A"}
                         </span>
                       </div>
 
@@ -811,7 +839,15 @@ export function IpdCaseSheet({
           userRole={userRole}
         />
 
-        {/* SECTION 4: Clinical Consent Forms & Touch Signature Pad */}
+        {/* SECTION 4: Inpatient Fluid Balance & Input / Output (I/O) Chart */}
+        <InputOutputChartSection
+          admissionId={admission.id}
+          initialRecords={fluidBalanceRecords}
+          userRole={userRole}
+          defaultNurseName={currentStaffName || (userRole === 'nurse' ? 'Staff Nurse' : settings?.doctorName || 'Attending Staff')}
+        />
+
+        {/* SECTION 5: Clinical Consent Forms & Touch Signature Pad */}
         <ClinicalConsentsSection
           admissionId={admission.id}
           patientId={admission.patient.id}
@@ -820,7 +856,7 @@ export function IpdCaseSheet({
           userRole={userRole}
         />
 
-        {/* SECTION 5: Inpatient Advance Deposits & Financial Ledger */}
+        {/* SECTION 6: Inpatient Advance Deposits & Financial Ledger */}
         <IpdDepositsSection
           admissionId={admission.id}
           patientId={admission.patient.id}
@@ -828,7 +864,7 @@ export function IpdCaseSheet({
           userRole={userRole}
         />
 
-        {/* SECTION 6: Discharge Summary (if discharged) */}
+        {/* SECTION 7: Discharge Summary (if discharged) */}
         {!isAdmitted && (
           <div className="border-2 border-emerald-200 rounded-xl p-5 bg-emerald-50/30 mb-8">
             <h2 className="text-sm font-bold text-emerald-950 uppercase tracking-wider mb-3 flex items-center gap-2">

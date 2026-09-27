@@ -297,6 +297,25 @@ sqlite.exec(`
 
   CREATE INDEX IF NOT EXISTS idx_deposits_admission ON ipd_deposits(admission_id);
   CREATE INDEX IF NOT EXISTS idx_deposits_patient ON ipd_deposits(patient_id);
+
+  CREATE TABLE IF NOT EXISTS ipd_fluid_balance (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    admission_id INTEGER NOT NULL REFERENCES ipd_admissions(id),
+    entry_type TEXT NOT NULL,
+    route TEXT NOT NULL,
+    fluid_name TEXT NOT NULL,
+    volume_ml REAL NOT NULL,
+    shift TEXT DEFAULT 'MORNING',
+    recorded_at INTEGER NOT NULL,
+    nurse_name TEXT NOT NULL,
+    role TEXT DEFAULT 'NURSE',
+    appearance TEXT,
+    notes TEXT,
+    created_at INTEGER
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_fluid_admission ON ipd_fluid_balance(admission_id);
+  CREATE INDEX IF NOT EXISTS idx_fluid_recorded ON ipd_fluid_balance(recorded_at);
 `);
 
 // Auto-seed default staff profiles across all major roles and subcategories

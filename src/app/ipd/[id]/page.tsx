@@ -95,8 +95,10 @@ export default async function IpdAdmissionPage({
           emarRecords={data.emarRecordsList || []}
           consents={data.consentsList || []}
           deposits={data.depositsList || []}
+          fluidBalanceRecords={data.fluidBalanceList || []}
           settings={data.settings}
           userRole={role}
+          currentStaffName={currentUser?.name}
         />
       </main>
     </div>

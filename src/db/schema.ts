@@ -201,6 +201,7 @@ export const ipdAdmissionsRelations = relations(ipdAdmissions, ({ one, many }) =
   emarRecords: many(emarRecords),
   consents: many(clinicalConsents),
   deposits: many(ipdDeposits),
+  fluidBalance: many(ipdFluidBalance),
 }));
 
 export const ipdRounds = sqliteTable("ipd_rounds", {
@@ -431,4 +432,31 @@ export const ipdDepositsRelations = relations(ipdDeposits, ({ one }) => ({
     references: [patients.id],
   }),
 }));
+
+// Inpatient Nurse Fluid Balance & Input/Output Chart
+export const ipdFluidBalance = sqliteTable("ipd_fluid_balance", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  admissionId: integer("admission_id")
+    .notNull()
+    .references(() => ipdAdmissions.id),
+  entryType: text("entry_type").notNull(), // 'INTAKE' | 'OUTPUT'
+  route: text("route").notNull(), // 'IV_INFUSION' | 'ORAL' | 'RT_FEED' | 'BLOOD' | 'MEDICATION_DILUTION' | 'URINE' | 'VOMIT' | 'DRAIN' | 'STOOL' | 'OTHER'
+  fluidName: text("fluid_name").notNull(), // e.g. "Normal Saline 0.9%", "Ringer Lactate", "Water / Tea", "Urine (Catheter)", "Wound Drain"
+  volumeMl: real("volume_ml").notNull(), // volume in mL
+  shift: text("shift").default("MORNING"), // 'MORNING' | 'EVENING' | 'NIGHT'
+  recordedAt: integer("recorded_at", { mode: "timestamp" }).notNull(),
+  nurseName: text("nurse_name").notNull(),
+  role: text("role").default("NURSE"), // 'NURSE' | 'DOCTOR'
+  appearance: text("appearance"), // e.g. "Clear straw", "Blood-tinged", "Bilious green", "Concentrated"
+  notes: text("notes"),
+  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+});
+
+export const ipdFluidBalanceRelations = relations(ipdFluidBalance, ({ one }) => ({
+  admission: one(ipdAdmissions, {
+    fields: [ipdFluidBalance.admissionId],
+    references: [ipdAdmissions.id],
+  }),
+}));
+
 

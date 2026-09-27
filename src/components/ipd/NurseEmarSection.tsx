@@ -22,6 +22,7 @@ import {
   deleteEmarRecordAction,
 } from '@/app/ipd/actions';
 import { useRouter } from 'next/navigation';
+import { formatDateTime } from '@/lib/utils';
 
 interface NurseEmarSectionProps {
   admissionId: number;
@@ -221,8 +222,9 @@ export function NurseEmarSection({
                         <div>
                           <div className="font-semibold text-slate-900">{r.nurseName}</div>
                           {r.administeredAt && (
-                            <div className="text-[10px] text-slate-400">
-                              At {new Date(r.administeredAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                            <div className="text-[10px] text-emerald-700 font-semibold flex items-center gap-1">
+                              <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                              {formatDateTime(r.administeredAt)}
                             </div>
                           )}
                         </div>

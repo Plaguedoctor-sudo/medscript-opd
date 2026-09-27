@@ -1,7 +1,7 @@
 'use server'
 
 import { db, sqlite } from "@/db";
-import { ipdAdmissions, ipdRounds, labReports, patients, emarRecords, clinicalConsents, ipdDeposits } from "@/db/schema";
+import { ipdAdmissions, ipdRounds, labReports, patients, emarRecords, clinicalConsents, ipdDeposits, ipdFluidBalance } from "@/db/schema";
 import { eq, desc, or, like, and } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { requireAuth, getCurrentUserRole, getCurrentUser, isDoctor, isNurse } from "@/lib/auth";
@@ -21,6 +21,10 @@ import {
   ClinicalConsent,
   ConsentType,
   IpdDeposit,
+  FluidBalanceRecord,
+  FluidEntryType,
+  FluidRoute,
+  FluidShift,
 } from "@/types";
 
 export interface IpdFilterOptions {
@@ -173,6 +177,7 @@ export async function getIpdAdmissionById(id: number): Promise<{
   emarRecordsList: EmarRecord[];
   consentsList: ClinicalConsent[];
   depositsList: IpdDeposit[];
+  fluidBalanceList: FluidBalanceRecord[];
   settings: ClinicSettings | null;
 }> {
   await requireAuth(`/ipd/${id}`);
@@ -217,7 +222,7 @@ export async function getIpdAdmissionById(id: number): Promise<{
 
   if (!row || row.length === 0) {
     const settings = (await db.query.clinicSettings.findFirst()) || null;
-    return { admission: null, rounds: [], labReportsList: [], emarRecordsList: [], consentsList: [], depositsList: [], settings };
+    return { admission: null, rounds: [], labReportsList: [], emarRecordsList: [], consentsList: [], depositsList: [], fluidBalanceList: [], settings };
   }
 
   // Fetch all clinical progress rounds for this admission
@@ -284,6 +289,9 @@ export async function getIpdAdmissionById(id: number): Promise<{
     .where(eq(ipdDeposits.admissionId, id))
     .orderBy(desc(ipdDeposits.id))) as IpdDeposit[];
 
+  // Fetch fluid balance (Input/Output) records
+  const fluidBalanceList = await getFluidBalanceRecordsAction(id);
+
   const settings = (await db.query.clinicSettings.findFirst()) || null;
 
   return {
@@ -293,6 +301,7 @@ export async function getIpdAdmissionById(id: number): Promise<{
     emarRecordsList,
     consentsList,
     depositsList,
+    fluidBalanceList,
     settings,
   };
 }
@@ -439,6 +448,7 @@ export async function dischargeIpdPatient(
 export async function addIpdRound(
   admissionId: number,
   data: {
+    roundDate?: Date | string;
     notes: string;
     treatmentOrders?: string;
     doctorOrStaff?: string;
@@ -461,7 +471,7 @@ export async function addIpdRound(
       .insert(ipdRounds)
       .values({
         admissionId,
-        roundDate: new Date(),
+        roundDate: data.roundDate ? new Date(data.roundDate) : new Date(),
         doctorOrStaff: author,
         role: data.role || ((userRole === 'admin_doctor' || userRole === 'doctor') ? 'DOCTOR' : 'NURSE'),
         notes: data.notes.trim(),
@@ -797,3 +807,143 @@ export async function addIpdDepositAction(data: {
     return { success: false, error: msg };
   }
 }
+
+/**
+ * Inpatient Nurse Fluid Balance & Input/Output Chart Entry
+ * Records intake (oral, IV fluids, blood, RT feeds) or output (urine, vomitus, drain, stool)
+ * Records exact date, time, volume, route, shift, and nurse credentials.
+ */
+export async function addFluidBalanceAction(data: {
+  admissionId: number;
+  entryType: FluidEntryType;
+  route: FluidRoute | string;
+  fluidName: string;
+  volumeMl: number;
+  shift?: FluidShift | string;
+  recordedAt?: string | Date;
+  appearance?: string;
+  notes?: string;
+}): Promise<{ success: boolean; id?: number; error?: string }> {
+  await requireAuth(`/ipd/${data.admissionId}`);
+  const role = await getCurrentUserRole();
+  const user = await getCurrentUser();
+
+  if (!isNurse(role) && !isDoctor(role)) {
+    return { success: false, error: 'Unauthorized: Nursing or Clinical credentials required.' };
+  }
+
+  if (!data.fluidName?.trim() || !data.volumeMl || data.volumeMl <= 0) {
+    return { success: false, error: 'Fluid name and positive volume in mL are required.' };
+  }
+
+  try {
+    const now = Date.now();
+    const recordedTimestamp = data.recordedAt ? new Date(data.recordedAt).getTime() : now;
+    const authorName = user?.name || (role === 'nurse' ? 'Staff Nurse' : 'Attending Doctor');
+
+    const result = sqlite
+      .prepare(`
+        INSERT INTO ipd_fluid_balance (
+          admission_id, entry_type, route, fluid_name, volume_ml,
+          shift, recorded_at, nurse_name, role, appearance, notes, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `)
+      .run(
+        data.admissionId,
+        data.entryType,
+        data.route,
+        data.fluidName.trim(),
+        Math.abs(data.volumeMl),
+        data.shift || 'MORNING',
+        recordedTimestamp,
+        authorName,
+        role.toUpperCase(),
+        data.appearance?.trim() || null,
+        data.notes?.trim() || null,
+        now
+      );
+
+    await logAuditEvent({
+      action: 'IPD_FLUID_BALANCE_RECORDED',
+      actorRole: role.toUpperCase(),
+      details: `${data.entryType} of ${data.volumeMl}mL (${data.fluidName}) via ${data.route} recorded for Admission #${data.admissionId} by ${authorName}`,
+      status: 'SUCCESS',
+    });
+
+    revalidatePath(`/ipd/${data.admissionId}`);
+    return { success: true, id: Number(result.lastInsertRowid) };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { success: false, error: msg };
+  }
+}
+
+export async function deleteFluidBalanceAction(
+  id: number,
+  admissionId: number
+): Promise<{ success: boolean; error?: string }> {
+  await requireAuth(`/ipd/${admissionId}`);
+  const role = await getCurrentUserRole();
+
+  if (!isDoctor(role) && !isNurse(role)) {
+    return { success: false, error: 'Unauthorized: Clinical staff authority required.' };
+  }
+
+  try {
+    sqlite.prepare('DELETE FROM ipd_fluid_balance WHERE id = ? AND admission_id = ?').run(id, admissionId);
+
+    await logAuditEvent({
+      action: 'IPD_FLUID_BALANCE_DELETED',
+      actorRole: role.toUpperCase(),
+      details: `Fluid balance record #${id} deleted from Admission #${admissionId}`,
+      status: 'SUCCESS',
+    });
+
+    revalidatePath(`/ipd/${admissionId}`);
+    return { success: true };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { success: false, error: msg };
+  }
+}
+
+export async function getFluidBalanceRecordsAction(admissionId: number): Promise<FluidBalanceRecord[]> {
+  try {
+    const rows = sqlite
+      .prepare('SELECT * FROM ipd_fluid_balance WHERE admission_id = ? ORDER BY recorded_at DESC, id DESC')
+      .all(admissionId) as Array<{
+        id: number;
+        admission_id: number;
+        entry_type: FluidEntryType;
+        route: string;
+        fluid_name: string;
+        volume_ml: number;
+        shift: string;
+        recorded_at: number;
+        nurse_name: string;
+        role: string | null;
+        appearance: string | null;
+        notes: string | null;
+        created_at: number | null;
+      }>;
+
+    return rows.map((r) => ({
+      id: r.id,
+      admissionId: r.admission_id,
+      entryType: r.entry_type,
+      route: r.route,
+      fluidName: r.fluid_name,
+      volumeMl: r.volume_ml,
+      shift: r.shift,
+      recordedAt: new Date(r.recorded_at),
+      nurseName: r.nurse_name,
+      role: r.role,
+      appearance: r.appearance,
+      notes: r.notes,
+      createdAt: r.created_at ? new Date(r.created_at) : null,
+    }));
+  } catch {
+    return [];
+  }
+}
+
