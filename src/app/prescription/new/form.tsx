@@ -980,11 +980,11 @@ export default function NewPrescriptionForm({
       </Card>
 
       {/* Clinical Sections */}
-      <Card>
+      <Card className="relative z-30 overflow-visible">
         <CardHeader>
           <CardTitle className="text-lg">Clinical Findings & Diagnosis</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-4 overflow-visible">
           <div className="space-y-2">
             <Label htmlFor="chiefComplaints">Chief Complaints</Label>
             <Input
@@ -1037,7 +1037,7 @@ export default function NewPrescriptionForm({
       <DrugInteractionAlert interactions={detectedInteractions} />
 
       {/* Medications (Schedule and Duration / No. of Days dropdowns) */}
-      <Card className="border-slate-300 shadow-sm">
+      <Card className="border-slate-300 shadow-sm relative z-10">
         <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between border-b pb-4 gap-3">
           <div>
             <CardTitle className="text-lg flex items-center gap-2">

@@ -74,7 +74,7 @@ export function Icd10Search({
   const categories = ['All', 'Respiratory', 'Cardiovascular', 'Endocrine & Metabolic', 'Gastrointestinal', 'Infectious Disease', 'Musculoskeletal', 'Dermatology'];
 
   return (
-    <div ref={containerRef} className="relative w-full">
+    <div ref={containerRef} className="relative w-full z-30">
       <div className="relative flex items-center">
         <div className="absolute left-2.5 text-blue-600 pointer-events-none">
           <Stethoscope className="w-4 h-4" />
@@ -107,7 +107,7 @@ export function Icd10Search({
       </div>
 
       {isOpen && (
-        <div className="absolute z-50 left-0 right-0 mt-1.5 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden animate-in fade-in-50 zoom-in-95 duration-100 max-h-[380px] flex flex-col">
+        <div className="absolute z-50 left-0 right-0 mt-1.5 bg-white border border-slate-300 rounded-xl shadow-2xl overflow-hidden animate-in fade-in-50 zoom-in-95 duration-100 max-h-[380px] flex flex-col">
           {/* Category Chips Bar */}
           <div className="p-2 bg-slate-50 border-b border-slate-200 flex items-center gap-1.5 overflow-x-auto text-[11px] no-scrollbar">
             <span className="text-slate-400 flex items-center gap-1 font-semibold px-1">
