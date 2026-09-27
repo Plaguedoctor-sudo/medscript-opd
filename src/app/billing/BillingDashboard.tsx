@@ -486,7 +486,7 @@ export function BillingDashboard({
                               </Button>
                             )}
 
-                            {userRole === 'doctor' && (
+                            {(userRole === 'admin_doctor' || userRole === 'doctor') && (
                               <Button
                                 variant="ghost"
                                 size="sm"

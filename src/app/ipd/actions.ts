@@ -443,6 +443,10 @@ export async function deleteIpdRound(roundId: number): Promise<{ success: boolea
   await requireAuth('/ipd');
   const role = await getCurrentUserRole();
 
+  if (role !== 'admin_doctor' && role !== 'doctor') {
+    return { success: false, error: 'Unauthorized: Only physicians can delete clinical rounds.' };
+  }
+
   try {
     await db.delete(ipdRounds).where(eq(ipdRounds.id, roundId));
 

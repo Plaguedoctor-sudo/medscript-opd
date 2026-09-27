@@ -668,7 +668,7 @@ export function IpdCaseSheet({
                         </span>
                       </div>
 
-                      {userRole === "doctor" && (
+                      {(userRole === "admin_doctor" || userRole === "doctor") && (
                         <Button
                           variant="ghost"
                           size="icon"

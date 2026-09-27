@@ -852,7 +852,7 @@ export async function getStaffUsers(): Promise<SafeStaffUser[]> {
   try {
     const rows = sqlite
       .prepare(
-        'SELECT id, login_id as loginId, name, role, sub_role as subRole, department, phone, email, qualifications, reg_number as regNumber, is_active as isActive, last_login_at as lastLoginAt, created_at as createdAt FROM staff_users ORDER BY role = "admin_doctor" DESC, id ASC'
+        "SELECT id, login_id as loginId, name, role, sub_role as subRole, department, phone, email, qualifications, reg_number as regNumber, is_active as isActive, last_login_at as lastLoginAt, created_at as createdAt FROM staff_users ORDER BY role = 'admin_doctor' DESC, id ASC"
       )
       .all() as {
         id: number;
@@ -1034,7 +1034,7 @@ export async function toggleStaffUserStatus(
   // Prevent disabling the last admin doctor
   if (!isActive) {
     const adminCount = sqlite
-      .prepare('SELECT COUNT(*) as count FROM staff_users WHERE role = "admin_doctor" AND is_active = 1')
+      .prepare("SELECT COUNT(*) as count FROM staff_users WHERE role = 'admin_doctor' AND is_active = 1")
       .get() as { count: number };
     const target = sqlite.prepare('SELECT role FROM staff_users WHERE id = ?').get(id) as { role: string } | undefined;
     if (target?.role === 'admin_doctor' && adminCount.count <= 1) {
@@ -1074,7 +1074,7 @@ export async function deleteStaffUser(id: number): Promise<{ success: boolean; e
 
   if (target.role === 'admin_doctor') {
     const adminCount = sqlite
-      .prepare('SELECT COUNT(*) as count FROM staff_users WHERE role = "admin_doctor"')
+      .prepare("SELECT COUNT(*) as count FROM staff_users WHERE role = 'admin_doctor'")
       .get() as { count: number };
     if (adminCount.count <= 1) {
       return { success: false, error: 'Cannot delete the sole Admin Doctor account.' };

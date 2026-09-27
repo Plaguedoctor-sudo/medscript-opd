@@ -148,7 +148,7 @@ export function LabReportView({ report, settings, userRole }: LabReportViewProps
             <Printer className="w-4 h-4" /> Print Report
           </Button>
 
-          {userRole === "doctor" && (
+          {(userRole === "admin_doctor" || userRole === "doctor") && (
             <Button
               variant="ghost"
               size="sm"
