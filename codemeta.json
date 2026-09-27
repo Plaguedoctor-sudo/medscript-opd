@@ -1,0 +1,76 @@
+# CODEMETA.json — Standard Software Metadata for Research & Archival
+# Used by: Zenodo, Software Heritage, GitHub Citation, OpenAIRE, DataCite
+{
+  "@context": "https://doi.org/10.5063/schema/codemeta-2.0",
+  "@type": "SoftwareSourceCode",
+  "name": "MedScript OPD",
+  "version": "1.1.1",
+  "description": "Sovereign offline-first Electronic Medical Records (EMR) and clinical prescription system for independent physicians and outpatient clinics. Features cryptographic prescription integrity sealing, real-time drug interaction surveillance, ICD-10 diagnostic coding, role-based access control, and FHIR R4 health data interoperability.",
+  "license": "https://github.com/Plaguedoctor-sudo/medscript-opd/blob/main/LICENSE",
+  "codeRepository": "https://github.com/Plaguedoctor-sudo/medscript-opd",
+  "dateCreated": "2026-09-08",
+  "dateModified": "2026-09-27",
+  "datePublished": "2026-09-27",
+  "isAccessibleForFree": false,
+  "author": [
+    {
+      "@type": "Person",
+      "givenName": "Nitin Hiralal",
+      "familyName": "Sonare",
+      "honorificPrefix": "Dr.",
+      "jobTitle": "Physician & Software Author",
+      "affiliation": {
+        "@type": "Organization",
+        "name": "Sonare Hospital",
+        "address": {
+          "@type": "PostalAddress",
+          "streetAddress": "Dhotra Bh. Chikhali",
+          "addressLocality": "Buldhana",
+          "addressRegion": "Maharashtra",
+          "postalCode": "443201",
+          "addressCountry": "IN"
+        }
+      },
+      "email": "sonarenitin3@gmail.com"
+    }
+  ],
+  "copyrightHolder": [
+    {
+      "@type": "Person",
+      "givenName": "Nitin Hiralal",
+      "familyName": "Sonare",
+      "honorificPrefix": "Dr."
+    }
+  ],
+  "copyrightYear": 2026,
+  "programmingLanguage": [
+    "TypeScript",
+    "JavaScript",
+    "SQL"
+  ],
+  "runtimePlatform": [
+    "Node.js",
+    "Next.js 16",
+    "SQLite"
+  ],
+  "operatingSystem": "Linux",
+  "applicationCategory": "HealthcareApplication",
+  "keywords": [
+    "EMR",
+    "EHR",
+    "Electronic Medical Records",
+    "Prescription",
+    "Outpatient",
+    "Healthcare IT",
+    "Drug Interaction",
+    "ICD-10",
+    "FHIR R4",
+    "ABDM",
+    "India",
+    "Offline-First"
+  ],
+  "softwareRequirements": "Node.js >= 20",
+  "developmentStatus": "active",
+  "referencePublication": "",
+  "citation": "Sonare, N. H. (2026). MedScript OPD: Sovereign Offline-First EMR & Prescription System (v1.1.1). Sonare Hospital, Buldhana, India."
+}

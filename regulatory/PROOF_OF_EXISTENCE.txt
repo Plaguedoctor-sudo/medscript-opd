@@ -1,0 +1,186 @@
+================================================================================
+     CRYPTOGRAPHIC PROOF OF EXISTENCE CERTIFICATE
+     MedScript OPD - Proprietary Clinical Software
+================================================================================
+
+CERTIFICATE DETAILS
+───────────────────
+Title         : MedScript OPD (Offline-First EMR & Prescription System)
+Version       : 1.1.1
+Author        : Dr. Nitin Hiralal Sonare, MBBS (KEM Hospital)
+MMC Reg. No.  : 20260201195
+Organization  : Sonare Hospital, Buldhana, Maharashtra, India
+Contact       : sonarenitin3@gmail.com | +91 9860748963
+Certificate   : Generated 2026-09-27T14:06:54.614Z
+Algorithm     : SHA-256 (FIPS 180-4)
+
+MASTER FINGERPRINT (SHA-256 of all source files)
+─────────────────────────────────────────────────
+fabe80a44d73b9c1d7f6b89d08fee0dd3760316b3c362e82aa32a85f5eac602c
+
+This hash is a unique cryptographic fingerprint of the entire MedScript OPD
+source tree at the time of generation. Any modification to any file — even a
+single character — will produce a completely different master hash, making
+tampering detectable.
+
+HOW TO VERIFY INTEGRITY
+────────────────────────
+Run this script again on the source tree:
+  node scripts/generate-proof-of-existence.js
+
+If the "MASTER FINGERPRINT" matches the value above, the source code is identical
+to what was certified by Dr. Nitin Hiralal Sonare on 2026-09-27T14:06:54.614Z.
+
+LEGAL SIGNIFICANCE
+──────────────────
+This certificate, combined with:
+  1. Git commit history (timestamped cryptographic DAG)
+  2. Internet Archive snapshot: https://web.archive.org/web/20260927140317/https://github.com/Plaguedoctor-sudo/medscript-opd
+  3. Software Heritage Archive: https://archive.softwareheritage.org (Save ID: 2508155)
+  4. Proprietary LICENSE file in repository root
+
+...constitutes prima facie evidence of authorship, creation date, and sole
+proprietorship under the Copyright Act, 1957 (India) and the Berne Convention.
+
+PER-FILE HASH MANIFEST (136 files)
+─────────────────────────────────────────────────────
+139e79c783538003e970aa4f5548c7430806affb36868cbcd1214813fb586acc  .aider.chat.history.md
+b106c5abd880210d3da5a8a75b3e645084c12e338e6ffa11c4c3eea3cfc38414  .github/ISSUE_TEMPLATE/bug_report.md
+ef0d0d1cd22f32b7126810853ef6df0028ecb7fe314806594218acf483656ae6  .github/ISSUE_TEMPLATE/feature_request.md
+63f2c50380ed6303237cce215ce27af1d620d094c215e28d1b1538a3c070e3bb  AGENTS.md
+336cc4fbf19beaada7ccf9986414fa91851a8d7a07dfb3ccbe800a69eed0ab49  CLAUDE.md
+723766bf83b1559a14e4e65d7ac064cbb59d482f03b88f4d405bd9dd2e7e7b38  CONTRIBUTING.md
+07d08c4f09a7248d68255d38ce45d2805910fbb0e0c505e82c09532e1ebfe066  PUBLISHING_GUIDE.md
+8254b33f15de9573c99eac844698a6d4ed5ffd2a759724dd6724a4a377a7bb03  README.md
+191866d90d26f1d108cd57c91f3a5dd37347b6ec400a8d857819055bae8c3dd4  SECURITY.md
+7f89b1e9e3995be8620be3162df8e08b7dd512f894fb0accb559193138fdc390  components.json
+4a354aad1236ccc60b491be2f4174ad4b14194285a873eeec547da0ba0dac2ef  drizzle.config.ts
+6de05cfd23642a8c8ce539400116967446ba732cfb0f9f920a6ff03a44b37144  ecosystem.config.js
+1862ac4bbbc5192d4bf562161df66ea547ed3e67173100656ab606ae9797db2b  next-env.d.ts
+53e0ee2bb087a7a22a0884964266522bce3591c471fcc9f69114834a1c257a8f  next.config.ts
+5eaf39f09b2f0cdc56c34d84191952543f2fbf9eeffbafd1d5e6f8fd66f4707f  package-lock.json
+6197980ec8cbc569d64434205b48c97d7e40204dafd8d57a5cd528eaba69a073  package.json
+34489b0394cc61876fecc3a62fbd0347d411cabf5a18c94dc9df160f07082487  packaging/flathub-pr-ready/flathub.json
+34489b0394cc61876fecc3a62fbd0347d411cabf5a18c94dc9df160f07082487  packaging/flatpak/flathub.json
+54da2007dee26aa58da7e83f6ca1181da20148af061ff9bb634d21cb4116c107  scripts/backup.js
+c0100853fcdebf72316197b2d13765b030b5f0a876fefc6f3ae2dc32aaa9ce96  scripts/generate-copyright-deposit.js
+f4d923192ce84bd30e13ff9945cd39babb8ca063abf376ae1ea20c953b8b7798  scripts/generate-proof-of-existence.js
+2284ba730b088240718d161a73b7594bbb0478603188493c85cafdc8c0e4e19c  scripts/inject-copyright-headers.js
+56141a0b5466eecfab6f77381634a9e8daa8a8d298b3fc6d318a52be52512f3b  scripts/seed.js
+22bc6afa6964cd89c9cb4cac458ecb9c77c26a1c707e785c1dd346b05bf4f666  security/ENDPOINT-SECURITY-CHECKLIST.md
+35743538278d666928cddd3aefe53d58338ec38fccde992202c8ac2cffaf1ec2  src/app/actions/abdm-actions.ts
+6b82fccb7bebef8bc12a282125ca7c5fb5873b99a9e07a0f334d7b975ddd618f  src/app/actions/security-alert-actions.ts
+51bb9322de94013efaa291cd7abc1450a6e54ec13e7b91c7c739b93c7be21024  src/app/api/backup/download/route.ts
+3e602e72a1f1b468895b6b71f25dc209cfd5a5a9821561489017e328ce86573c  src/app/api/fhir/R4/Bundle/[id]/route.ts
+ed196864978956c3e53ceeef45003579f3cc40d42370d06dde2f51854ba4623a  src/app/api/fhir/R4/MedicationRequest/route.ts
+9b7f389b658032bd201fe80c63d591e8ba98c8982f8fa74d0411859624685b01  src/app/api/fhir/R4/Patient/route.ts
+65a4121605b4ed96a9d79b4eac6d42229d8776c6e9d7f1815699b032d42ad692  src/app/appointments/AppointmentDashboard.tsx
+ec23add518dda404155bf501cc4afafdf7cb171cf9a80d32ca2035a918510615  src/app/appointments/actions.ts
+fbcce7ee0dd8232775476334e55033b238694cea3ac13144b8f649aaa87616aa  src/app/appointments/page.tsx
+e56e3d8ef7682e2686f4a6865ea11e3e6f2ec0590377807077560057b1cd3f08  src/app/appointments/queue/page.tsx
+42844da4a8ddd31cd16f14caf603ec91c6ce2fd953c490737c232e4bc7f136cf  src/app/billing/BillingDashboard.tsx
+86a51b4afae9afa2851f48c0fa96d7da7f1df99cc131a2c97c5c27934ce0c4d4  src/app/billing/[id]/InvoiceView.tsx
+2329c76e193864befa050f5b4239e2c5c5aecfabc7f155467dc178f1f2d6ae3e  src/app/billing/[id]/page.tsx
+ce5613f37170ed5bfc8589280a20384e407f01362e4eb8089b88a7a3be32a20e  src/app/billing/actions.ts
+410537c1cbc0f60486e876592ed59180ce199a2cc0688a56326734be2c0d990f  src/app/billing/page.tsx
+8123eb5a9af57ecc628fc26461be7bcb9c376233fd26b759555e64536cb3e169  src/app/inventory/InventoryDashboard.tsx
+f979d2b6a50dde3a1cf2f0acd58900bf9752bfce558ee049587c1a22ce1d13ae  src/app/inventory/actions.ts
+93fb450fb072cca5b827bc8b7f898129a0243c02c2d46b76d0eb2aedf8fa0187  src/app/inventory/page.tsx
+b3caa1eb504ec638c47177cd304bc3f24c104d820fc01e45655cb8e953c1d07e  src/app/ipd/AdmitPatientModal.tsx
+c14bf0280de87d3ed3e6c536e99bcbd66720daad5026ea3b0d81ac22bf03ee21  src/app/ipd/IpdDashboard.tsx
+1b6b89d2b222cef80d5fc5604fba275d510dd76bc1d84edc50da91a4f14de227  src/app/ipd/[id]/IpdCaseSheet.tsx
+08e3cca4eeb87ddaa34990a3c523d5b7605f0638be03f92c77b5307583951013  src/app/ipd/[id]/page.tsx
+e3ba3bf436a1a00ddfa02bd2b1aca72c38ea134b933e2dedf76e4f781b599b22  src/app/ipd/actions.ts
+55b8840fe5b6ca66ea2b31798f7c7376b2f47ce488de288125638dba0a531598  src/app/ipd/page.tsx
+7293c184ee0d8e3aeb8b7a4adfce5fec7e8474059653cfa4991439fa9921fceb  src/app/labs/LabDashboard.tsx
+780351661f75cb6495bfe8e75513e23f41da41a65a987a59d84581ca37fe1e91  src/app/labs/LabEntryModal.tsx
+48c3aba1174d51b6c6174ae4a7b5a786f222db4b3e44eb77edeff9925baa3c9e  src/app/labs/[id]/LabReportView.tsx
+dac8246a644bbd49672e2ee1e12de3962e576517ead7a56e6ac75a1d1acb6b91  src/app/labs/[id]/page.tsx
+e397e9ca4669a329daae67850b466e0cc658ae9756ce1dd04e7442b906124bfe  src/app/labs/actions.ts
+33648f55388ca47ef263eb4d661d613c4188a0a8069e35446f17bbac8bf894aa  src/app/labs/page.tsx
+b6c73695f7f73aced68166f6cf3d7d550cb31bbfe7ba3433f316a78e6ed7d952  src/app/layout.tsx
+8f01c878e8bb6f73ebb7635fb7c44581002b84c10826e369e9ef4d30d5ffc36a  src/app/login/LoginForm.tsx
+c2149a593e5d49ab24cc40242dd4eade386dba707ae9be88dd6e8b211b891d81  src/app/login/actions.ts
+8ad2a1c222b44f460948ec598231fa22c8762a6061d9946a4643b70ca7f6682a  src/app/login/page.tsx
+fec19a653f8f12774345043ee125e3332c8f852014f0366948bbe0bffedf96a2  src/app/page.tsx
+d34e533dbb54a4874e68f6fd47fa655374f8a75a63e94f67ffe9d205830310b5  src/app/patient/[id]/EditPatientModal.tsx
+1b95cd701b596a065e07c57f0ed1394486310d72099eb0579587546021b7a488  src/app/patient/[id]/PatientVitalsAnalytics.tsx
+4c279434879be6b338e3456e4741c530ab0def075d756a8595a002d749edd564  src/app/patient/[id]/page.tsx
+cdaea6d41fcd71c09ee1406df72cecada3929ba744cb15ba13f838fadceddab7  src/app/patients/page.tsx
+cfbc389da7a8d0ddb7a27f3008e537599075f093f236869777727ced547d5c52  src/app/prescription/[id]/edit/page.tsx
+49ae5dd6462ac8ae25147cf93b6a286d2ba8b2ae36e31aef87f95cd7a0e8b9d7  src/app/prescription/[id]/page.tsx
+ece120227e9db954f975bcddefa9eb159122b0c41dda0be8fa05552371b1e6db  src/app/prescription/[id]/preview.tsx
+28442ac8b0c690396ca7c66285920ef28d502af6f7bd7e9fd1f10b45abef091d  src/app/prescription/new/actions.ts
+fa9ec835ccd9cb5838537aebf5f29b87ea2568ec9523ed179b8d2f7350d20c8c  src/app/prescription/new/form.tsx
+836a33ec8a0778cab92c74e80a5601955147018dadadf83886b0559ff6e723ad  src/app/prescription/new/page.tsx
+b071e903045b145c503ba6f490ce2439dadf1ad4b9659e7d514b64409bbcb2ad  src/app/reports/ReportsView.tsx
+fe9c0b601ba83b5eea55201df1c111ca102c657c933cdfee4b52304669345913  src/app/reports/actions.ts
+1aa24277be8676d2e041a3cf3e38132df229320fda52c7d6288871f6d124e29d  src/app/reports/page.tsx
+88aa45979528478781ae183ca51e1a426ca8f919b34a1b3ba225bb265eb476b1  src/app/settings/SettingsForm.tsx
+c7b1a2bb8e7f1c9515e483ccd20a0a40d23d4177188f2b8568d7264164dfca39  src/app/settings/StaffManagementSection.tsx
+3f864d31febf2e1d83b7e4030a3de1d7c45d33e9f9ffa81661f45decb8da5060  src/app/settings/actions.ts
+96c8f1f36352f8b83b56b9587b3f3dfbe4d5a8fc7633ed3426d0e21cfc75a037  src/app/settings/backup-actions.ts
+6a23f401798c9e3e114cc586c3a6e9fa5dcd6868858f7dd1d782c7677d63eb53  src/app/settings/page.tsx
+ec2be7881040e239ebb7b0c505a69d54c2a4ef5efa9a5451fb359feda3f31ac1  src/components/DashboardSearch.tsx
+48c43ea9ec8ccbb0f8806c6706d47cdf555e40ea8f6a6b8fb6434c49efb48aa3  src/components/DigitalRxSeal.tsx
+73495efe37e496985a839fbaac741df3329ee451b116a246c71b0b2f78e7667e  src/components/DigitalSignaturePad.tsx
+67a9a86fb9bbc144bb2c5ad0a8fb625e3b51e2eba06634a085ed57e7bb256723  src/components/DoctorSecurityBanner.tsx
+4de3773cf742934ee9f3fcc386ec91ae4249113ae050ada80f5f0b7f6f909522  src/components/DrugAllergyAlert.tsx
+bf33b4aee1c81d4604dc2c6e95c4289af289d349c4adea14f0ee14a515298581  src/components/DrugInteractionAlert.tsx
+1a970ff48a7f8b4d122f5f6e6433ff4fd679513ad9d7e4e1b11d1b48ca70362f  src/components/GoogleDriveBackupCard.tsx
+cb1537b08d98aa28c6bbee679923f41a43ced60080e7c1fc1adeecd97738ced8  src/components/Icd10Search.tsx
+75e1cc2658ecbd8e854940d44c0b1c3bd236f5b7885beb3beabdb4d4b3ab1083  src/components/IdleAutoLock.tsx
+4feca74566cdc0c97eabd7f6f058efb31b4c845d39841dbc382371bae1e54d89  src/components/LockDeskButton.tsx
+f5b3e3e2e154993f22e27426d33bf145196b202e03a96f6886c96ea88775f221  src/components/LockdownBanner.tsx
+dae9788f1b0c39311f830544de453a7da523711744c23480561677552b54766b  src/components/MaskedIdentifier.tsx
+5058c990292312a12d36cea746958ed91171c92005aeb369fc319be50a067bc0  src/components/MfaSetupModal.tsx
+fa98dc555e997561b2b977965d99a618fccf6ee96b4f331855735578fd499905  src/components/PrescriptionDispatchModal.tsx
+5fef83e4606d9c4aae33220052dcaf531f4426aa19a70a9d9e4783cae7204004  src/components/PrescriptionPDF.tsx
+201c5ffe13a54f2e6078d5695777cd5e58549f54d8e1875a0f074821abb676b7  src/components/PrivacyShield.tsx
+97f802ff115271f7e1f7f9e2facc817922983bdddf4a90bb10d2a99857efb966  src/components/SecurityAlertBell.tsx
+ae310735d4dc26519f31543d27af4bd78051cead888105f4f9869b5fc11c14b2  src/components/UserProfileMenu.tsx
+707498187c09b6e6439b1bf9a42f2e3c030368f7192a2f1a95d3bfa04f8d4b99  src/components/UserRoleBadge.tsx
+308a7b98323449903efa2d328c67eb63b5e4ebcbb58f96a04d2536b55805660e  src/components/ipd/ClinicalConsentsSection.tsx
+3a3cde251024635e60fe9144a12a16f9929f3a9d7901a02d01feefc689118d1c  src/components/ipd/IpdDepositsSection.tsx
+b569637741ad9fbac212f382ebe7ecd430f8f2176f262f13549d9e863f351048  src/components/ipd/NurseEmarSection.tsx
+313353436d0fcc8e44ab470adb614b9fd013d28626f624328ea0d66d41a6c81b  src/components/ui/button.tsx
+8ad3a18d36bda0598dc0e9aa96ea22854944d5443ee4946f1d173815e115375f  src/components/ui/card.tsx
+7e96b921d921ee9fb7c53e9372b17e775d087be9788ce1d51cbcdbab2b0d4ba5  src/components/ui/dialog.tsx
+dab990dfefa0ba78854ab6602ad074270dba9d7d1262184d9bfbb62bd990903b  src/components/ui/input.tsx
+b3b7b21d2877838fc73713df48a47248392de04a3b3fafa8961369f33ab14530  src/components/ui/label.tsx
+829549f352f1e56dfe887446bcc3d1707c0ced739a9efcb75f0af364cd88c581  src/components/ui/scroll-area.tsx
+749b0501e97591f8d7c9ef81366d636e4b47857a15a28e6cf3b87841232e74bf  src/components/ui/table.tsx
+958b817b256cffae986d046168b70dd0153d542b4c521ee8bbdda349010011ef  src/components/ui/tabs.tsx
+ed0ee60f7f9d5eabae7e980a0398122334d6fa1130d402284fcb633afcd6fa46  src/components/ui/toast.tsx
+f40c5973e31523121e58d4cdc299442f5419d56137b374e979328f637ffade08  src/db/index.ts
+78f6e78f3eb61649079f956b25b3f292a0595b44c3680e97d28ee51f650e22e9  src/db/schema.ts
+453a9ecc34b37dd707eaab4799964840ca853488c188b3b382f54adb4e1aea91  src/lib/abdm/abdm-client.ts
+62d901b42d0f3c758c32cfd9921064840e76440e0613004e9d3326eb2c9e33fc  src/lib/allergy-checker.ts
+1fe82ed89b0d9def0694a5b06fd826c196cdd15efed401acac70735e279459c1  src/lib/audit.ts
+6c270b5b128240b457e71d993f829bf8bc12b6a92d6753e9975eaad03081c5ab  src/lib/auth.ts
+463b83f833d905c9ba9691e82a5f080c76d4b07864e61df039e6482f29fb717c  src/lib/consent-security.ts
+06b8dcad6c3b5aefddca1dbb90e786285a517d3f7e235c602011e71df72fdcfb  src/lib/crypto-storage.ts
+d2565eacebedb8531aa56dd5911852b1bb30598c5dc7f6212865443340522cd7  src/lib/csv-export.ts
+5643efe6cba72d58105df47c189a3eec171306a3d2bef9ffe148c35896c68edb  src/lib/decoy-engine.ts
+379ff5bbf75313c09a3fadf1d7bb0abbe8afb31364ec232ecb12937d92e00fe3  src/lib/drug-interactions.ts
+afac9f8dd6778ffda796ed245c51f89946b2e8eea5d8218cc2ac8f027bc2dcaa  src/lib/drug-library.ts
+1b88a64062179fec7749f9f1ee80d4913fba8468b86e947003260640050aa290  src/lib/fhir/fhir-converter.ts
+2293437f0ec3db8297bbe48a63c20a5ec83f9627bfa5e31ca74702c62b70e181  src/lib/gdrive-backup.ts
+32d3fd2323ca114f3da5467b59d612cfacb3717910df4ce729affc9b19ac21e1  src/lib/icd10.ts
+bac40d85aebfd459387393c6c869da5019be5e2bd5315cf323857ecf81d2c61b  src/lib/ipd-constants.ts
+72cf214fcadea655187339aa5b28a24280e097153a190903409ccd1d34e7c6d0  src/lib/lab-library.ts
+76c7ce95dec2f2b612ef7e2922a53d2168ae9a8097dacc8bd21cf36a75e398ba  src/lib/lab-templates.ts
+b4a3e52d82010b54cce4f2fb0473b565cf1f3f9bb02af34946646a74979fc596  src/lib/phi-sanitizer.ts
+0a37c2d21bbe4103c948b1d857235c432b6122fc6b26387c0061ce377611788f  src/lib/prescription-message.ts
+3b6c66081031a7eb5cddf5826164ddff740ccb62713659f31c8f3f30198bc5be  src/lib/prescription-security.ts
+901a938b500566328e62bc73cb290dfd61d9c31e6e2c9550527f1490140bb455  src/lib/rate-limiter.ts
+89d4b630a0fe1fec52255886333b38ca5428b79b74d34eb329bba9ab0fc18df0  src/lib/seal-formatter.ts
+1380f4c22ae003aa43141115bc9afca3d15d624563fe88937a7df74e9fe11169  src/lib/security-engine.ts
+7d57f75d122eb263105d74cf73be8d50fb12848ed59997cc137a2ec3e621e93b  src/lib/totp.ts
+af9bf17015ca8fe47e446427b32a357779e493c97802a95616c7125fe2fb3311  src/lib/utils.ts
+c4d171ef5726491b334c24f3bf07612d8f09f42be03cba79a5ae2978f09818c0  src/types/index.ts
+5c51df4c59f4510d8c7dadf07a5c32132228826a3b331da5e286207b4df7ef9c  tsconfig.json
+
+================================================================================
+Copyright (c) 2026 Dr. Nitin Hiralal Sonare. All Rights Reserved.
+================================================================================

@@ -1,0 +1,45 @@
+{
+  "title": "MedScript OPD - Offline-First Outpatient Prescription & Electronic Medical Records (EMR) System",
+  "description": "MedScript OPD is a sovereign, offline-first Electronic Medical Records (EMR) and clinical prescription system designed for independent physicians and outpatient clinics. It features cryptographic prescription integrity sealing, real-time drug-drug interaction surveillance, ICD-10 diagnostic coding, role-based clinical access control, and FHIR R4 health data interoperability. Built for complete data sovereignty — patient records never leave the clinic premises.",
+  "creators": [
+    {
+      "name": "Sonare, Nitin Hiralal",
+      "affiliation": "Sonare Hospital, Buldhana, Maharashtra, India",
+      "orcid": "",
+      "gnd": ""
+    }
+  ],
+  "keywords": [
+    "Electronic Medical Records",
+    "EMR",
+    "EHR",
+    "Outpatient Prescription",
+    "Offline-First",
+    "Clinical Software",
+    "Drug Interaction",
+    "ICD-10",
+    "FHIR R4",
+    "ABDM",
+    "Healthcare IT",
+    "SQLite",
+    "Next.js",
+    "TypeScript",
+    "India"
+  ],
+  "license": {
+    "id": "other-closed"
+  },
+  "access_right": "closed",
+  "upload_type": "software",
+  "publication_date": "2026-09-27",
+  "version": "1.1.1",
+  "language": "eng",
+  "related_identifiers": [
+    {
+      "identifier": "https://github.com/Plaguedoctor-sudo/medscript-opd",
+      "relation": "isSupplementTo",
+      "scheme": "url"
+    }
+  ],
+  "notes": "Copyright (c) 2026 Dr. Nitin Hiralal Sonare. All Rights Reserved. Proprietary and Confidential. MCI/MMC Registration No: 20260201195. Sonare Hospital, Dhotra Bh. Chikhali, Buldhana, Maharashtra - 443201, India."
+}

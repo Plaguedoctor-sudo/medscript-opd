@@ -1,0 +1,36 @@
+cff-version: 1.2.0
+message: "If you reference this software, please cite it using these metadata."
+type: software
+title: "MedScript OPD"
+abstract: >
+  Sovereign offline-first Electronic Medical Records (EMR) and clinical
+  prescription management system for independent physicians and outpatient
+  clinics in India. Features cryptographic prescription integrity sealing,
+  real-time drug-drug interaction surveillance, ICD-10 diagnostic coding,
+  role-based clinical access control, and FHIR R4 health data interoperability.
+authors:
+  - family-names: "Sonare"
+    given-names: "Nitin Hiralal"
+    name-particle: "Dr."
+    email: "sonarenitin3@gmail.com"
+    affiliation: "Sonare Hospital, Buldhana, Maharashtra, India"
+version: "1.1.1"
+date-released: "2026-09-27"
+url: "https://github.com/Plaguedoctor-sudo/medscript-opd"
+repository-code: "https://github.com/Plaguedoctor-sudo/medscript-opd"
+license: "LicenseRef-Proprietary"
+copyright: "Copyright (c) 2026 Dr. Nitin Hiralal Sonare. All Rights Reserved."
+keywords:
+  - "electronic medical records"
+  - "EMR"
+  - "EHR"
+  - "outpatient prescription"
+  - "offline-first healthcare"
+  - "drug interaction"
+  - "ICD-10"
+  - "FHIR R4"
+  - "ABDM"
+  - "India"
+  - "clinical software"
+  - "Next.js"
+  - "SQLite"
