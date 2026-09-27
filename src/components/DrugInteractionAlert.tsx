@@ -1,5 +1,12 @@
 'use client';
 
+/**
+ * Copyright (c) 2026 Dr. Nitin Hiralal Sonare <sonarenitin3@gmail.com>. All Rights Reserved.
+ * MedScript OPD - Proprietary Clinical Software.
+ * Unauthorized reproduction, reverse engineering, or redistribution is strictly prohibited.
+ * See LICENSE at project root for full terms.
+ */
+
 import React, { useState } from 'react';
 import { AlertTriangle, ShieldAlert, ChevronDown, ChevronUp, CheckCircle, Info } from 'lucide-react';
 import { DrugInteraction, InteractionSeverity } from '@/lib/drug-interactions';

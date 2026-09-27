@@ -1,4 +1,10 @@
 /**
+ * Copyright (c) 2026 Dr. Nitin Hiralal Sonare <sonarenitin3@gmail.com>. All Rights Reserved.
+ * MedScript OPD - Proprietary Clinical Software.
+ * Unauthorized reproduction, reverse engineering, or redistribution is strictly prohibited.
+ * See LICENSE at project root for full terms.
+ */
+/**
  * Clinical Drug-Drug Interaction (DDI) Checker Engine
  * Evaluates prescription medications for clinical contraindications,
  * synergistic toxicities, QTc prolongation, chelation, and bleeding risks.

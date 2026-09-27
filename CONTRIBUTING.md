@@ -87,5 +87,5 @@ Before submitting a Pull Request, ensure that:
 
 ---
 
-## License
-By contributing to MedScript OPD, you agree that your contributions will be licensed under the project's [MIT License](LICENSE).
+## Intellectual Property & Contributor Terms
+By contributing to MedScript OPD, you acknowledge and agree that all intellectual property, copyright, and patentable inventions in your contributions are assigned to Dr. Nitin Hiralal Sonare pursuant to the [Proprietary Software License](LICENSE).

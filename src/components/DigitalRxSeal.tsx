@@ -1,5 +1,12 @@
 'use client';
 
+/**
+ * Copyright (c) 2026 Dr. Nitin Hiralal Sonare <sonarenitin3@gmail.com>. All Rights Reserved.
+ * MedScript OPD - Proprietary Clinical Software.
+ * Unauthorized reproduction, reverse engineering, or redistribution is strictly prohibited.
+ * See LICENSE at project root for full terms.
+ */
+
 import React, { useState, useTransition } from 'react';
 import { ShieldCheck, ShieldAlert, CheckCircle2, Loader2, KeyRound } from 'lucide-react';
 import { Button } from './ui/button';

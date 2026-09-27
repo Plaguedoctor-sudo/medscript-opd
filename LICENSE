@@ -1,21 +1,75 @@
-MIT License
+PROPRIETARY AND CONFIDENTIAL SOFTWARE LICENSE AGREEMENT
+================================================================================
+MedScript OPD - Outpatient Prescription & Electronic Medical Records (EMR) System
+Copyright (c) 2026 Dr. Nitin Hiralal Sonare. All Rights Reserved.
+Medical Council Registration Number: 20260201195
+Sonare Hospital, Dhotra Bh. Chikhali, Buldhana, Maharashtra - 443201, India.
+================================================================================
 
-Copyright (c) 2026 MedScript OPD Contributors
+NOTICE TO USER: PLEASE READ THIS DOCUMENT CAREFULLY. THIS IS A LEGALLY BINDING
+PROPRIETARY LICENSE AGREEMENT BETWEEN YOU (WHETHER AN INDIVIDUAL OR SINGLE ENTITY)
+AND DR. NITIN HIRALAL SONARE ("THE AUTHOR & PROPRIETOR").
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+1. OWNERSHIP & INTELLECTUAL PROPERTY RIGHTS
+-------------------------------------------
+MedScript OPD, including but not limited to its source code, object code, software
+architecture, database schemas, cryptographic prescription integrity engines,
+offline drug interaction matrices, documentation, graphic assets, and user interface
+designs (collectively, the "Software"), is the exclusive proprietary property and
+trade secret of Dr. Nitin Hiralal Sonare.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+The Software is protected by the Copyright Act, 1957 (India), the Trade Marks Act,
+1999 (India), international copyright treaties, and other intellectual property
+laws and conventions. The Software is licensed, NOT sold.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+2. RESTRICTIONS ON USE
+----------------------
+Except as explicitly authorized in writing by Dr. Nitin Hiralal Sonare, you shall NOT:
+  a. Copy, reproduce, distribute, publish, transmit, or display the Software in whole
+     or in part, in any form or medium.
+  b. Modify, adapt, translate, create derivative works of, or enhance the Software.
+  c. Reverse engineer, decompile, disassemble, or attempt to derive the source code
+     or underlying algorithms of any portion of the Software.
+  d. Sell, resell, rent, lease, sublicense, distribute, assign, timeshare, or
+     commercially exploit the Software or make the functionality of the Software
+     available to third parties via Software-as-a-Service (SaaS), cloud hosting, or
+     bureau services.
+  e. Remove, alter, cover, or obscure any copyright notice, trademark ("MedScript",
+     "MedScript OPD"), proprietary legend, or digital cryptographic signature.
+
+3. CLINICAL USE & PRACTICE DEPLOYMENT
+-------------------------------------
+Authorization for clinical, diagnostic, or hospital deployment is granted solely
+pursuant to an authorized deployment or subscription agreement executed with
+Dr. Nitin Hiralal Sonare. Authorized deployments are restricted to single-clinic or
+internal institutional use as specified in writing.
+
+4. CONFIDENTIALITY & TRADE SECRETS
+----------------------------------
+The Software contains valuable trade secrets and proprietary confidential data of
+Dr. Nitin Hiralal Sonare, including the proprietary offline clinical rule engines,
+interaction matrices, and verification routines. Any unauthorized disclosure of
+the Software constitutes a material violation of this Agreement and intellectual
+property law.
+
+5. DISCLAIMER OF WARRANTY & LIMITATION OF LIABILITY
+---------------------------------------------------
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE, AND NONINFRINGEMENT. IN NO EVENT SHALL DR. NITIN HIRALAL SONARE
+BE LIABLE FOR ANY CLAIM, DAMAGES, LOSS OF PROFITS, DATA LOSS, MEDICAL MISDIAGNOSIS,
+OR OTHER LIABILITY ARISING FROM THE USE OF OR INABILITY TO USE THE SOFTWARE.
+LICENSED PRACTITIONERS REMAIN SOLELY RESPONSIBLE FOR INDEPENDENT CLINICAL JUDGMENT.
+
+6. GOVERNING LAW & JURISDICTION
+-------------------------------
+This Agreement shall be governed by and construed in accordance with the substantive
+laws of the Republic of India. Any dispute, legal proceeding, or claim arising out
+of or relating to this Agreement or the Software shall be subject to the exclusive
+jurisdiction of the competent courts in Buldhana / Mumbai, Maharashtra, India.
+================================================================================
+For licensing inquiries, enterprise partnerships, or commercial permissions:
+Contact: Dr. Nitin Hiralal Sonare
+Email: sonarenitin3@gmail.com | Phone: +91 9860748963
+Sonare Hospital, Buldhana, Maharashtra, India
+================================================================================

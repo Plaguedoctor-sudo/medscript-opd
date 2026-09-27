@@ -1,4 +1,10 @@
 /**
+ * Copyright (c) 2026 Dr. Nitin Hiralal Sonare <sonarenitin3@gmail.com>. All Rights Reserved.
+ * MedScript OPD - Proprietary Clinical Software.
+ * Unauthorized reproduction, reverse engineering, or redistribution is strictly prohibited.
+ * See LICENSE at project root for full terms.
+ */
+/**
  * ICD-10-CM Clinical Diagnostic Database for OPD & Primary Care
  * Provides comprehensive standardized ICD-10 codes, descriptions, and categories.
  */

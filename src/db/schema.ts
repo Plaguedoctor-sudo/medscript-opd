@@ -1,3 +1,9 @@
+/**
+ * Copyright (c) 2026 Dr. Nitin Hiralal Sonare <sonarenitin3@gmail.com>. All Rights Reserved.
+ * MedScript OPD - Proprietary Clinical Software.
+ * Unauthorized reproduction, reverse engineering, or redistribution is strictly prohibited.
+ * See LICENSE at project root for full terms.
+ */
 import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
 import { relations } from "drizzle-orm";
 

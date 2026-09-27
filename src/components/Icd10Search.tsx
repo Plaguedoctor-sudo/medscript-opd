@@ -1,5 +1,12 @@
 'use client';
 
+/**
+ * Copyright (c) 2026 Dr. Nitin Hiralal Sonare <sonarenitin3@gmail.com>. All Rights Reserved.
+ * MedScript OPD - Proprietary Clinical Software.
+ * Unauthorized reproduction, reverse engineering, or redistribution is strictly prohibited.
+ * See LICENSE at project root for full terms.
+ */
+
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Search, Stethoscope, Check, X, Tag } from 'lucide-react';
 import { searchICD10, ICD10Diagnosis, formatICD10Diagnosis } from '@/lib/icd10';

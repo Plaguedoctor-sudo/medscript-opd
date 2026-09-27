@@ -1,3 +1,9 @@
+/**
+ * Copyright (c) 2026 Dr. Nitin Hiralal Sonare <sonarenitin3@gmail.com>. All Rights Reserved.
+ * MedScript OPD - Proprietary Clinical Software.
+ * Unauthorized reproduction, reverse engineering, or redistribution is strictly prohibited.
+ * See LICENSE at project root for full terms.
+ */
 import { db } from '@/db';
 import { auditLogs, securityAlerts, clinicSettings } from '@/db/schema';
 import { desc, isNull, and, gte, eq } from 'drizzle-orm';

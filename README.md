@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-Proprietary-red.svg" alt="License: Proprietary"></a>
   <a href="https://nextjs.org"><img src="https://img.shields.io/badge/Next.js-16.3-black.svg" alt="Next.js"></a>
   <a href="https://react.dev"><img src="https://img.shields.io/badge/React-19.2-61dafb.svg" alt="React 19"></a>
   <a href="https://www.sqlite.org"><img src="https://img.shields.io/badge/SQLite-WAL%20Mode-003B57.svg" alt="SQLite WAL"></a>
@@ -197,6 +197,8 @@ Contributions are warmly welcomed! Please read our [CONTRIBUTING.md](CONTRIBUTIN
 
 ---
 
-## 📄 License
+## 📄 Intellectual Property & Licensing
 
-MedScript OPD is open-source software licensed under the **[MIT License](LICENSE)**.
+MedScript OPD is proprietary clinical software.  
+Copyright © 2026 **Dr. Nitin Hiralal Sonare** (MBBS, Reg No: 20260201195). All Rights Reserved.  
+Commercial reproduction, reverse engineering, redistribution, or unauthorized deployment without prior written permission is strictly prohibited. For complete terms, see [LICENSE](LICENSE) and [regulatory dossiers](regulatory/).
