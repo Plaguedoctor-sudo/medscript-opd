@@ -52,7 +52,7 @@ const nextConfig: NextConfig = {
         headers: securityHeaders,
       },
       {
-        source: "/(api|patient|prescription|reports|settings)/:path*",
+        source: "/(api|patient|prescription|reports|settings|appointments|inventory|ipd|labs|billing)/:path*",
         headers: [
           {
             key: "Cache-Control",

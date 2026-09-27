@@ -317,8 +317,15 @@ export async function createIpdAdmission(input: CreateIpdAdmissionInput): Promis
   await requireAuth('/ipd');
   const role = await getCurrentUserRole();
 
-  if (!input.patientId || !input.ward?.trim() || !input.bedNo?.trim()) {
-    return { success: false, error: "Patient, ward, and bed number are required." };
+  if (!input.patientId || typeof input.patientId !== 'number' || input.patientId <= 0) {
+    return { success: false, error: "Valid Patient ID is required." };
+  }
+
+  const cleanWard = (input.ward || '').trim().slice(0, 50);
+  const cleanBedNo = (input.bedNo || '').trim().slice(0, 30);
+
+  if (!cleanWard || !cleanBedNo) {
+    return { success: false, error: "Ward and bed number are required." };
   }
 
   try {
@@ -338,7 +345,7 @@ export async function createIpdAdmission(input: CreateIpdAdmissionInput): Promis
 
     const admissionNo = await generateIpdAdmissionNumber();
     const settings = await db.query.clinicSettings.findFirst();
-    const doctorName = input.attendingDoctor?.trim() || settings?.doctorName || "Attending Physician";
+    const doctorName = (input.attendingDoctor?.trim() || settings?.doctorName || "Attending Physician").slice(0, 100);
 
     const [inserted] = await db
       .insert(ipdAdmissions)
@@ -347,12 +354,12 @@ export async function createIpdAdmission(input: CreateIpdAdmissionInput): Promis
         patientId: input.patientId,
         admissionDate: new Date(),
         status: 'ADMITTED',
-        ward: input.ward.trim(),
-        bedNo: input.bedNo.trim(),
-        roomType: input.roomType?.trim() || "General",
+        ward: cleanWard,
+        bedNo: cleanBedNo,
+        roomType: (input.roomType?.trim() || "General").slice(0, 50),
         attendingDoctor: doctorName,
-        admittingDiagnosis: input.admittingDiagnosis?.trim() || null,
-        chiefComplaints: input.chiefComplaints?.trim() || null,
+        admittingDiagnosis: input.admittingDiagnosis?.trim().slice(0, 500) || null,
+        chiefComplaints: input.chiefComplaints?.trim().slice(0, 1000) || null,
         admissionVitals: input.admissionVitals ? JSON.stringify(input.admissionVitals) : null,
         createdAt: new Date(),
       })
@@ -361,7 +368,7 @@ export async function createIpdAdmission(input: CreateIpdAdmissionInput): Promis
     await logAuditEvent({
       action: 'IPD_ADMISSION_CREATED',
       actorRole: role.toUpperCase(),
-      details: `IPD Admission ${admissionNo} created for Patient ID #${input.patientId} in ${input.ward} (${input.bedNo})`,
+      details: `IPD Admission ${admissionNo} created for Patient ID #${input.patientId} in ${cleanWard} (${cleanBedNo})`,
       status: 'SUCCESS',
     });
 

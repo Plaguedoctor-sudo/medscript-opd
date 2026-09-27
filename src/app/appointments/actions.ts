@@ -22,7 +22,9 @@ export async function getAppointments(dateStr?: string): Promise<{
 }> {
   await requireAuth('/appointments');
 
-  const targetDate = dateStr && dateStr.trim() ? dateStr.trim() : new Date().toISOString().split('T')[0];
+  const targetDate = dateStr && /^\d{4}-\d{2}-\d{2}$/.test(dateStr.trim())
+    ? dateStr.trim()
+    : new Date().toISOString().split('T')[0];
 
   try {
     const rows = sqlite
@@ -162,9 +164,22 @@ export async function createAppointment(data: {
   await requireAuth('/appointments');
   const role = await getCurrentUserRole();
 
-  try {
-    const dateStr = data.appointmentDate.trim();
+  if (!data.patientId || typeof data.patientId !== 'number' || data.patientId <= 0) {
+    return { success: false, error: 'Valid Patient ID is required.' };
+  }
 
+  const dateStr = (data.appointmentDate || '').trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    return { success: false, error: 'Invalid appointment date format (expected YYYY-MM-DD).' };
+  }
+
+  const ALLOWED_TYPES: AppointmentType[] = ['OPD_CONSULTATION', 'FOLLOW_UP', 'VACCINATION', 'EMERGENCY'];
+  const apptType: AppointmentType = ALLOWED_TYPES.includes(data.type) ? data.type : 'OPD_CONSULTATION';
+  const cleanComplaint = data.chiefComplaint ? data.chiefComplaint.trim().slice(0, 500) : null;
+  const cleanNotes = data.notes ? data.notes.trim().slice(0, 1000) : null;
+  const cleanTimeSlot = data.timeSlot ? data.timeSlot.trim().slice(0, 50) : null;
+
+  try {
     // Auto-calculate next token number for this date
     const maxRow = sqlite
       .prepare('SELECT MAX(token_no) as maxToken FROM appointments WHERE appointment_date = ?')
@@ -173,7 +188,7 @@ export async function createAppointment(data: {
     const nextToken = (maxRow?.maxToken || 0) + 1;
     const now = Date.now();
 
-    const docName = data.doctorName?.trim() || 'Dr. Nitin Hiralal Sonare';
+    const docName = (data.doctorName?.trim() || 'Dr. Nitin Hiralal Sonare').slice(0, 100);
 
     sqlite
       .prepare(`
@@ -185,13 +200,13 @@ export async function createAppointment(data: {
       .run(
         nextToken,
         dateStr,
-        data.timeSlot?.trim() || null,
+        cleanTimeSlot,
         data.patientId,
         data.doctorId || null,
         docName,
-        data.type || 'OPD_CONSULTATION',
-        data.chiefComplaint?.trim() || null,
-        data.notes?.trim() || null,
+        apptType,
+        cleanComplaint,
+        cleanNotes,
         now
       );
 
@@ -217,6 +232,14 @@ export async function updateAppointmentStatus(
 ): Promise<{ success: boolean; error?: string }> {
   await requireAuth('/appointments');
   const role = await getCurrentUserRole();
+
+  const ALLOWED_STATUSES: AppointmentStatus[] = ['WAITING', 'IN_CONSULTATION', 'COMPLETED', 'CANCELLED', 'NO_SHOW'];
+  if (!ALLOWED_STATUSES.includes(newStatus)) {
+    return { success: false, error: 'Invalid appointment status.' };
+  }
+  if (!id || typeof id !== 'number' || id <= 0) {
+    return { success: false, error: 'Invalid appointment ID.' };
+  }
 
   try {
     sqlite.prepare('UPDATE appointments SET status = ? WHERE id = ?').run(newStatus, id);
@@ -245,7 +268,9 @@ export async function callNextPatientAction(dateStr?: string): Promise<{
 }> {
   await requireAuth('/appointments');
   const role = await getCurrentUserRole();
-  const targetDate = dateStr && dateStr.trim() ? dateStr.trim() : new Date().toISOString().split('T')[0];
+  const targetDate = dateStr && /^\d{4}-\d{2}-\d{2}$/.test(dateStr.trim())
+    ? dateStr.trim()
+    : new Date().toISOString().split('T')[0];
 
   try {
     // 1. Mark any active IN_CONSULTATION appointments on this date as COMPLETED

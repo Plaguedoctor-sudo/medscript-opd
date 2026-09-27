@@ -161,6 +161,26 @@ export async function addPharmacyItem(data: {
     return { success: false, error: 'Unauthorized: Staff authorization required to manage pharmacy inventory.' };
   }
 
+  const cleanMedName = (data.medicineName || '').trim();
+  const cleanBatchNo = (data.batchNo || '').trim().toUpperCase();
+  const cleanExpiry = (data.expiryDate || '').trim();
+
+  if (!cleanMedName || cleanMedName.length > 200) {
+    return { success: false, error: 'Valid medicine name is required (max 200 characters).' };
+  }
+  if (!cleanBatchNo || cleanBatchNo.length > 50) {
+    return { success: false, error: 'Valid batch number is required (max 50 characters).' };
+  }
+  if (!cleanExpiry || cleanExpiry.length > 20) {
+    return { success: false, error: 'Valid expiry date is required.' };
+  }
+
+  const cleanQuantity = Number.isFinite(data.quantityInStock) ? Math.max(0, Math.min(data.quantityInStock, 1000000)) : 0;
+  const cleanMinThreshold = Number.isFinite(data.minThreshold) ? Math.max(0, Math.min(data.minThreshold, 10000)) : 20;
+  const cleanPurchaseCost = Number.isFinite(data.purchaseCost) ? Math.max(0, Math.min(data.purchaseCost, 1000000)) : 0;
+  const cleanMrp = Number.isFinite(data.mrp) ? Math.max(0, Math.min(data.mrp, 1000000)) : 0;
+  const cleanSellingPrice = Number.isFinite(data.sellingPrice) ? Math.max(0, Math.min(data.sellingPrice, 1000000)) : 0;
+
   try {
     const now = Date.now();
     const res = sqlite
@@ -172,18 +192,18 @@ export async function addPharmacyItem(data: {
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `)
       .run(
-        data.medicineName.trim(),
-        data.brandName?.trim() || null,
-        data.category || 'Tablet',
-        data.batchNo.trim().toUpperCase(),
-        data.expiryDate.trim(),
-        Math.max(0, data.quantityInStock),
-        Math.max(0, data.minThreshold || 20),
-        Math.max(0, data.purchaseCost || 0),
-        Math.max(0, data.mrp || 0),
-        Math.max(0, data.sellingPrice || 0),
-        data.rackLocation?.trim() || null,
-        data.supplierName?.trim() || null,
+        cleanMedName,
+        data.brandName?.trim().slice(0, 100) || null,
+        (data.category || 'Tablet').slice(0, 50),
+        cleanBatchNo,
+        cleanExpiry,
+        cleanQuantity,
+        cleanMinThreshold,
+        cleanPurchaseCost,
+        cleanMrp,
+        cleanSellingPrice,
+        data.rackLocation?.trim().slice(0, 50) || null,
+        data.supplierName?.trim().slice(0, 100) || null,
         now,
         now
       );
@@ -191,20 +211,20 @@ export async function addPharmacyItem(data: {
     const insertedId = Number(res.lastInsertRowid);
 
     // Record initial inward transaction
-    if (data.quantityInStock > 0) {
+    if (cleanQuantity > 0) {
       sqlite
         .prepare(`
           INSERT INTO pharmacy_transactions (
             inventory_id, type, quantity, remarks, created_at
           ) VALUES (?, 'INWARD', ?, ?, ?)
         `)
-        .run(insertedId, data.quantityInStock, `Initial stock inward by ${user?.name || role}`, now);
+        .run(insertedId, cleanQuantity, `Initial stock inward by ${user?.name || role}`, now);
     }
 
     await logAuditEvent({
       action: 'PHARMACY_STOCK_ADDED',
       actorRole: role.toUpperCase(),
-      details: `Added new stock: ${data.medicineName} (${data.category}) - Batch: ${data.batchNo}, Qty: ${data.quantityInStock}`,
+      details: `Added new stock: ${cleanMedName} (${data.category}) - Batch: ${cleanBatchNo}, Qty: ${cleanQuantity}`,
       status: 'SUCCESS',
     });
 
@@ -233,6 +253,19 @@ export async function dispenseOrAdjustStock(data: {
     return { success: false, error: 'Unauthorized: Staff authorization required to dispense inventory.' };
   }
 
+  const ALLOWED_TYPES = ['DISPENSED', 'ADJUSTMENT', 'EXPIRED', 'INWARD'];
+  if (!ALLOWED_TYPES.includes(data.type)) {
+    return { success: false, error: 'Invalid inventory transaction type.' };
+  }
+
+  if (!data.inventoryId || typeof data.inventoryId !== 'number' || data.inventoryId <= 0) {
+    return { success: false, error: 'Valid inventory item ID is required.' };
+  }
+
+  if (!Number.isFinite(data.quantity) || data.quantity <= 0 || data.quantity > 50000) {
+    return { success: false, error: 'Quantity must be a positive number between 1 and 50,000.' };
+  }
+
   // Adjustments and write-offs require Doctor authorization
   if ((data.type === 'ADJUSTMENT' || data.type === 'EXPIRED') && !isDoctor(role)) {
     return { success: false, error: 'Unauthorized: Only an authorized Doctor or CMO can adjust or write off inventory.' };
@@ -248,7 +281,7 @@ export async function dispenseOrAdjustStock(data: {
     }
 
     let newStock = item.quantity_in_stock;
-    const delta = Math.abs(data.quantity);
+    const delta = Math.round(data.quantity);
 
     if (data.type === 'INWARD') {
       newStock += delta;
@@ -281,7 +314,7 @@ export async function dispenseOrAdjustStock(data: {
         data.patientId || null,
         data.prescriptionId || null,
         data.admissionId || null,
-        data.remarks?.trim() || `Processed by ${user?.name || role}`,
+        (data.remarks?.trim() || `Processed by ${user?.name || role}`).slice(0, 500),
         now
       );
 
@@ -308,6 +341,8 @@ export async function getPharmacyTransactions(limit = 30): Promise<
 > {
   await requireAuth('/inventory');
 
+  const safeLimit = Math.max(1, Math.min(Number(limit) || 30, 200));
+
   try {
     const rows = sqlite
       .prepare(`
@@ -329,7 +364,7 @@ export async function getPharmacyTransactions(limit = 30): Promise<
         ORDER BY t.id DESC
         LIMIT ?
       `)
-      .all(limit) as {
+      .all(safeLimit) as {
         id: number;
         inventoryId: number;
         type: 'INWARD' | 'DISPENSED' | 'ADJUSTMENT' | 'EXPIRED';

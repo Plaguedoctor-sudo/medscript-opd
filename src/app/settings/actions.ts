@@ -7,6 +7,7 @@ import { revalidatePath } from "next/cache";
 import { ClinicSettings, SafeClinicSettings } from "@/types";
 import { requireRole } from "@/lib/auth";
 import { logAuditEvent } from "@/lib/audit";
+import { encryptPhi, decryptPhi } from "@/lib/crypto-storage";
 
 export async function getSettings(): Promise<SafeClinicSettings | null> {
   await requireRole(['doctor'], '/settings');
@@ -426,8 +427,12 @@ export async function saveGoogleDriveConfigAction(data: {
     const cleanEncryptionKey = (data.encryptionKey || "").trim();
     const interval = data.autoBackupInterval || "DAILY";
 
+    // Encrypt sensitive cloud private keys & passphrases at rest using AES-256-GCM (WSTG-CRYP-04)
+    const storedPrivateKey = cleanPrivateKey ? encryptPhi(cleanPrivateKey) : undefined;
+    const storedEncryptionKey = cleanEncryptionKey ? encryptPhi(cleanEncryptionKey) : undefined;
+
     // If private key was provided, update it; otherwise preserve existing
-    if (cleanPrivateKey) {
+    if (storedPrivateKey) {
       sqlite
         .prepare(`
           UPDATE clinic_settings
@@ -437,13 +442,13 @@ export async function saveGoogleDriveConfigAction(data: {
             gdrive_private_key = ?,
             gdrive_folder_id = ?,
             gdrive_auto_backup_interval = ?
-            ${cleanEncryptionKey ? ', gdrive_encryption_key = ?' : ''}
+            ${storedEncryptionKey ? ', gdrive_encryption_key = ?' : ''}
           WHERE id = 1
         `)
         .run(
-          ...(cleanEncryptionKey
-            ? [data.enabled ? 1 : 0, cleanEmail, cleanPrivateKey, cleanFolderId, interval, cleanEncryptionKey]
-            : [data.enabled ? 1 : 0, cleanEmail, cleanPrivateKey, cleanFolderId, interval])
+          ...(storedEncryptionKey
+            ? [data.enabled ? 1 : 0, cleanEmail, storedPrivateKey, cleanFolderId, interval, storedEncryptionKey]
+            : [data.enabled ? 1 : 0, cleanEmail, storedPrivateKey, cleanFolderId, interval])
         );
     } else {
       sqlite
@@ -454,12 +459,12 @@ export async function saveGoogleDriveConfigAction(data: {
             gdrive_client_email = ?,
             gdrive_folder_id = ?,
             gdrive_auto_backup_interval = ?
-            ${cleanEncryptionKey ? ', gdrive_encryption_key = ?' : ''}
+            ${storedEncryptionKey ? ', gdrive_encryption_key = ?' : ''}
           WHERE id = 1
         `)
         .run(
-          ...(cleanEncryptionKey
-            ? [data.enabled ? 1 : 0, cleanEmail, cleanFolderId, interval, cleanEncryptionKey]
+          ...(storedEncryptionKey
+            ? [data.enabled ? 1 : 0, cleanEmail, cleanFolderId, interval, storedEncryptionKey]
             : [data.enabled ? 1 : 0, cleanEmail, cleanFolderId, interval])
         );
     }
@@ -491,7 +496,7 @@ export async function testGoogleDriveAction(data: {
     const existing = sqlite
       .prepare('SELECT gdrive_private_key FROM clinic_settings WHERE id = 1')
       .get() as { gdrive_private_key?: string } | undefined;
-    keyToUse = existing?.gdrive_private_key || undefined;
+    keyToUse = existing?.gdrive_private_key ? decryptPhi(existing.gdrive_private_key) : undefined;
   }
 
   if (!keyToUse) {

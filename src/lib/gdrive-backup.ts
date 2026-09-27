@@ -4,6 +4,7 @@ import path from 'path';
 import { sqlite } from '@/db';
 import { logAuditEvent } from '@/lib/audit';
 import { getSessionSecret } from '@/lib/auth';
+import { decryptPhi } from '@/lib/crypto-storage';
 
 export interface GoogleDriveConfigInput {
   clientEmail: string;
@@ -191,14 +192,15 @@ export async function backupDatabaseToGoogleDrive(options?: {
         clinicName?: string | null;
       } | undefined;
 
-    if (!settings || !settings.clientEmail || !settings.privateKey) {
+    const effectivePrivateKey = settings?.privateKey ? decryptPhi(settings.privateKey) : '';
+    if (!settings || !settings.clientEmail || !effectivePrivateKey) {
       throw new Error(
         'Google Drive backup is not configured. Please supply Service Account Client Email and Private Key in Settings.'
       );
     }
 
     // 2. Obtain OAuth2 access token
-    const token = await getGoogleAccessToken(settings.clientEmail, settings.privateKey);
+    const token = await getGoogleAccessToken(settings.clientEmail, effectivePrivateKey);
 
     // 3. Checkpoint SQLite WAL and read database file snapshot safely
     try {
@@ -212,9 +214,10 @@ export async function backupDatabaseToGoogleDrive(options?: {
     }
 
     const rawBuffer = fs.readFileSync(dbPath);
+    const decryptedSettingsKey = settings.encryptionKey ? decryptPhi(settings.encryptionKey) : '';
     const passphrase =
       options?.encryptionPassphrase?.trim() ||
-      settings.encryptionKey?.trim() ||
+      decryptedSettingsKey.trim() ||
       settings.sessionSecret ||
       getSessionSecret();
 

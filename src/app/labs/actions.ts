@@ -5,7 +5,7 @@ import { labReports, patients } from "@/db/schema";
 import { eq, desc, or, like, and } from "drizzle-orm";
 import { requireAuth, getCurrentUserRole, isDoctor, isLabTech } from "@/lib/auth";
 import { logAuditEvent } from "@/lib/audit";
-import { LabReportWithPatient, LabResultParameter, LabReportStatus, ClinicSettings } from "@/types";
+import { LabReportWithPatient, LabResultParameter, LabReportStatus, LabResultFlag, ClinicSettings } from "@/types";
 
 export interface LabFilterOptions {
   query?: string;
@@ -245,16 +245,36 @@ export async function createLabReport(input: CreateLabReportInput): Promise<{
   await requireAuth('/labs');
   const role = await getCurrentUserRole();
 
-  if (!input.patientId || !input.testName?.trim()) {
-    return { success: false, error: "Patient and test name are required." };
+  if (!input.patientId || typeof input.patientId !== 'number' || input.patientId <= 0) {
+    return { success: false, error: "Valid Patient ID is required." };
   }
+
+  const cleanTestName = (input.testName || '').trim().slice(0, 150);
+  if (!cleanTestName) {
+    return { success: false, error: "Valid test name is required." };
+  }
+
+  const ALLOWED_STATUSES: LabReportStatus[] = ['PENDING', 'SAMPLE_COLLECTED', 'COMPLETED', 'CANCELLED'];
+  const status: LabReportStatus = input.status && ALLOWED_STATUSES.includes(input.status) ? input.status : 'PENDING';
+
+  const cleanResults = Array.isArray(input.results)
+    ? input.results.slice(0, 50).map((r) => ({
+        parameter: (r.parameter || '').trim().slice(0, 100),
+        value: (r.value || '').trim().slice(0, 100),
+        unit: (r.unit || '').trim().slice(0, 50),
+        referenceRange: (r.referenceRange || '').trim().slice(0, 100),
+        flag: (r.flag && ['NORMAL', 'HIGH', 'LOW', 'CRITICAL', 'ABNORMAL'].includes(r.flag)
+          ? r.flag
+          : 'NORMAL') as LabResultFlag,
+      }))
+    : [];
 
   try {
     const reportNo = await generateLabReportNumber();
     const settings = await db.query.clinicSettings.findFirst();
     const defaultDoctor = settings?.doctorName || "Attending Physician";
 
-    const isCompleted = input.status === 'COMPLETED';
+    const isCompleted = status === 'COMPLETED';
     const now = new Date();
 
     const [inserted] = await db
@@ -264,17 +284,17 @@ export async function createLabReport(input: CreateLabReportInput): Promise<{
         patientId: input.patientId,
         prescriptionId: input.prescriptionId || null,
         ipdAdmissionId: input.ipdAdmissionId || null,
-        testName: input.testName.trim(),
-        category: input.category?.trim() || "General",
-        sampleType: input.sampleType?.trim() || "Blood",
+        testName: cleanTestName,
+        category: (input.category?.trim() || "General").slice(0, 50),
+        sampleType: (input.sampleType?.trim() || "Blood").slice(0, 50),
         sampleCollectedAt: now,
         reportedAt: isCompleted ? now : null,
-        status: input.status || "PENDING",
-        referredBy: input.referredBy?.trim() || defaultDoctor,
-        technicianName: input.technicianName?.trim() || "Pathology Dept",
-        results: JSON.stringify(input.results || []),
-        interpretation: input.interpretation?.trim() || null,
-        notes: input.notes?.trim() || null,
+        status,
+        referredBy: (input.referredBy?.trim() || defaultDoctor).slice(0, 100),
+        technicianName: (input.technicianName?.trim() || "Pathology Dept").slice(0, 100),
+        results: JSON.stringify(cleanResults),
+        interpretation: input.interpretation?.trim().slice(0, 2000) || null,
+        notes: input.notes?.trim().slice(0, 1000) || null,
         createdAt: now,
       })
       .returning({ id: labReports.id });
@@ -282,7 +302,7 @@ export async function createLabReport(input: CreateLabReportInput): Promise<{
     await logAuditEvent({
       action: isCompleted ? 'LAB_REPORT_COMPLETED' : 'LAB_REPORT_CREATED',
       actorRole: role.toUpperCase(),
-      details: `Lab Report ${reportNo} (${input.testName}) created for Patient ID #${input.patientId}`,
+      details: `Lab Report ${reportNo} (${cleanTestName}) created for Patient ID #${input.patientId}`,
       status: 'SUCCESS',
     });
 

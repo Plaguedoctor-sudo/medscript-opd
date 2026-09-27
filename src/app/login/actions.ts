@@ -745,6 +745,11 @@ export async function loginWithCredentials(
     } | undefined;
 
   if (!user) {
+    // Constant-time execution against dummy hash to prevent timing side-channel and user enumeration (OWASP WSTG-IDNT-04, WSTG-ATHN-02)
+    const DUMMY_SCRYPT_HASH =
+      'scrypt:v1:00000000000000000000000000000000:0000000000000000000000000000000000000000000000000000000000000000';
+    verifyPinHash(cleanPassword, DUMMY_SCRYPT_HASH);
+
     const failedResult = recordFailedPinAttempt(clientIp);
     await logAuditEvent({
       action: 'AUTH_LOGIN_FAILURE',
@@ -752,9 +757,17 @@ export async function loginWithCredentials(
       status: 'FAILURE',
       ipAddress: clientIp,
     });
+
+    if (failedResult.isLocked) {
+      return {
+        success: false,
+        error: 'Consultation desk locked for 5 minutes due to consecutive incorrect login attempts.',
+      };
+    }
+
     return {
       success: false,
-      error: 'Invalid Login ID or Password.',
+      error: `Invalid Login ID or Password. ${failedResult.remainingAttempts} attempt(s) remaining before lockout.`,
     };
   }
 
@@ -774,6 +787,14 @@ export async function loginWithCredentials(
       status: 'FAILURE',
       ipAddress: clientIp,
     });
+
+    if (failedResult.isLocked) {
+      return {
+        success: false,
+        error: 'Consultation desk locked for 5 minutes due to consecutive incorrect login attempts.',
+      };
+    }
+
     return {
       success: false,
       error: `Invalid Login ID or Password. ${failedResult.remainingAttempts} attempt(s) remaining before lockout.`,

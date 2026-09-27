@@ -114,9 +114,17 @@ export async function getReportsData(filter: ReportFilterOptions = { range: "mon
     fromDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
     toDate = now;
   } else if (filter.range === "custom" && filter.startDate) {
-    fromDate = new Date(`${filter.startDate}T00:00:00`);
-    if (filter.endDate) {
-      toDate = new Date(`${filter.endDate}T23:59:59`);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(filter.startDate)) {
+      const parsedFrom = new Date(`${filter.startDate}T00:00:00`);
+      if (!isNaN(parsedFrom.getTime())) {
+        fromDate = parsedFrom;
+      }
+    }
+    if (filter.endDate && /^\d{4}-\d{2}-\d{2}$/.test(filter.endDate)) {
+      const parsedTo = new Date(`${filter.endDate}T23:59:59`);
+      if (!isNaN(parsedTo.getTime())) {
+        toDate = parsedTo;
+      }
     } else {
       toDate = new Date();
     }

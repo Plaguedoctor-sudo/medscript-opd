@@ -167,12 +167,12 @@ export async function createInvoiceAction(data: {
     await requireAuth('/billing');
     const role = await getCurrentUserRole();
 
-    if (!data.patientId) {
-      return { success: false, error: 'Patient is required' };
+    if (!data.patientId || typeof data.patientId !== 'number' || data.patientId <= 0) {
+      return { success: false, error: 'Valid Patient ID is required' };
     }
 
-    if (!data.items || data.items.length === 0) {
-      return { success: false, error: 'At least one billing line item is required' };
+    if (!Array.isArray(data.items) || data.items.length === 0 || data.items.length > 100) {
+      return { success: false, error: 'Between 1 and 100 billing line items are required' };
     }
 
     // Verify patient exists
@@ -183,11 +183,28 @@ export async function createInvoiceAction(data: {
       return { success: false, error: 'Selected patient does not exist' };
     }
 
+    const sanitizedItems: InvoiceItem[] = data.items.map((it, idx) => ({
+      id: it.id || `item-${idx + 1}`,
+      description: (it.description || '').trim().slice(0, 200),
+      category: (it.category && ['Consultation', 'Medication', 'Procedure', 'Lab Test', 'Other'].includes(it.category)
+        ? it.category
+        : 'Other') as InvoiceItem['category'],
+      quantity: Number.isFinite(it.quantity) ? Math.max(1, Math.min(Math.round(it.quantity), 10000)) : 1,
+      unitPrice: Number.isFinite(it.unitPrice) ? Math.max(0, Math.min(it.unitPrice, 1000000)) : 0,
+      total: Number.isFinite(it.total) ? Math.max(0, Math.min(it.total, 10000000)) : 0,
+    }));
+
     // Calculate subtotal
-    const subtotal = data.items.reduce((acc, it) => acc + (Number(it.total) || 0), 0);
-    const discount = Math.max(0, Number(data.discount) || 0);
-    const tax = Math.max(0, Number(data.tax) || 0);
+    const subtotal = sanitizedItems.reduce((acc, it) => acc + (Number(it.total) || 0), 0);
+    const discount = Math.max(0, Math.min(Number(data.discount) || 0, subtotal));
+    const tax = Math.max(0, Math.min(Number(data.tax) || 0, 1000000));
     const totalAmount = Math.max(0, subtotal - discount + tax);
+
+    const ALLOWED_METHODS = ['Cash', 'UPI', 'Card', 'Due'] as const;
+    const paymentMethod = ALLOWED_METHODS.includes(data.paymentMethod) ? data.paymentMethod : 'Cash';
+
+    const ALLOWED_STATUSES = ['PAID', 'PENDING', 'REFUNDED'] as const;
+    const paymentStatus = ALLOWED_STATUSES.includes(data.paymentStatus) ? data.paymentStatus : 'PAID';
 
     const invoiceNo = await generateInvoiceNo();
 
@@ -197,14 +214,14 @@ export async function createInvoiceAction(data: {
         invoiceNo,
         patientId: data.patientId,
         prescriptionId: data.prescriptionId || null,
-        items: JSON.stringify(data.items),
+        items: JSON.stringify(sanitizedItems),
         subtotal,
         discount,
         tax,
         totalAmount,
-        paymentMethod: data.paymentMethod || 'Cash',
-        paymentStatus: data.paymentStatus || 'PAID',
-        notes: data.notes || null,
+        paymentMethod,
+        paymentStatus,
+        notes: (data.notes || '').trim().slice(0, 500) || null,
         createdAt: new Date(),
       })
       .returning({ id: invoices.id });
@@ -212,7 +229,7 @@ export async function createInvoiceAction(data: {
     await logAuditEvent({
       action: 'INVOICE_CREATED',
       actorRole: role.toUpperCase(),
-      details: `Generated OPD Invoice ${invoiceNo} for ${patientExists.name} (Amount: ₹${totalAmount.toFixed(2)}, Status: ${data.paymentStatus})`,
+      details: `Generated OPD Invoice ${invoiceNo} for ${patientExists.name} (Amount: ₹${totalAmount.toFixed(2)}, Status: ${paymentStatus})`,
       status: 'SUCCESS',
     });
 
