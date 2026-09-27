@@ -20,6 +20,7 @@ import { Patient, IpdVitals } from "@/types";
 import { searchPatients, getPatientById } from "@/app/prescription/new/actions";
 import { createIpdAdmission } from "./actions";
 import { STANDARD_WARDS } from "@/lib/ipd-constants";
+import { Icd10Search } from "@/components/Icd10Search";
 import {
   Bed,
   Search,
@@ -319,13 +320,11 @@ export function AdmitPatientModal({
             {/* Clinical Admission Info */}
             <div className="space-y-3">
               <div className="space-y-1">
-                <Label className="text-xs">Provisional / Admitting Diagnosis *</Label>
-                <Input
+                <Label className="text-xs">Provisional / Admitting Diagnosis (ICD-10) *</Label>
+                <Icd10Search
                   value={admittingDiagnosis}
-                  onChange={(e) => setAdmittingDiagnosis(e.target.value)}
-                  placeholder="e.g. Acute Gastroenteritis with Moderate Dehydration, Dengue with Thrombocytopenia"
-                  className="h-9 text-xs"
-                  required
+                  onChange={setAdmittingDiagnosis}
+                  placeholder="Search ICD-10 Code or Disease (e.g. A09, Gastroenteritis, Dengue, Fever)..."
                 />
               </div>
 

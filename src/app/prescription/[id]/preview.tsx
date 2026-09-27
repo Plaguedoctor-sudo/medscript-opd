@@ -24,6 +24,7 @@ import {
   Calendar,
   PlusCircle,
   FlaskConical,
+  Share2,
 } from 'lucide-react';
 import { deletePrescription } from '@/app/prescription/new/actions';
 import { toast } from '@/components/ui/toast';
@@ -327,6 +328,18 @@ export default function PrescriptionPreview({
               <Receipt className="w-4 h-4 text-emerald-600" /> Bill / Invoice
             </Button>
           </Link>
+
+          {/* HL7 FHIR R4 / ABDM Export */}
+          <a
+            href={`/api/fhir/R4/Bundle/${prescription.id}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Export standard HL7 FHIR R4 Bundle for ABDM National Health Interoperability"
+          >
+            <Button variant="outline" size="sm" className="gap-1.5 border-indigo-300 text-indigo-800 hover:bg-indigo-50">
+              <Share2 className="w-4 h-4 text-indigo-600" /> FHIR R4
+            </Button>
+          </a>
 
           {/* Clinical Controls */}
           {(userRole === 'admin_doctor' || userRole === 'doctor') ? (

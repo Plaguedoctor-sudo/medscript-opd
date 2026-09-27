@@ -3,6 +3,7 @@
 import { saveSettings, seedDemoData } from "./actions";
 import { updateSecuritySettings, runDatabaseDiagnostics } from "@/app/login/actions";
 import { createManualBackupSnapshot, BackupItem, exportAuditLogsCsvAction } from "./backup-actions";
+import { verifyPatientAbhaAction } from "@/app/actions/abdm-actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -35,6 +36,8 @@ import {
   Users,
   Smartphone,
   AlertTriangle,
+  Globe,
+  Share2,
 } from "lucide-react";
 import { ClinicSettings, SafeClinicSettings } from "@/types";
 import { AuditLogItem } from "@/lib/audit";
@@ -83,6 +86,34 @@ export default function SettingsForm({
   const [isPending, setIsPending] = useState(false);
   const [isSeeding, setIsSeeding] = useState(false);
   const [savedRecently, setSavedRecently] = useState(false);
+
+  // ABDM & FHIR Interoperability Test State
+  const [testAbhaInput, setTestAbhaInput] = useState("");
+  const [isVerifyingAbha, setIsVerifyingAbha] = useState(false);
+  const [abhaVerifyResult, setAbhaVerifyResult] = useState<string | null>(null);
+
+  const handleTestAbha = async () => {
+    if (!testAbhaInput.trim()) return;
+    setIsVerifyingAbha(true);
+    setAbhaVerifyResult(null);
+    const res = await verifyPatientAbhaAction(testAbhaInput);
+    if (res.success && res.data) {
+      setAbhaVerifyResult(`Verified: ${res.data.abhaNumber || testAbhaInput} (${res.data.abhaAddress || 'Active'}) - Status: ${res.data.status}`);
+      toast.show({
+        title: "ABHA Verified",
+        description: `Verified ${res.data.abhaNumber || testAbhaInput} against ABDM Gateway specification.`,
+        type: "success",
+      });
+    } else {
+      setAbhaVerifyResult(`Error: ${res.error || 'Verification failed'}`);
+      toast.show({
+        title: "Verification Failed",
+        description: res.error || "ABHA verification failed.",
+        type: "error",
+      });
+    }
+    setIsVerifyingAbha(false);
+  };
 
   // Logo Processing & Removal State
   const [logoDataUrl, setLogoDataUrl] = useState<string | null>(null);
@@ -1272,6 +1303,126 @@ export default function SettingsForm({
                 ))}
               </div>
             )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* 5. INTEROPERABILITY & NATIONAL HEALTH STANDARDS (HL7 FHIR & ABDM) */}
+      <Card className="border-slate-200 shadow-sm">
+        <CardHeader>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-indigo-50 text-indigo-600 rounded-lg">
+                <Globe className="w-5 h-5" />
+              </div>
+              <div>
+                <CardTitle className="text-xl">Interoperability &amp; National Standards (HL7® FHIR® &amp; ABDM)</CardTitle>
+                <CardDescription className="text-xs">
+                  Global and national health data exchange compliant with HL7 FHIR Release 4 and Ayushman Bharat Digital Mission (ABDM).
+                </CardDescription>
+              </div>
+            </div>
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200 self-start sm:self-auto">
+              <Share2 className="w-3.5 h-3.5" /> FHIR R4 &amp; ABDM Active
+            </span>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Architecture Capabilities Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+            <div className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/70 space-y-1">
+              <div className="font-semibold text-slate-900 flex items-center gap-1.5">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                HL7® FHIR® R4 REST API
+              </div>
+              <p className="text-slate-600 text-[11px] leading-relaxed">
+                Native RESTful FHIR R4 endpoints for <code className="font-mono text-slate-800">/api/fhir/R4/Patient</code>, <code className="font-mono text-slate-800">/api/fhir/R4/MedicationRequest</code>, and Consultation Bundles.
+              </p>
+            </div>
+
+            <div className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/70 space-y-1">
+              <div className="font-semibold text-slate-900 flex items-center gap-1.5">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                ABDM Milestones 1, 2 &amp; 3
+              </div>
+              <p className="text-slate-600 text-[11px] leading-relaxed">
+                ABHA ID verification, Health Information Provider (HIP) care context linkages, and certified NRCES Composition document bundles.
+              </p>
+            </div>
+
+            <div className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/70 space-y-1">
+              <div className="font-semibold text-slate-900 flex items-center gap-1.5">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                WHO ICD-10 Clinical Coding
+              </div>
+              <p className="text-slate-600 text-[11px] leading-relaxed">
+                Integrated offline catalog of 500+ standard WHO ICD-10 diagnostic codes auto-completed across OPD and Inpatient admissions.
+              </p>
+            </div>
+          </div>
+
+          {/* Quick FHIR Endpoints & ABDM Test Sandbox */}
+          <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-4 space-y-4">
+            <div>
+              <h4 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                <Share2 className="w-4 h-4 text-indigo-600" />
+                Live FHIR R4 REST API Endpoints
+              </h4>
+              <p className="text-[11px] text-slate-500 mt-0.5">
+                External electronic health record systems or national health exchanges can query certified FHIR R4 data in real time:
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-mono">
+              <a
+                href="/api/fhir/R4/Patient"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="p-2.5 rounded-lg border border-slate-200 bg-white hover:border-indigo-300 hover:text-indigo-600 transition-colors flex items-center justify-between"
+              >
+                <span>GET /api/fhir/R4/Patient</span>
+                <span className="text-[10px] text-indigo-600 font-sans font-semibold">View JSON &rarr;</span>
+              </a>
+
+              <a
+                href="/api/fhir/R4/MedicationRequest"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="p-2.5 rounded-lg border border-slate-200 bg-white hover:border-indigo-300 hover:text-indigo-600 transition-colors flex items-center justify-between"
+              >
+                <span>GET /api/fhir/R4/MedicationRequest</span>
+                <span className="text-[10px] text-indigo-600 font-sans font-semibold">View JSON &rarr;</span>
+              </a>
+            </div>
+
+            {/* ABHA Gateway Sandbox Verification Tester */}
+            <div className="pt-3 border-t border-slate-200 space-y-2">
+              <Label className="text-xs font-semibold text-slate-800">
+                ABDM Gateway ABHA Verification Sandbox
+              </Label>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Input
+                  value={testAbhaInput}
+                  onChange={(e) => setTestAbhaInput(e.target.value)}
+                  placeholder="Test ABHA Number (14-XXXX-XXXX-XXXX) or Address (user@abdm)..."
+                  className="text-xs h-9 bg-white"
+                />
+                <Button
+                  type="button"
+                  onClick={handleTestAbha}
+                  disabled={isVerifyingAbha || !testAbhaInput.trim()}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs h-9 px-4 shrink-0 font-medium"
+                >
+                  {isVerifyingAbha ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : null}
+                  Verify ABHA ID
+                </Button>
+              </div>
+              {abhaVerifyResult && (
+                <div className="p-2 rounded bg-white border border-slate-200 text-xs font-mono text-slate-700">
+                  {abhaVerifyResult}
+                </div>
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>
