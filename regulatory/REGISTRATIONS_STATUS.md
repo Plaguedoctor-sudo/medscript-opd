@@ -35,14 +35,16 @@
   - No. of employees: 1–5
   - Investment in equipment: (your computer/server value)
 
-### B. Startup India DPIIT Recognition (FREE)
-- **Why**: Official Govt of India "Startup" certificate. Gives access to free IP facilitation, free patent filing assistance, and tax benefits.
-- **Portal**: https://www.startupindia.gov.in/content/sih/en/startupgov/startup-recognition-page.html
-- **Eligibility**: Your software qualifies as a healthcare innovation startup.
-- **Details to enter**:
-  - Entity name: `MedScript Healthcare` or `Sonare Hospital`
-  - Sector: `Healthtech / Medical Devices & Technology`
-  - Brief: "Offline-first sovereign EMR system for independent physicians"
+### B. Startup India DPIIT Recognition (FREE via NSWS)
+- **Why**: Official Govt of India "Startup" certificate. Gives access to free IP facilitation, expedited patent/trademark examination, and tax benefits.
+- **Updated Portal**: **https://www.nsws.gov.in** (National Single Window System) or via [startupindia.gov.in](https://www.startupindia.gov.in).
+  *(Note: The old `/startup-recognition-page.html` URL was migrated by the Government of India to the NSWS single-window portal).*
+- **Important Eligibility Note**: DPIIT recognition requires the entity to be incorporated as a **Private Limited Company (Pvt Ltd)**, **LLP**, or **Registered Partnership** (requires CIN/LLPIN).
+- **If operating as Dr. Nitin Sonare / Sonare Hospital (Sole Proprietorship)**: You should do **Udyam MSME (Section A above)** instead! Udyam gives you the exact same 50% discount on trademarks and 80% on patents immediately without needing a separate company incorporation.
+- **If you incorporate a Pvt Ltd / LLP later**:
+  1. Register on [nsws.gov.in](https://www.nsws.gov.in)
+  2. Search for form "Registration as a Startup"
+  3. Add to "My Approvals" and fill out the DPIIT application.
 
 ### C. Zenodo Free DOI Registration (FREE)
 - **Why**: Gets your software a permanent **DOI** (Digital Object Identifier) — the same type of citation ID used by scientific journals. Internationally recognized as proof of creation.
