@@ -81,7 +81,7 @@ Thank you for visiting ${settings?.clinicName || 'our clinic'}.`;
     const url = phoneClean.length >= 10
       ? `https://wa.me/${phoneClean.startsWith('91') ? phoneClean : '91' + phoneClean}?text=${encoded}`
       : `https://wa.me/?text=${encoded}`;
-    window.open(url, '_blank');
+    window.open(url, '_blank', 'noopener,noreferrer');
   };
 
   return (

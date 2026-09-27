@@ -91,21 +91,7 @@ export function checkPinRateLimit(key: string): {
   const now = Date.now();
 
   try {
-    // 1. Check Global Desk Lockout (Defends against IP-rotation header spoofing attacks)
-    const globalRecord = sqlite
-      .prepare('SELECT attempts, first_attempt, locked_until FROM rate_limits WHERE key = ?')
-      .get(GLOBAL_DESK_KEY) as RateLimitRow | undefined;
-
-    if (globalRecord && globalRecord.locked_until > now) {
-      const retryAfterSeconds = Math.ceil((globalRecord.locked_until - now) / 1000);
-      return {
-        allowed: false,
-        remainingAttempts: 0,
-        retryAfterSeconds,
-      };
-    }
-
-    // 2. Check Specific Client IP Record
+    // Check Client IP Record (isolated per client to prevent cross-client DoS)
     const record = sqlite
       .prepare('SELECT attempts, first_attempt, locked_until FROM rate_limits WHERE key = ?')
       .get(key) as RateLimitRow | undefined;
@@ -137,7 +123,7 @@ export function checkPinRateLimit(key: string): {
 
 /**
  * Records a failed PIN attempt and applies lockout if threshold exceeded.
- * Tracks both the individual client IP and the overall consultation desk.
+ * Tracks individual client IP to prevent credential brute-forcing while avoiding cross-desk DoS.
  * Persisted synchronously in SQLite WAL.
  */
 export function recordFailedPinAttempt(key: string): {
@@ -148,35 +134,7 @@ export function recordFailedPinAttempt(key: string): {
   const now = Date.now();
 
   try {
-    // 1. Update Global Desk Record
-    const globalRow = sqlite
-      .prepare('SELECT attempts, first_attempt, locked_until FROM rate_limits WHERE key = ?')
-      .get(GLOBAL_DESK_KEY) as RateLimitRow | undefined;
-
-    let globalAttempts = 1;
-    let globalFirst = now;
-    let globalLockedUntil = 0;
-
-    if (globalRow && now - globalRow.first_attempt <= ATTEMPT_WINDOW_MS) {
-      globalAttempts = globalRow.attempts + 1;
-      globalFirst = globalRow.first_attempt;
-    }
-    if (globalAttempts >= GLOBAL_MAX_FAILED_ATTEMPTS) {
-      globalLockedUntil = now + LOCKOUT_DURATION_MS;
-    }
-
-    sqlite
-      .prepare(`
-        INSERT INTO rate_limits (key, attempts, first_attempt, locked_until)
-        VALUES (?, ?, ?, ?)
-        ON CONFLICT(key) DO UPDATE SET
-          attempts = excluded.attempts,
-          first_attempt = excluded.first_attempt,
-          locked_until = excluded.locked_until
-      `)
-      .run(GLOBAL_DESK_KEY, globalAttempts, globalFirst, globalLockedUntil);
-
-    // 2. Update Client IP Record
+    // Update Client IP Record
     const row = sqlite
       .prepare('SELECT attempts, first_attempt, locked_until FROM rate_limits WHERE key = ?')
       .get(key) as RateLimitRow | undefined;
@@ -190,7 +148,7 @@ export function recordFailedPinAttempt(key: string): {
       clientFirst = row.first_attempt;
     }
 
-    if (clientAttempts >= MAX_FAILED_ATTEMPTS || globalLockedUntil > now) {
+    if (clientAttempts >= MAX_FAILED_ATTEMPTS) {
       clientLockedUntil = now + LOCKOUT_DURATION_MS;
       sqlite
         .prepare(`

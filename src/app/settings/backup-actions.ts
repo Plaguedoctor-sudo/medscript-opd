@@ -1,6 +1,6 @@
 'use server';
 
-import { isAuthenticated, getCurrentUserRole } from '@/lib/auth';
+import { isAuthenticated, getCurrentUserRole, isDoctor } from '@/lib/auth';
 import { sqlite } from '@/db';
 import { logAuditEvent } from '@/lib/audit';
 import fs from 'fs';
@@ -16,7 +16,7 @@ export interface BackupItem {
 export async function createManualBackupSnapshot(): Promise<{ success: boolean; message: string }> {
   const authed = await isAuthenticated();
   const role = await getCurrentUserRole();
-  if (!authed || role !== 'doctor') {
+  if (!authed || !isDoctor(role)) {
     return { success: false, message: 'Forbidden: Only verified Doctor accounts can create database snapshots.' };
   }
 
@@ -99,7 +99,7 @@ export async function getLocalBackupSnapshots(): Promise<BackupItem[]> {
 export async function exportAuditLogsCsvAction(): Promise<{ success: boolean; csv?: string; error?: string }> {
   const authed = await isAuthenticated();
   const role = await getCurrentUserRole();
-  if (!authed || role !== 'doctor') {
+  if (!authed || !isDoctor(role)) {
     return { success: false, error: 'Forbidden: Only verified Doctor accounts can export clinical audit trails.' };
   }
 

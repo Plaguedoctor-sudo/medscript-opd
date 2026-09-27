@@ -1,6 +1,6 @@
 'use server'
 
-import { db } from "@/db";
+import { db, sqlite } from "@/db";
 import { patients, prescriptions, clinicSettings } from "@/db/schema";
 import { revalidatePath } from "next/cache";
 import { or, like, eq } from "drizzle-orm";
@@ -385,7 +385,7 @@ export async function updatePatient(
 }
 
 export async function deletePatient(id: number) {
-  await requireRole(['doctor']);
+  const role = await requireRole(['doctor', 'admin_doctor']);
 
   const patient = await db.query.patients.findFirst({
     where: eq(patients.id, id),
@@ -394,20 +394,56 @@ export async function deletePatient(id: number) {
     throw new Error("Patient not found.");
   }
 
-  // Delete all associated prescriptions first
-  await db.delete(prescriptions).where(eq(prescriptions.patientId, id));
-  // Delete patient
-  await db.delete(patients).where(eq(patients.id, id));
+  // Prevent deleting patient with active IPD admission
+  const activeAdmission = sqlite
+    .prepare("SELECT id FROM ipd_admissions WHERE patient_id = ? AND status = 'ADMITTED' LIMIT 1")
+    .get(id);
+  if (activeAdmission) {
+    throw new Error("Cannot delete patient: Patient has an active inpatient (IPD) admission. Discharge the patient before removing records.");
+  }
+
+  // Cleanly cascade dependent records in an atomic transaction to prevent orphaned rows or FK errors
+  const deleteTx = sqlite.transaction(() => {
+    // 1. Fetch all IPD admission IDs for this patient
+    const admRows = sqlite
+      .prepare('SELECT id FROM ipd_admissions WHERE patient_id = ?')
+      .all(id) as { id: number }[];
+    for (const adm of admRows) {
+      sqlite.prepare('DELETE FROM emar_records WHERE admission_id = ?').run(adm.id);
+      sqlite.prepare('DELETE FROM ipd_rounds WHERE admission_id = ?').run(adm.id);
+      sqlite.prepare('DELETE FROM clinical_consents WHERE admission_id = ?').run(adm.id);
+      sqlite.prepare('DELETE FROM ipd_deposits WHERE admission_id = ?').run(adm.id);
+    }
+    sqlite.prepare('DELETE FROM clinical_consents WHERE patient_id = ?').run(id);
+    sqlite.prepare('DELETE FROM ipd_deposits WHERE patient_id = ?').run(id);
+    sqlite.prepare('DELETE FROM ipd_admissions WHERE patient_id = ?').run(id);
+
+    // 2. Disassociate pharmacy transactions (set patient_id to null to preserve drug stock balance)
+    sqlite.prepare('UPDATE pharmacy_transactions SET patient_id = NULL WHERE patient_id = ?').run(id);
+
+    // 3. Delete appointments, lab reports, invoices, prescriptions, and patient record
+    sqlite.prepare('DELETE FROM appointments WHERE patient_id = ?').run(id);
+    sqlite.prepare('DELETE FROM lab_reports WHERE patient_id = ?').run(id);
+    sqlite.prepare('DELETE FROM invoices WHERE patient_id = ?').run(id);
+    sqlite.prepare('DELETE FROM prescriptions WHERE patient_id = ?').run(id);
+    sqlite.prepare('DELETE FROM patients WHERE id = ?').run(id);
+  });
+
+  deleteTx();
 
   await logAuditEvent({
     action: 'PATIENT_DELETED',
-    actorRole: 'DOCTOR',
-    details: `Patient #${id} (${patient.name}) and all associated clinical encounters deleted`,
+    actorRole: role.toUpperCase(),
+    details: `Patient #${id} (${patient.name}) and all associated clinical encounters cleanly deleted`,
     status: 'WARNING',
   });
 
   revalidatePath("/");
   revalidatePath("/patients");
+  revalidatePath("/ipd");
+  revalidatePath("/labs");
+  revalidatePath("/billing");
+  revalidatePath("/appointments");
 
   return { success: true };
 }

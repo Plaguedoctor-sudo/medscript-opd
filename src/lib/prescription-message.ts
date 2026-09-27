@@ -1,6 +1,6 @@
 import { ClinicSettings, Medication, Patient, Prescription } from '@/types';
 import { formatDate } from '@/lib/utils';
-import { formatDigitalSealCode } from '@/lib/prescription-security';
+import { formatDigitalSealCode } from '@/lib/seal-formatter';
 import { logClinicalAuditAction } from '@/app/login/actions';
 import { toast } from '@/components/ui/toast';
 

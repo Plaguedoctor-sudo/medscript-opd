@@ -4,7 +4,7 @@ import { db } from '@/db';
 import { invoices, patients, clinicSettings, prescriptions } from '@/db/schema';
 import { desc, eq, like, or, and, gte, lte, sql } from 'drizzle-orm';
 import { InvoiceItem, Invoice, InvoiceWithPatient, Patient, SafeClinicSettings } from '@/types';
-import { requireAuth, getCurrentUserRole } from '@/lib/auth';
+import { requireAuth, getCurrentUserRole, isDoctor, isReceptionist } from '@/lib/auth';
 import { logAuditEvent } from '@/lib/audit';
 import { revalidatePath } from 'next/cache';
 
@@ -329,6 +329,16 @@ export async function updateInvoiceStatusAction(
     await requireAuth('/billing');
     const role = await getCurrentUserRole();
 
+    // Only Doctor or Receptionist can modify billing invoices
+    if (!isDoctor(role) && !isReceptionist(role)) {
+      return { success: false, error: 'Unauthorized: Reception or Doctor role required to modify billing invoices.' };
+    }
+
+    // Only Doctor can issue refunds
+    if (status === 'REFUNDED' && !isDoctor(role)) {
+      return { success: false, error: 'Unauthorized: Only an authorized Doctor can issue billing refunds.' };
+    }
+
     const inv = await db.query.invoices.findFirst({
       where: eq(invoices.id, id),
     });
@@ -366,7 +376,7 @@ export async function deleteInvoiceAction(id: number): Promise<{ success: boolea
     await requireAuth('/billing');
     const role = await getCurrentUserRole();
 
-    if (role !== 'doctor') {
+    if (!isDoctor(role)) {
       return { success: false, error: 'Doctor authorization required to delete invoices' };
     }
 

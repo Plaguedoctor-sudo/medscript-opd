@@ -849,6 +849,11 @@ export async function logoutUser(): Promise<{ success: boolean }> {
  * Returns all registered staff profiles (safe view without password hashes)
  */
 export async function getStaffUsers(): Promise<SafeStaffUser[]> {
+  const currentRole = await getCurrentUserRole();
+  if (!isDoctor(currentRole)) {
+    return [];
+  }
+
   try {
     const rows = sqlite
       .prepare(

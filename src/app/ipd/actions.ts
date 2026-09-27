@@ -4,7 +4,7 @@ import { db, sqlite } from "@/db";
 import { ipdAdmissions, ipdRounds, labReports, patients, emarRecords, clinicalConsents, ipdDeposits } from "@/db/schema";
 import { eq, desc, or, like, and } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
-import { requireAuth, getCurrentUserRole, getCurrentUser } from "@/lib/auth";
+import { requireAuth, getCurrentUserRole, getCurrentUser, isDoctor, isNurse, isReceptionist } from "@/lib/auth";
 import { logAuditEvent } from "@/lib/audit";
 import {
   IpdAdmissionWithPatient,
@@ -391,6 +391,10 @@ export async function dischargeIpdPatient(
   await requireAuth(`/ipd/${admissionId}`);
   const role = await getCurrentUserRole();
 
+  if (!isDoctor(role)) {
+    return { success: false, error: "Unauthorized: Only an attending doctor or CMO can authorize inpatient discharge." };
+  }
+
   try {
     const now = new Date();
     await db
@@ -517,6 +521,10 @@ export async function addEmarRecordAction(data: {
   const role = await getCurrentUserRole();
   const user = await getCurrentUser();
 
+  if (!isDoctor(role) && !isNurse(role)) {
+    return { success: false, error: 'Unauthorized: Only nursing or medical staff can schedule medication on eMAR.' };
+  }
+
   try {
     const res = sqlite
       .prepare(`
@@ -559,6 +567,10 @@ export async function updateEmarDoseStatusAction(
   await requireAuth('/ipd');
   const role = await getCurrentUserRole();
   const user = await getCurrentUser();
+
+  if (!isDoctor(role) && !isNurse(role)) {
+    return { success: false, error: 'Unauthorized: Only nursing or medical staff can record medication administration.' };
+  }
 
   try {
     const now = Date.now();
@@ -606,7 +618,7 @@ export async function deleteEmarRecordAction(
   await requireAuth('/ipd');
   const role = await getCurrentUserRole();
 
-  if (role !== 'admin_doctor' && role !== 'doctor' && role !== 'nurse') {
+  if (!isDoctor(role) && !isNurse(role)) {
     return { success: false, error: 'Unauthorized to cancel eMAR orders.' };
   }
 

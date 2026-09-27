@@ -1,7 +1,7 @@
 'use server';
 
 import { sqlite } from '@/db';
-import { requireAuth, getCurrentUserRole, getCurrentUser } from '@/lib/auth';
+import { requireAuth, getCurrentUserRole, getCurrentUser, isDoctor, isNurse, isReceptionist } from '@/lib/auth';
 import { logAuditEvent } from '@/lib/audit';
 import { revalidatePath } from 'next/cache';
 import { PharmacyInventoryItem, PharmacyTransaction, MedicineCategory } from '@/types';
@@ -157,6 +157,10 @@ export async function addPharmacyItem(data: {
   const role = await getCurrentUserRole();
   const user = await getCurrentUser();
 
+  if (!isDoctor(role) && !isReceptionist(role) && !isNurse(role)) {
+    return { success: false, error: 'Unauthorized: Staff authorization required to manage pharmacy inventory.' };
+  }
+
   try {
     const now = Date.now();
     const res = sqlite
@@ -224,6 +228,15 @@ export async function dispenseOrAdjustStock(data: {
   await requireAuth('/inventory');
   const role = await getCurrentUserRole();
   const user = await getCurrentUser();
+
+  if (!isDoctor(role) && !isNurse(role) && !isReceptionist(role)) {
+    return { success: false, error: 'Unauthorized: Staff authorization required to dispense inventory.' };
+  }
+
+  // Adjustments and write-offs require Doctor authorization
+  if ((data.type === 'ADJUSTMENT' || data.type === 'EXPIRED') && !isDoctor(role)) {
+    return { success: false, error: 'Unauthorized: Only an authorized Doctor or CMO can adjust or write off inventory.' };
+  }
 
   try {
     const item = sqlite

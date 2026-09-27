@@ -1,6 +1,12 @@
 import crypto from 'crypto';
+import { getSessionSecret } from '@/lib/auth';
 
-const PRESCRIPTION_SECRET = process.env.PRESCRIPTION_SECRET || process.env.SESSION_SECRET || 'medscript-opd-clinical-seal-2026';
+function getPrescriptionSecret(): string {
+  if (process.env.PRESCRIPTION_SECRET && process.env.PRESCRIPTION_SECRET.trim().length >= 16) {
+    return process.env.PRESCRIPTION_SECRET.trim();
+  }
+  return getSessionSecret();
+}
 
 export interface PrescriptionSignaturePayload {
   id: number;
@@ -27,8 +33,9 @@ export function generatePrescriptionSignature(data: PrescriptionSignaturePayload
     `TS:${data.createdAt ? new Date(data.createdAt).toISOString() : ''}`,
   ].join('||');
 
+  const secret = getPrescriptionSecret();
   return crypto
-    .createHmac('sha256', PRESCRIPTION_SECRET)
+    .createHmac('sha256', secret)
     .update(payload)
     .digest('hex');
 }
@@ -95,12 +102,4 @@ export function verifyPrescriptionIntegrity(
   };
 }
 
-/**
- * Formats a short human-readable digital seal code for print letterheads & labels
- * Example: "MS-7A9F-B210-44DE"
- */
-export function formatDigitalSealCode(signatureHash: string | undefined | null): string {
-  if (!signatureHash) return 'UNSEALED';
-  const clean = signatureHash.toUpperCase();
-  return `MS-${clean.slice(0, 4)}-${clean.slice(4, 8)}-${clean.slice(8, 12)}`;
-}
+export { formatDigitalSealCode } from '@/lib/seal-formatter';

@@ -3,7 +3,7 @@
 import { db, sqlite } from "@/db";
 import { labReports, patients } from "@/db/schema";
 import { eq, desc, or, like, and } from "drizzle-orm";
-import { requireAuth, getCurrentUserRole } from "@/lib/auth";
+import { requireAuth, getCurrentUserRole, isDoctor, isLabTech } from "@/lib/auth";
 import { logAuditEvent } from "@/lib/audit";
 import { LabReportWithPatient, LabResultParameter, LabReportStatus, ClinicSettings } from "@/types";
 
@@ -308,6 +308,10 @@ export async function updateLabReport(
   await requireAuth('/labs');
   const role = await getCurrentUserRole();
 
+  if (!isDoctor(role) && !isLabTech(role)) {
+    return { success: false, error: "Unauthorized: Only lab technologists or doctors can update lab report results." };
+  }
+
   try {
     const updateValues: Record<string, unknown> = {};
 
@@ -349,6 +353,10 @@ export async function updateLabReport(
 export async function deleteLabReport(id: number): Promise<{ success: boolean; error?: string }> {
   await requireAuth('/labs');
   const role = await getCurrentUserRole();
+
+  if (!isDoctor(role) && !isLabTech(role)) {
+    return { success: false, error: "Unauthorized: Only lab technologists or doctors can delete lab reports." };
+  }
 
   try {
     await db.delete(labReports).where(eq(labReports.id, id));

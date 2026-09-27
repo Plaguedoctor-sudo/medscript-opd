@@ -21,6 +21,8 @@ import {
   FlaskConical,
   CalendarCheck,
   Pill,
+  ShieldAlert,
+  ShieldCheck,
 } from "lucide-react";
 import { DashboardSearch } from "@/components/DashboardSearch";
 import { formatDate } from "@/lib/utils";
@@ -227,6 +229,26 @@ export default async function DashboardPage({
             <Link href={`/login?switch=true&redirect=${encodeURIComponent('/prescription/new')}`}>
               <Button size="sm" className="bg-amber-600 hover:bg-amber-700 text-white text-xs shrink-0">
                 Switch Account
+              </Button>
+            </Link>
+          </div>
+        )}
+
+        {/* Security Warning Banner if Desk Security is Inactive */}
+        {!securityEnabled && (
+          <div className="mb-6 p-4 bg-rose-50 border border-rose-200 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-rose-950 shadow-2xs">
+            <div className="flex items-center gap-3">
+              <ShieldAlert className="w-5 h-5 text-rose-600 shrink-0" />
+              <div>
+                <p className="font-semibold text-sm">Consultation Desk Security is Disabled</p>
+                <p className="text-xs text-rose-800">
+                  Anyone on your local network (LAN / Wi-Fi) has unauthenticated administrative access to all patient medical records. Configure a Master Passcode and enable Multi-Profile Security.
+                </p>
+              </div>
+            </div>
+            <Link href="/settings">
+              <Button size="sm" className="bg-rose-600 hover:bg-rose-700 text-white text-xs shrink-0 gap-1.5">
+                <ShieldCheck className="w-4 h-4" /> Secure Clinic Now
               </Button>
             </Link>
           </div>

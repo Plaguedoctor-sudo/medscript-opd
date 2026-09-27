@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { sqlite } from '@/db';
 import { logAuditEvent } from '@/lib/audit';
+import { getSessionSecret } from '@/lib/auth';
 
 export interface GoogleDriveConfigInput {
   clientEmail: string;
@@ -199,7 +200,13 @@ export async function backupDatabaseToGoogleDrive(options?: {
     // 2. Obtain OAuth2 access token
     const token = await getGoogleAccessToken(settings.clientEmail, settings.privateKey);
 
-    // 3. Read SQLite database file snapshot safely
+    // 3. Checkpoint SQLite WAL and read database file snapshot safely
+    try {
+      sqlite.pragma('wal_checkpoint(TRUNCATE)');
+    } catch {
+      // Ignore checkpoint error if busy
+    }
+
     if (!fs.existsSync(dbPath)) {
       throw new Error(`Database file not found at ${dbPath}`);
     }
@@ -209,7 +216,7 @@ export async function backupDatabaseToGoogleDrive(options?: {
       options?.encryptionPassphrase?.trim() ||
       settings.encryptionKey?.trim() ||
       settings.sessionSecret ||
-      'medscript-default-vault-key-2026';
+      getSessionSecret();
 
     // 4. Encrypt database with AES-256-GCM
     const encryptedBuffer = encryptBufferAesGcm(rawBuffer, passphrase);
