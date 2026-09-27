@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import Link from "next/link";
-import { Users, PlusCircle, ArrowLeft, Phone, Fingerprint, BarChart3, FileSpreadsheet, Receipt } from "lucide-react";
+import { Users, PlusCircle, ArrowLeft, Phone, Fingerprint, BarChart3, FileSpreadsheet, Receipt, Bed, FlaskConical } from "lucide-react";
 import { DashboardSearch } from "@/components/DashboardSearch";
 import { Patient } from "@/types";
 import { requireAuth, getSecurityConfig, getCurrentUserRole } from "@/lib/auth";
@@ -85,6 +85,16 @@ export default async function PatientsPage({ searchParams }: { searchParams: Pro
             <UserRoleBadge role={role} securityEnabled={securityEnabled} />
             <PrivacyShield />
             <SecurityAlertBell />
+            <Link href="/ipd">
+              <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
+                <Bed className="w-4 h-4 text-purple-600" /> IPD
+              </Button>
+            </Link>
+            <Link href="/labs">
+              <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
+                <FlaskConical className="w-4 h-4 text-indigo-600" /> Labs
+              </Button>
+            </Link>
             <Link href="/billing">
               <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
                 <Receipt className="w-4 h-4 text-emerald-600" /> Billing

@@ -1,11 +1,25 @@
 import { db } from "@/db";
-import { prescriptions, patients } from "@/db/schema";
+import { prescriptions, patients, ipdAdmissions, labReports } from "@/db/schema";
 import { desc, eq, or, like } from "drizzle-orm";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import Link from "next/link";
-import { PlusCircle, Settings, Users, FileText, AlertCircle, Edit, ExternalLink, Calendar, BarChart3, Receipt, MessageCircle } from "lucide-react";
+import {
+  PlusCircle,
+  Settings,
+  Users,
+  FileText,
+  AlertCircle,
+  Edit,
+  ExternalLink,
+  Calendar,
+  BarChart3,
+  Receipt,
+  MessageCircle,
+  Bed,
+  FlaskConical,
+} from "lucide-react";
 import { DashboardSearch } from "@/components/DashboardSearch";
 import { formatDate } from "@/lib/utils";
 import { requireAuth, getSecurityConfig, getCurrentUserRole } from "@/lib/auth";
@@ -84,9 +98,13 @@ export default async function DashboardPage({
     .orderBy(desc(prescriptions.createdAt))
     .limit(25);
 
-  const totalPatients = await db.select().from(patients);
-  const totalPrescriptions = await db.select().from(prescriptions);
-  const settings = await db.query.clinicSettings.findFirst();
+  const [totalPatients, totalPrescriptions, activeIpdAdmissions, totalLabReports, settings] = await Promise.all([
+    db.select({ id: patients.id }).from(patients),
+    db.select({ id: prescriptions.id }).from(prescriptions),
+    db.select({ id: ipdAdmissions.id }).from(ipdAdmissions).where(eq(ipdAdmissions.status, 'ADMITTED')),
+    db.select({ id: labReports.id }).from(labReports),
+    db.query.clinicSettings.findFirst(),
+  ]);
 
   const typedResults = results as ConsultationRow[];
 
@@ -122,14 +140,24 @@ export default async function DashboardPage({
                 <Users className="w-4 h-4" /> Patients
               </Button>
             </Link>
-            <Link href="/reports">
+            <Link href="/ipd">
               <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
-                <BarChart3 className="w-4 h-4 text-blue-600" /> Reports
+                <Bed className="w-4 h-4 text-purple-600" /> IPD
+              </Button>
+            </Link>
+            <Link href="/labs">
+              <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
+                <FlaskConical className="w-4 h-4 text-indigo-600" /> Labs
               </Button>
             </Link>
             <Link href="/billing">
               <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
                 <Receipt className="w-4 h-4 text-emerald-600" /> Billing
+              </Button>
+            </Link>
+            <Link href="/reports">
+              <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
+                <BarChart3 className="w-4 h-4 text-blue-600" /> Reports
               </Button>
             </Link>
             <Link href="/settings">
@@ -204,55 +232,88 @@ export default async function DashboardPage({
           </div>
         )}
 
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        {/* Stats Grid */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
           <Link href="/patients" className="block group">
-            <Card className="hover:border-blue-400 hover:shadow-md transition-all cursor-pointer">
-              <CardContent className="pt-6 flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="p-3 bg-blue-100 rounded-xl text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors">
-                    <Users className="w-6 h-6" />
+            <Card className="hover:border-blue-400 hover:shadow-md transition-all cursor-pointer h-full">
+              <CardContent className="pt-5 pb-5 px-4 flex flex-col justify-between h-full">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="p-2.5 bg-blue-100 rounded-lg text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                    <Users className="w-5 h-5" />
                   </div>
-                  <div>
-                    <p className="text-sm font-medium text-slate-500">Total Patients</p>
-                    <h3 className="text-2xl font-bold text-slate-900">{totalPatients.length}</h3>
-                  </div>
+                  <span className="text-[11px] text-blue-600 font-medium">All &rarr;</span>
                 </div>
-                <span className="text-xs text-blue-600 font-medium group-hover:translate-x-0.5 transition-transform">
-                  View All &rarr;
-                </span>
+                <div>
+                  <p className="text-xs font-medium text-slate-500">Total Patients</p>
+                  <h3 className="text-2xl font-bold text-slate-900">{totalPatients.length}</h3>
+                </div>
               </CardContent>
             </Card>
           </Link>
 
           <Link href="/reports" className="block group">
-            <Card className="hover:border-emerald-400 hover:shadow-md transition-all cursor-pointer">
-              <CardContent className="pt-6 flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="p-3 bg-emerald-100 rounded-xl text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
-                    <BarChart3 className="w-6 h-6" />
+            <Card className="hover:border-emerald-400 hover:shadow-md transition-all cursor-pointer h-full">
+              <CardContent className="pt-5 pb-5 px-4 flex flex-col justify-between h-full">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="p-2.5 bg-emerald-100 rounded-lg text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+                    <BarChart3 className="w-5 h-5" />
                   </div>
-                  <div>
-                    <p className="text-sm font-medium text-slate-500">Prescriptions Issued</p>
-                    <h3 className="text-2xl font-bold text-slate-900">{totalPrescriptions.length}</h3>
-                  </div>
+                  <span className="text-[11px] text-emerald-600 font-medium">Audit &rarr;</span>
                 </div>
-                <span className="text-xs text-emerald-600 font-medium group-hover:translate-x-0.5 transition-transform">
-                  Audit Reports &rarr;
-                </span>
+                <div>
+                  <p className="text-xs font-medium text-slate-500">Prescriptions</p>
+                  <h3 className="text-2xl font-bold text-slate-900">{totalPrescriptions.length}</h3>
+                </div>
               </CardContent>
             </Card>
           </Link>
 
-          <Link href="/prescription/new" className="block">
-            <Card className="bg-gradient-to-r from-blue-600 to-blue-700 text-white cursor-pointer hover:from-blue-700 hover:to-blue-800 transition-all shadow-sm">
-              <CardContent className="pt-6 flex items-center justify-between">
-                <div>
-                  <h3 className="text-lg font-bold">Quick Consultation</h3>
-                  <p className="text-blue-100 text-xs mt-0.5">Start consultation & issue Rx</p>
+          <Link href="/ipd" className="block group">
+            <Card className="hover:border-purple-400 hover:shadow-md transition-all cursor-pointer h-full">
+              <CardContent className="pt-5 pb-5 px-4 flex flex-col justify-between h-full">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="p-2.5 bg-purple-100 rounded-lg text-purple-600 group-hover:bg-purple-600 group-hover:text-white transition-colors">
+                    <Bed className="w-5 h-5" />
+                  </div>
+                  <span className="text-[11px] text-purple-600 font-medium">Census &rarr;</span>
                 </div>
-                <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
-                  <PlusCircle className="w-6 h-6 text-white" />
+                <div>
+                  <p className="text-xs font-medium text-slate-500">Active IPD</p>
+                  <h3 className="text-2xl font-bold text-purple-700">{activeIpdAdmissions.length}</h3>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+
+          <Link href="/labs" className="block group">
+            <Card className="hover:border-indigo-400 hover:shadow-md transition-all cursor-pointer h-full">
+              <CardContent className="pt-5 pb-5 px-4 flex flex-col justify-between h-full">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="p-2.5 bg-indigo-100 rounded-lg text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-colors">
+                    <FlaskConical className="w-5 h-5" />
+                  </div>
+                  <span className="text-[11px] text-indigo-600 font-medium">Hub &rarr;</span>
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-slate-500">Lab Reports</p>
+                  <h3 className="text-2xl font-bold text-indigo-700">{totalLabReports.length}</h3>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+
+          <Link href="/prescription/new" className="block col-span-2 md:col-span-1 h-full">
+            <Card className="bg-gradient-to-r from-blue-600 to-blue-700 text-white cursor-pointer hover:from-blue-700 hover:to-blue-800 transition-all shadow-sm h-full">
+              <CardContent className="pt-5 pb-5 px-4 flex flex-col justify-between h-full">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
+                    <PlusCircle className="w-5 h-5 text-white" />
+                  </div>
+                  <span className="text-[11px] text-blue-100 font-medium">New Rx &rarr;</span>
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold">Consultation</h3>
+                  <p className="text-blue-100 text-[11px] mt-0.5">Issue digital Rx</p>
                 </div>
               </CardContent>
             </Card>

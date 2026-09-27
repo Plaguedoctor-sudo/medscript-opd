@@ -15,6 +15,8 @@ export const patients = sqliteTable("patients", {
 export const patientsRelations = relations(patients, ({ many }) => ({
   prescriptions: many(prescriptions),
   invoices: many(invoices),
+  admissions: many(ipdAdmissions),
+  labReports: many(labReports),
 }));
 
 export const prescriptions = sqliteTable("prescriptions", {
@@ -47,11 +49,12 @@ export const prescriptions = sqliteTable("prescriptions", {
   createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
 });
 
-export const prescriptionsRelations = relations(prescriptions, ({ one }) => ({
+export const prescriptionsRelations = relations(prescriptions, ({ one, many }) => ({
   patient: one(patients, {
     fields: [prescriptions.patientId],
     references: [patients.id],
   }),
+  labReports: many(labReports),
 }));
 
 export const clinicSettings = sqliteTable("clinic_settings", {
@@ -143,4 +146,93 @@ export const breakGlassLimits = sqliteTable("break_glass_limits", {
   uses: integer("uses").notNull().default(0),
   firstUse: integer("first_use").notNull(),
 });
+
+export const ipdAdmissions = sqliteTable("ipd_admissions", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  admissionNo: text("admission_no").notNull().unique(),
+  patientId: integer("patient_id")
+    .notNull()
+    .references(() => patients.id),
+  admissionDate: integer("admission_date", { mode: "timestamp" }).notNull(),
+  dischargeDate: integer("discharge_date", { mode: "timestamp" }),
+  status: text("status").notNull().default("ADMITTED"), // 'ADMITTED' | 'DISCHARGED' | 'TRANSFERRED'
+  ward: text("ward").notNull(), // 'General Ward', 'ICU', 'Semi-Private Room', 'Deluxe Room', 'Emergency / Triage'
+  bedNo: text("bed_no").notNull(), // 'Bed-01', 'ICU-3', etc.
+  roomType: text("room_type").default("General"), // 'General' | 'Semi-Private' | 'Private' | 'ICU' | 'Emergency'
+  attendingDoctor: text("attending_doctor"),
+  admittingDiagnosis: text("admitting_diagnosis"),
+  chiefComplaints: text("chief_complaints"),
+  admissionVitals: text("admission_vitals"), // JSON string: { bp, pulse, temp, spo2, weight, rbs }
+  dischargeCondition: text("discharge_condition"), // 'Stable' | 'Recovered' | 'Referred' | 'LAMA' | 'Deceased'
+  dischargeSummary: text("discharge_summary"),
+  dischargeAdvice: text("discharge_advice"),
+  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+});
+
+export const ipdAdmissionsRelations = relations(ipdAdmissions, ({ one, many }) => ({
+  patient: one(patients, {
+    fields: [ipdAdmissions.patientId],
+    references: [patients.id],
+  }),
+  rounds: many(ipdRounds),
+  labReports: many(labReports),
+}));
+
+export const ipdRounds = sqliteTable("ipd_rounds", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  admissionId: integer("admission_id")
+    .notNull()
+    .references(() => ipdAdmissions.id),
+  roundDate: integer("round_date", { mode: "timestamp" }).notNull(),
+  doctorOrStaff: text("doctor_or_staff").notNull(),
+  role: text("role").default("DOCTOR"), // 'DOCTOR' | 'NURSE' | 'STAFF'
+  notes: text("notes").notNull(),
+  treatmentOrders: text("treatment_orders"),
+  vitals: text("vitals"), // JSON string: { bp, pulse, temp, spo2, weight, rbs }
+  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+});
+
+export const ipdRoundsRelations = relations(ipdRounds, ({ one }) => ({
+  admission: one(ipdAdmissions, {
+    fields: [ipdRounds.admissionId],
+    references: [ipdAdmissions.id],
+  }),
+}));
+
+export const labReports = sqliteTable("lab_reports", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  reportNo: text("report_no").notNull().unique(),
+  patientId: integer("patient_id")
+    .notNull()
+    .references(() => patients.id),
+  prescriptionId: integer("prescription_id").references(() => prescriptions.id),
+  ipdAdmissionId: integer("ipd_admission_id").references(() => ipdAdmissions.id),
+  testName: text("test_name").notNull(),
+  category: text("category").notNull().default("General"),
+  sampleType: text("sample_type"),
+  sampleCollectedAt: integer("sample_collected_at", { mode: "timestamp" }),
+  reportedAt: integer("reported_at", { mode: "timestamp" }),
+  status: text("status").notNull().default("PENDING"), // 'PENDING' | 'SAMPLE_COLLECTED' | 'COMPLETED' | 'CANCELLED'
+  referredBy: text("referred_by"),
+  technicianName: text("technician_name"),
+  results: text("results").notNull().default("[]"), // JSON string of LabResultParameter[]
+  interpretation: text("interpretation"),
+  notes: text("notes"),
+  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+});
+
+export const labReportsRelations = relations(labReports, ({ one }) => ({
+  patient: one(patients, {
+    fields: [labReports.patientId],
+    references: [patients.id],
+  }),
+  prescription: one(prescriptions, {
+    fields: [labReports.prescriptionId],
+    references: [prescriptions.id],
+  }),
+  admission: one(ipdAdmissions, {
+    fields: [labReports.ipdAdmissionId],
+    references: [ipdAdmissions.id],
+  }),
+}));
 

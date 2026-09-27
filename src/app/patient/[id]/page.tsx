@@ -1,15 +1,34 @@
 import { db } from "@/db";
-import { patients, prescriptions } from "@/db/schema";
+import { patients, prescriptions, ipdAdmissions, labReports } from "@/db/schema";
 import { desc, eq } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import Link from "next/link";
-import { ArrowLeft, User, FileText, Calendar, Phone, Fingerprint, PlusCircle, Edit, ExternalLink, Copy, MessageCircle } from "lucide-react";
-import { Medication, Patient, Prescription } from "@/types";
+import {
+  ArrowLeft,
+  User,
+  FileText,
+  Calendar,
+  Phone,
+  Fingerprint,
+  PlusCircle,
+  Edit,
+  ExternalLink,
+  Copy,
+  MessageCircle,
+  Bed,
+  FlaskConical,
+  HeartPulse,
+  Clock,
+  CheckCircle2,
+} from "lucide-react";
+import { Medication, Patient, Prescription, IpdAdmission, LabReport, LabResultParameter } from "@/types";
 import { EditPatientModal } from "./EditPatientModal";
 import { PatientVitalsAnalytics } from "./PatientVitalsAnalytics";
+import { AdmitPatientModal } from "@/app/ipd/AdmitPatientModal";
+import { LabEntryModal } from "@/app/labs/LabEntryModal";
 import { formatDate } from "@/lib/utils";
 import { requireAuth, getSecurityConfig, getCurrentUserRole } from "@/lib/auth";
 import { logAuditEvent } from "@/lib/audit";
@@ -44,13 +63,25 @@ export default async function PatientProfilePage({ params }: { params: Promise<{
     status: 'SUCCESS',
   });
 
-  const patientPrescriptions = await db.query.prescriptions.findMany({
-    where: eq(prescriptions.patientId, patientId),
-    orderBy: [desc(prescriptions.createdAt)],
-  });
+  const [patientPrescriptions, patientAdmissions, patientLabReports] = await Promise.all([
+    db.query.prescriptions.findMany({
+      where: eq(prescriptions.patientId, patientId),
+      orderBy: [desc(prescriptions.createdAt)],
+    }),
+    db.query.ipdAdmissions.findMany({
+      where: eq(ipdAdmissions.patientId, patientId),
+      orderBy: [desc(ipdAdmissions.admissionDate)],
+    }),
+    db.query.labReports.findMany({
+      where: eq(labReports.patientId, patientId),
+      orderBy: [desc(labReports.createdAt)],
+    }),
+  ]);
 
   const typedPatient = patient as Patient;
   const typedPrescriptions = patientPrescriptions as Prescription[];
+  const typedAdmissions = patientAdmissions as IpdAdmission[];
+  const typedLabReports = patientLabReports as LabReport[];
 
   return (
     <div className="min-h-screen bg-slate-50 pb-12">
@@ -69,6 +100,24 @@ export default async function PatientProfilePage({ params }: { params: Promise<{
             <PrivacyShield />
             <SecurityAlertBell />
             <EditPatientModal patient={typedPatient} />
+            <LabEntryModal
+              initialPatient={typedPatient}
+              initialPatientId={typedPatient.id}
+              triggerButton={
+                <Button variant="outline" size="sm" className="gap-1.5 text-xs text-indigo-700 border-indigo-200 hover:bg-indigo-50">
+                  <FlaskConical className="w-3.5 h-3.5 text-indigo-600" /> Lab Test
+                </Button>
+              }
+            />
+            <AdmitPatientModal
+              initialPatient={typedPatient}
+              initialPatientId={typedPatient.id}
+              triggerButton={
+                <Button variant="outline" size="sm" className="gap-1.5 text-xs text-purple-700 border-purple-200 hover:bg-purple-50">
+                  <Bed className="w-3.5 h-3.5 text-purple-600" /> Admit IPD
+                </Button>
+              }
+            />
             {role === 'doctor' && (
               <Link href={`/prescription/new?patientId=${typedPatient.id}`}>
                 <Button size="sm" className="gap-1.5 shadow-xs">
@@ -120,9 +169,15 @@ export default async function PatientProfilePage({ params }: { params: Promise<{
                 </div>
               </div>
             </div>
-            <div>
+            <div className="flex flex-wrap gap-2">
               <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
                 {typedPrescriptions.length} {typedPrescriptions.length === 1 ? "Consultation" : "Consultations"}
+              </span>
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-purple-50 text-purple-700 border border-purple-200">
+                {typedAdmissions.length} {typedAdmissions.length === 1 ? "IPD Stay" : "IPD Stays"}
+              </span>
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-200">
+                {typedLabReports.length} {typedLabReports.length === 1 ? "Lab Report" : "Lab Reports"}
               </span>
             </div>
           </CardHeader>
@@ -219,6 +274,202 @@ export default async function PatientProfilePage({ params }: { params: Promise<{
                               </Button>
                             </Link>
                           </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Inpatient Department (IPD) History */}
+        <Card className="border-slate-200">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="flex items-center gap-2 text-lg text-purple-950">
+              <Bed className="w-5 h-5 text-purple-600" />
+              Inpatient Admissions ({typedAdmissions.length})
+            </CardTitle>
+            <AdmitPatientModal
+              initialPatient={typedPatient}
+              initialPatientId={typedPatient.id}
+              triggerButton={
+                <Button variant="outline" size="sm" className="gap-1.5 text-xs text-purple-700 border-purple-200 hover:bg-purple-50">
+                  <Bed className="w-3.5 h-3.5 text-purple-600" /> Admit to IPD
+                </Button>
+              }
+            />
+          </CardHeader>
+          <CardContent>
+            {typedAdmissions.length === 0 ? (
+              <div className="text-center py-8 text-slate-500 text-xs">
+                No inpatient hospital stays recorded for this patient.
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Admission No</TableHead>
+                    <TableHead>Admission Date</TableHead>
+                    <TableHead>Ward & Bed</TableHead>
+                    <TableHead>Diagnosis</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {typedAdmissions.map((adm) => (
+                    <TableRow key={adm.id}>
+                      <TableCell className="font-mono text-xs font-bold text-slate-900">
+                        <Link href={`/ipd/${adm.id}`} className="text-purple-700 hover:underline">
+                          {adm.admissionNo}
+                        </Link>
+                      </TableCell>
+                      <TableCell className="text-xs text-slate-700 whitespace-nowrap">
+                        {adm.admissionDate ? formatDate(adm.admissionDate) : "N/A"}
+                      </TableCell>
+                      <TableCell className="text-xs">
+                        <span className="font-bold text-purple-900 bg-purple-50 border border-purple-200 px-1.5 py-0.5 rounded">
+                          {adm.bedNo}
+                        </span>{" "}
+                        <span className="text-slate-500 font-normal">({adm.ward})</span>
+                      </TableCell>
+                      <TableCell className="max-w-[200px] truncate text-xs text-slate-900 font-medium">
+                        {adm.admittingDiagnosis || "Under Clinical Evaluation"}
+                      </TableCell>
+                      <TableCell>
+                        <span
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1 ${
+                            adm.status === "ADMITTED"
+                              ? "bg-purple-50 text-purple-700 border border-purple-200"
+                              : "bg-slate-100 text-slate-700 border border-slate-200"
+                          }`}
+                        >
+                          {adm.status === "ADMITTED" ? (
+                            <HeartPulse className="w-3 h-3 text-purple-600 animate-pulse" />
+                          ) : (
+                            <CheckCircle2 className="w-3 h-3 text-slate-500" />
+                          )}
+                          {adm.status}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-right whitespace-nowrap">
+                        <Link href={`/ipd/${adm.id}`}>
+                          <Button variant="outline" size="sm" className="h-7 text-xs gap-1">
+                            <ExternalLink className="w-3 h-3" /> Case Sheet
+                          </Button>
+                        </Link>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Diagnostic Laboratory Reports History */}
+        <Card className="border-slate-200">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="flex items-center gap-2 text-lg text-indigo-950">
+              <FlaskConical className="w-5 h-5 text-indigo-600" />
+              Diagnostic & Lab Reports ({typedLabReports.length})
+            </CardTitle>
+            <LabEntryModal
+              initialPatient={typedPatient}
+              initialPatientId={typedPatient.id}
+              triggerButton={
+                <Button variant="outline" size="sm" className="gap-1.5 text-xs text-indigo-700 border-indigo-200 hover:bg-indigo-50">
+                  <FlaskConical className="w-3.5 h-3.5 text-indigo-600" /> Record Lab Report
+                </Button>
+              }
+            />
+          </CardHeader>
+          <CardContent>
+            {typedLabReports.length === 0 ? (
+              <div className="text-center py-8 text-slate-500 text-xs">
+                No diagnostic laboratory investigations recorded for this patient.
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Report No</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Investigation / Test</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Findings / Abnormalities</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {typedLabReports.map((lab) => {
+                    let params: LabResultParameter[] = [];
+                    try {
+                      params = JSON.parse(lab.results || "[]");
+                    } catch {
+                      params = [];
+                    }
+                    const abnormals = params.filter(
+                      (p) => p.flag === "HIGH" || p.flag === "LOW" || p.flag === "CRITICAL" || p.flag === "ABNORMAL"
+                    );
+
+                    return (
+                      <TableRow key={lab.id}>
+                        <TableCell className="font-mono text-xs font-bold text-slate-900">
+                          <Link href={`/labs/${lab.id}`} className="text-indigo-700 hover:underline">
+                            {lab.reportNo}
+                          </Link>
+                        </TableCell>
+                        <TableCell className="text-xs text-slate-700 whitespace-nowrap">
+                          {lab.createdAt ? formatDate(lab.createdAt) : "N/A"}
+                        </TableCell>
+                        <TableCell className="text-xs">
+                          <span className="font-semibold text-slate-900">{lab.testName}</span>
+                          <span className="text-[10px] text-slate-500 block font-normal">{lab.category}</span>
+                        </TableCell>
+                        <TableCell>
+                          <span
+                            className={`text-[10px] font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1 ${
+                              lab.status === "COMPLETED"
+                                ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                : "bg-amber-50 text-amber-700 border border-amber-200"
+                            }`}
+                          >
+                            {lab.status === "COMPLETED" ? (
+                              <CheckCircle2 className="w-3 h-3" />
+                            ) : (
+                              <Clock className="w-3 h-3" />
+                            )}
+                            {lab.status}
+                          </span>
+                        </TableCell>
+                        <TableCell className="max-w-[200px]">
+                          {abnormals.length > 0 ? (
+                            <div className="flex flex-wrap gap-1">
+                              {abnormals.slice(0, 2).map((ab, i) => (
+                                <span
+                                  key={i}
+                                  className="text-[10px] bg-rose-50 text-rose-700 border border-rose-200 px-1 rounded font-semibold"
+                                >
+                                  {ab.parameter}: {ab.flag}
+                                </span>
+                              ))}
+                              {abnormals.length > 2 && (
+                                <span className="text-[10px] text-slate-400">+{abnormals.length - 2}</span>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-[11px] text-emerald-600 font-medium">Normal</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right whitespace-nowrap">
+                          <Link href={`/labs/${lab.id}`}>
+                            <Button variant="outline" size="sm" className="h-7 text-xs gap-1">
+                              <ExternalLink className="w-3 h-3" /> View Report
+                            </Button>
+                          </Link>
                         </TableCell>
                       </TableRow>
                     );

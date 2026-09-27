@@ -102,6 +102,71 @@ sqlite.exec(`
 
   CREATE INDEX IF NOT EXISTS idx_invoices_patient ON invoices(patient_id);
   CREATE INDEX IF NOT EXISTS idx_invoices_invoice_no ON invoices(invoice_no);
+
+  CREATE TABLE IF NOT EXISTS ipd_admissions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    admission_no TEXT NOT NULL UNIQUE,
+    patient_id INTEGER NOT NULL REFERENCES patients(id),
+    admission_date INTEGER NOT NULL,
+    discharge_date INTEGER,
+    status TEXT NOT NULL DEFAULT 'ADMITTED',
+    ward TEXT NOT NULL,
+    bed_no TEXT NOT NULL,
+    room_type TEXT DEFAULT 'General',
+    attending_doctor TEXT,
+    admitting_diagnosis TEXT,
+    chief_complaints TEXT,
+    admission_vitals TEXT,
+    discharge_condition TEXT,
+    discharge_summary TEXT,
+    discharge_advice TEXT,
+    created_at INTEGER
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_ipd_admissions_patient ON ipd_admissions(patient_id);
+  CREATE INDEX IF NOT EXISTS idx_ipd_admissions_status ON ipd_admissions(status);
+  CREATE INDEX IF NOT EXISTS idx_ipd_admissions_no ON ipd_admissions(admission_no);
+
+  CREATE TABLE IF NOT EXISTS ipd_rounds (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    admission_id INTEGER NOT NULL REFERENCES ipd_admissions(id),
+    round_date INTEGER NOT NULL,
+    doctor_or_staff TEXT NOT NULL,
+    role TEXT DEFAULT 'DOCTOR',
+    notes TEXT NOT NULL,
+    treatment_orders TEXT,
+    vitals TEXT,
+    created_at INTEGER
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_ipd_rounds_admission ON ipd_rounds(admission_id);
+  CREATE INDEX IF NOT EXISTS idx_ipd_rounds_date ON ipd_rounds(round_date);
+
+  CREATE TABLE IF NOT EXISTS lab_reports (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    report_no TEXT NOT NULL UNIQUE,
+    patient_id INTEGER NOT NULL REFERENCES patients(id),
+    prescription_id INTEGER REFERENCES prescriptions(id),
+    ipd_admission_id INTEGER REFERENCES ipd_admissions(id),
+    test_name TEXT NOT NULL,
+    category TEXT NOT NULL DEFAULT 'General',
+    sample_type TEXT,
+    sample_collected_at INTEGER,
+    reported_at INTEGER,
+    status TEXT NOT NULL DEFAULT 'PENDING',
+    referred_by TEXT,
+    technician_name TEXT,
+    results TEXT NOT NULL DEFAULT '[]',
+    interpretation TEXT,
+    notes TEXT,
+    created_at INTEGER
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_lab_reports_patient ON lab_reports(patient_id);
+  CREATE INDEX IF NOT EXISTS idx_lab_reports_status ON lab_reports(status);
+  CREATE INDEX IF NOT EXISTS idx_lab_reports_no ON lab_reports(report_no);
+  CREATE INDEX IF NOT EXISTS idx_lab_reports_rx ON lab_reports(prescription_id);
+  CREATE INDEX IF NOT EXISTS idx_lab_reports_ipd ON lab_reports(ipd_admission_id);
 `);
 
 // Auto-migrate newly added columns if existing DB

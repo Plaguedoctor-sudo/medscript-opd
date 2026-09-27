@@ -1,27 +1,25 @@
-import { db } from '@/db';
-import { patients, prescriptions } from '@/db/schema';
-import { eq } from 'drizzle-orm';
-import { requireAuth, getCurrentUserRole, getSecurityConfig } from '@/lib/auth';
-import { getBillingSummary } from './actions';
-import { BillingDashboard } from './BillingDashboard';
-import { getSecurityAlerts } from '@/lib/security-engine';
-import Link from 'next/link';
-import { FileText, Users, BarChart3, Settings, Receipt, ChevronLeft, Bed, FlaskConical } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { UserRoleBadge } from '@/components/UserRoleBadge';
-import { SecurityAlertBell } from '@/components/SecurityAlertBell';
-import { LockDeskButton } from '@/components/LockDeskButton';
-import { PrivacyShield } from '@/components/PrivacyShield';
+import { db } from "@/db";
+import { requireAuth, getCurrentUserRole, getSecurityConfig } from "@/lib/auth";
+import { getIpdAdmissions } from "./actions";
+import { IpdDashboard } from "./IpdDashboard";
+import { getSecurityAlerts } from "@/lib/security-engine";
+import Link from "next/link";
+import { Bed, Users, BarChart3, Settings, Receipt, ChevronLeft, FlaskConical } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { UserRoleBadge } from "@/components/UserRoleBadge";
+import { SecurityAlertBell } from "@/components/SecurityAlertBell";
+import { LockDeskButton } from "@/components/LockDeskButton";
+import { PrivacyShield } from "@/components/PrivacyShield";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-export default async function BillingPage({
+export default async function IpdPage({
   searchParams,
 }: {
-  searchParams: Promise<{ patientId?: string; prescriptionId?: string; q?: string; status?: string }>;
+  searchParams: Promise<{ q?: string; status?: string; ward?: string }>;
 }) {
-  await requireAuth('/billing');
+  await requireAuth("/ipd");
   const [{ securityEnabled }, role, resolvedParams, securityAlertsData] = await Promise.all([
     getSecurityConfig(),
     getCurrentUserRole(),
@@ -29,29 +27,17 @@ export default async function BillingPage({
     getSecurityAlerts({ unacknowledgedOnly: false, limit: 30 }),
   ]);
 
-  const patientIdNum = resolvedParams?.patientId ? parseInt(resolvedParams.patientId, 10) : null;
-  const prescriptionIdNum = resolvedParams?.prescriptionId ? parseInt(resolvedParams.prescriptionId, 10) : null;
-
-  let initialPatientData = null;
-  if (patientIdNum) {
-    const p = await db.query.patients.findFirst({
-      where: eq(patients.id, patientIdNum),
-    });
-    if (p) {
-      initialPatientData = p;
-    }
-  }
-
-  const summary = await getBillingSummary({
+  const { admissions, stats } = await getIpdAdmissions({
     query: resolvedParams?.q,
     status: resolvedParams?.status,
+    ward: resolvedParams?.ward,
   });
 
   const clinicSettings = await db.query.clinicSettings.findFirst();
 
   return (
     <div className="min-h-screen bg-slate-50">
-      {/* Navbar */}
+      {/* Top Navbar */}
       <nav className="bg-white border-b shadow-xs sticky top-0 z-10">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -59,14 +45,14 @@ export default async function BillingPage({
               <ChevronLeft className="w-5 h-5" />
             </Link>
             <Link href="/" className="flex items-center gap-2.5">
-              <div className="w-8 h-8 bg-emerald-600 rounded-lg flex items-center justify-center shadow-xs">
-                <Receipt className="text-white w-5 h-5" />
+              <div className="w-8 h-8 bg-purple-600 rounded-lg flex items-center justify-center shadow-xs">
+                <Bed className="text-white w-5 h-5" />
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="text-lg font-bold text-slate-900 tracking-tight">MedScript OPD</span>
-                  <span className="text-xs bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full font-semibold border border-emerald-200">
-                    OPD & IPD Billing
+                  <span className="text-lg font-bold text-slate-900 tracking-tight">MedScript IPD</span>
+                  <span className="text-xs bg-purple-50 text-purple-700 px-2 py-0.5 rounded-full font-semibold border border-purple-200">
+                    Inpatient Department
                   </span>
                 </div>
                 {clinicSettings?.clinicName && (
@@ -87,14 +73,14 @@ export default async function BillingPage({
                 <Users className="w-4 h-4" /> Patients
               </Button>
             </Link>
-            <Link href="/ipd">
-              <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
-                <Bed className="w-4 h-4 text-purple-600" /> IPD
-              </Button>
-            </Link>
             <Link href="/labs">
               <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
                 <FlaskConical className="w-4 h-4 text-indigo-600" /> Labs
+              </Button>
+            </Link>
+            <Link href="/billing">
+              <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
+                <Receipt className="w-4 h-4 text-emerald-600" /> Billing
               </Button>
             </Link>
             <Link href="/reports">
@@ -113,12 +99,13 @@ export default async function BillingPage({
       </nav>
 
       <main className="container mx-auto px-4 py-8 max-w-6xl">
-        <BillingDashboard
-          summary={summary}
+        <IpdDashboard
+          admissions={admissions}
+          stats={stats}
           userRole={role}
-          initialPatientId={patientIdNum}
-          initialPrescriptionId={prescriptionIdNum}
-          initialPatientData={initialPatientData}
+          initialQuery={resolvedParams?.q || ""}
+          initialStatus={resolvedParams?.status || "ADMITTED"}
+          initialWard={resolvedParams?.ward || "All"}
         />
       </main>
     </div>

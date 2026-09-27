@@ -107,3 +107,92 @@ export interface InvoiceWithPatient extends Invoice {
   patient: Patient;
 }
 
+export type IpdAdmissionStatus = 'ADMITTED' | 'DISCHARGED' | 'TRANSFERRED';
+export type IpdDischargeCondition = 'Stable' | 'Recovered' | 'Referred' | 'LAMA' | 'Deceased' | string;
+
+export interface IpdVitals {
+  bp?: string;
+  pulse?: string;
+  temp?: string;
+  spo2?: string;
+  weight?: string;
+  rbs?: string;
+}
+
+export interface IpdAdmission {
+  id: number;
+  admissionNo: string;
+  patientId: number;
+  admissionDate: Date;
+  dischargeDate?: Date | null;
+  status: IpdAdmissionStatus;
+  ward: string;
+  bedNo: string;
+  roomType?: string | null;
+  attendingDoctor?: string | null;
+  admittingDiagnosis?: string | null;
+  chiefComplaints?: string | null;
+  admissionVitals?: string | null; // JSON string of IpdVitals
+  dischargeCondition?: IpdDischargeCondition | null;
+  dischargeSummary?: string | null;
+  dischargeAdvice?: string | null;
+  createdAt: Date | null;
+}
+
+export interface IpdAdmissionWithPatient extends IpdAdmission {
+  patient: Patient;
+  rounds?: IpdRound[];
+  labReports?: LabReport[];
+}
+
+export interface IpdRound {
+  id: number;
+  admissionId: number;
+  roundDate: Date;
+  doctorOrStaff: string;
+  role: 'DOCTOR' | 'NURSE' | 'STAFF' | string;
+  notes: string;
+  treatmentOrders?: string | null;
+  vitals?: string | null; // JSON string of IpdVitals
+  createdAt: Date | null;
+}
+
+export type LabReportStatus = 'PENDING' | 'SAMPLE_COLLECTED' | 'COMPLETED' | 'CANCELLED';
+export type LabResultFlag = 'NORMAL' | 'HIGH' | 'LOW' | 'CRITICAL' | 'ABNORMAL';
+
+export interface LabResultParameter {
+  id?: string;
+  parameter: string;
+  value: string;
+  unit: string;
+  referenceRange: string;
+  flag?: LabResultFlag;
+  notes?: string;
+}
+
+export interface LabReport {
+  id: number;
+  reportNo: string;
+  patientId: number;
+  prescriptionId?: number | null;
+  ipdAdmissionId?: number | null;
+  testName: string;
+  category: string;
+  sampleType?: string | null;
+  sampleCollectedAt?: Date | null;
+  reportedAt?: Date | null;
+  status: LabReportStatus;
+  referredBy?: string | null;
+  technicianName?: string | null;
+  results: string; // JSON string of LabResultParameter[]
+  interpretation?: string | null;
+  notes?: string | null;
+  createdAt: Date | null;
+}
+
+export interface LabReportWithPatient extends LabReport {
+  patient: Patient;
+  prescription?: Prescription | null;
+  admission?: IpdAdmission | null;
+}
+

@@ -2,7 +2,7 @@ import { getSettings } from "./actions";
 import SettingsForm from "./SettingsForm";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Settings, BarChart3 } from "lucide-react";
+import { ArrowLeft, Settings, BarChart3, Bed, FlaskConical } from "lucide-react";
 import { requireRole, getSecurityConfig, getCurrentUserRole } from "@/lib/auth";
 import { getLocalBackupSnapshots } from "./backup-actions";
 import { LockDeskButton } from "@/components/LockDeskButton";
@@ -19,7 +19,7 @@ export default async function SettingsPage() {
     getSettings(),
     getSecurityConfig(),
     getLocalBackupSnapshots(),
-    getRecentAuditLogs(20),
+    getRecentAuditLogs(30),
     getCurrentUserRole(),
   ]);
 
@@ -44,6 +44,16 @@ export default async function SettingsPage() {
             <UserRoleBadge role={role} securityEnabled={securityConfig.securityEnabled} />
             <PrivacyShield />
             <SecurityAlertBell />
+            <Link href="/ipd">
+              <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
+                <Bed className="w-4 h-4 text-purple-600" /> IPD
+              </Button>
+            </Link>
+            <Link href="/labs">
+              <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
+                <FlaskConical className="w-4 h-4 text-indigo-600" /> Labs
+              </Button>
+            </Link>
             <Link href="/reports">
               <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
                 <BarChart3 className="w-4 h-4 text-blue-600" /> Reports & Audit

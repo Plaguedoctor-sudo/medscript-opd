@@ -2,7 +2,7 @@ import { getReportsData } from "./actions";
 import ReportsView from "./ReportsView";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, BarChart3, Settings, PlusCircle, Users, Receipt } from "lucide-react";
+import { ArrowLeft, BarChart3, Settings, PlusCircle, Users, Receipt, Bed, FlaskConical } from "lucide-react";
 import { requireRole, getSecurityConfig } from "@/lib/auth";
 import { LockDeskButton } from "@/components/LockDeskButton";
 import { SecurityAlertBell } from "@/components/SecurityAlertBell";
@@ -47,6 +47,16 @@ export default async function ReportsPage() {
 
           <div className="flex items-center gap-2.5">
             <SecurityAlertBell />
+            <Link href="/ipd">
+              <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600 hidden sm:inline-flex">
+                <Bed className="w-3.5 h-3.5 text-purple-600" /> IPD
+              </Button>
+            </Link>
+            <Link href="/labs">
+              <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600 hidden sm:inline-flex">
+                <FlaskConical className="w-3.5 h-3.5 text-indigo-600" /> Labs
+              </Button>
+            </Link>
             <Link href="/billing">
               <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600 hidden sm:inline-flex">
                 <Receipt className="w-3.5 h-3.5 text-emerald-600" /> Billing
