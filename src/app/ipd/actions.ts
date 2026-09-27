@@ -4,8 +4,11 @@ import { db, sqlite } from "@/db";
 import { ipdAdmissions, ipdRounds, labReports, patients, emarRecords, clinicalConsents, ipdDeposits } from "@/db/schema";
 import { eq, desc, or, like, and } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
-import { requireAuth, getCurrentUserRole, getCurrentUser, isDoctor, isNurse, isReceptionist } from "@/lib/auth";
+import { requireAuth, getCurrentUserRole, getCurrentUser, isDoctor, isNurse } from "@/lib/auth";
 import { logAuditEvent } from "@/lib/audit";
+import { generateConsentDigitalSeal } from "@/lib/consent-security";
+import { sanitizeClinicalText } from "@/lib/phi-sanitizer";
+import { getClientIp } from "@/lib/rate-limiter";
 import {
   IpdAdmissionWithPatient,
   IpdRound,
@@ -669,7 +672,30 @@ export async function createClinicalConsentAction(data: {
 
   try {
     const now = Date.now();
-    const docSig = data.doctorSignature || (user?.name ? `DIGITALLY_SEALED_${user.name}` : 'DIGITALLY_SEALED');
+    const clientIp = await getClientIp();
+    const cleanTitle = sanitizeClinicalText(data.title);
+    const cleanContent = sanitizeClinicalText(data.content);
+    const cleanSignedByName = data.signedByName.trim();
+    const cleanRelationship = (data.relationship || 'Self').trim();
+    const cleanWitnessName = data.witnessName ? data.witnessName.trim() : null;
+    const doctorName = user?.name || 'Authorized Doctor';
+
+    // Compute cryptographic digital seal for non-repudiation and tamper prevention (IT Act § 3A & HIPAA)
+    const seal = generateConsentDigitalSeal({
+      patientId: data.patientId,
+      admissionId: data.admissionId,
+      consentType: data.consentType,
+      title: cleanTitle,
+      content: cleanContent,
+      signedByName: cleanSignedByName,
+      relationship: cleanRelationship,
+      witnessName: cleanWitnessName,
+      patientSignature: data.patientSignature,
+      signedAt: now,
+      signerDoctor: doctorName,
+    });
+
+    const docSig = `DIGITALLY_SEALED::${seal}::${doctorName}`;
 
     const res = sqlite
       .prepare(`
@@ -677,28 +703,30 @@ export async function createClinicalConsentAction(data: {
           patient_id, admission_id, consent_type, title, content,
           patient_signature, signed_by_name, relationship, witness_name,
           doctor_signature, signed_at, ip_address, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '127.0.0.1', ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `)
       .run(
         data.patientId,
         data.admissionId || null,
         data.consentType,
-        data.title.trim(),
-        data.content.trim(),
+        cleanTitle,
+        cleanContent,
         data.patientSignature || null,
-        data.signedByName.trim(),
-        data.relationship.trim() || 'Self',
-        data.witnessName?.trim() || null,
+        cleanSignedByName,
+        cleanRelationship,
+        cleanWitnessName,
         docSig,
         now,
+        clientIp,
         now
       );
 
     await logAuditEvent({
       action: 'CLINICAL_CONSENT_SIGNED',
       actorRole: role.toUpperCase(),
-      details: `Consent "${data.title}" executed for Patient ID ${data.patientId} by ${data.signedByName} (${data.relationship})`,
+      details: `Consent "${cleanTitle}" cryptographically sealed for Patient ID ${data.patientId} by ${cleanSignedByName} (${cleanRelationship})`,
       status: 'SUCCESS',
+      ipAddress: clientIp,
     });
 
     if (data.admissionId) {

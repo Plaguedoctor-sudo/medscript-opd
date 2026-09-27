@@ -965,14 +965,30 @@ export default function SettingsForm({
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Quick Action Buttons */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <a
+              href="/api/backup/download?encrypted=true"
+              download
+              className="inline-flex items-center justify-center gap-2 p-3.5 rounded-xl border-2 border-indigo-500/40 bg-indigo-50/60 hover:bg-indigo-100/80 text-indigo-900 font-semibold text-xs sm:text-sm transition-all shadow-xs text-center"
+              title="Recommended for USB / PenDrive backups: encrypted at rest using AES-256-GCM and memory-hard scrypt derivation"
+            >
+              <ShieldCheck className="w-5 h-5 text-indigo-600 shrink-0" />
+              <div>
+                <div>Encrypted Backup (.enc.db)</div>
+                <div className="text-[10px] text-indigo-700 font-normal">AES-256-GCM Security</div>
+              </div>
+            </a>
+
             <a
               href="/api/backup/download"
               download
-              className="inline-flex items-center justify-center gap-2 p-4 rounded-xl border-2 border-emerald-500/30 bg-emerald-50/50 hover:bg-emerald-100/60 text-emerald-800 font-semibold text-sm transition-all shadow-sm"
+              className="inline-flex items-center justify-center gap-2 p-3.5 rounded-xl border-2 border-emerald-500/30 bg-emerald-50/50 hover:bg-emerald-100/60 text-emerald-800 font-semibold text-xs sm:text-sm transition-all shadow-xs text-center"
             >
-              <Download className="w-5 h-5 text-emerald-600" />
-              Download Live Database (.db)
+              <Download className="w-5 h-5 text-emerald-600 shrink-0" />
+              <div>
+                <div>Plain SQLite (.db)</div>
+                <div className="text-[10px] text-emerald-700 font-normal">Direct Database Format</div>
+              </div>
             </a>
 
             <Button
@@ -980,7 +996,7 @@ export default function SettingsForm({
               variant="outline"
               onClick={handleCreateSnapshot}
               disabled={isCreatingSnapshot}
-              className="h-auto p-4 rounded-xl border border-slate-300 hover:border-slate-400 font-semibold text-sm flex items-center justify-center gap-2"
+              className="h-auto p-3.5 rounded-xl border border-slate-300 hover:border-slate-400 font-semibold text-xs sm:text-sm flex items-center justify-center gap-2 text-center"
             >
               {isCreatingSnapshot ? (
                 <>
@@ -988,7 +1004,11 @@ export default function SettingsForm({
                 </>
               ) : (
                 <>
-                  <HardDrive className="w-5 h-5 text-slate-600" /> Create Local Snapshot Now
+                  <HardDrive className="w-5 h-5 text-slate-600 shrink-0" />
+                  <div>
+                    <div>Create Local Snapshot</div>
+                    <div className="text-[10px] text-slate-500 font-normal">Atomic Server Copy</div>
+                  </div>
                 </>
               )}
             </Button>

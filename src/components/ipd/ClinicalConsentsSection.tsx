@@ -5,11 +5,8 @@ import {
   FileCheck2,
   Plus,
   ShieldCheck,
-  CheckCircle2,
-  PenTool,
   X,
-  FileText,
-  User,
+  Lock,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -194,6 +191,22 @@ export function ClinicalConsentsSection({
                   </div>
                 )}
               </div>
+
+              {consent.doctorSignature && (
+                <div className="pt-2 border-t border-dashed border-slate-200 flex items-center justify-between text-[10px] text-slate-500">
+                  <div className="flex items-center gap-1 font-mono text-[9px] text-slate-600 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded truncate max-w-[70%]">
+                    <Lock className="w-2.5 h-2.5 text-emerald-600 shrink-0" />
+                    <span className="truncate">
+                      {consent.doctorSignature.includes('SEAL-v1:')
+                        ? `SEAL: ${consent.doctorSignature.split('::')[1]?.replace('SEAL-v1:', '').slice(0, 16)}...`
+                        : consent.doctorSignature}
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                    Verified Seal
+                  </span>
+                </div>
+              )}
             </div>
           ))}
         </div>

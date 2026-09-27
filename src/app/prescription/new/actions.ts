@@ -12,6 +12,7 @@ import {
   verifyPrescriptionIntegrity,
   formatDigitalSealCode,
 } from "@/lib/prescription-security";
+import { sanitizeClinicalText } from "@/lib/phi-sanitizer";
 
 export interface PrescriptionFormData {
   patientId?: number | string;
@@ -102,8 +103,8 @@ export async function getPatientById(id: number): Promise<Patient | null> {
 
 function sanitizeString(val: unknown, maxLen: number): string | null {
   if (typeof val !== "string") return null;
-  const trimmed = val.trim();
-  return trimmed.length > 0 ? trimmed.slice(0, maxLen) : null;
+  const clean = sanitizeClinicalText(val.trim());
+  return clean.length > 0 ? clean.slice(0, maxLen) : null;
 }
 
 function sanitizeMedications(meds: unknown): Medication[] {
@@ -111,14 +112,14 @@ function sanitizeMedications(meds: unknown): Medication[] {
   return meds
     .filter((m): m is Medication => typeof m === "object" && m !== null && typeof m.name === "string" && m.name.trim().length > 0)
     .map((m) => ({
-      prefix: m.prefix ? m.prefix.trim().slice(0, 20) : undefined,
-      name: m.name.trim().slice(0, 100),
-      genericName: m.genericName ? m.genericName.trim().slice(0, 150).toUpperCase() : undefined,
-      strength: (m.strength || "").trim().slice(0, 50),
-      dosage: (m.dosage || "").trim().slice(0, 50),
-      timing: (m.timing || "").trim().slice(0, 50),
-      duration: (m.duration || "").trim().slice(0, 50),
-      instruction: m.instruction ? m.instruction.trim().slice(0, 150) : undefined,
+      prefix: m.prefix ? sanitizeClinicalText(m.prefix.trim()).slice(0, 20) : undefined,
+      name: sanitizeClinicalText(m.name.trim()).slice(0, 100),
+      genericName: m.genericName ? sanitizeClinicalText(m.genericName.trim()).slice(0, 150).toUpperCase() : undefined,
+      strength: sanitizeClinicalText((m.strength || "").trim()).slice(0, 50),
+      dosage: sanitizeClinicalText((m.dosage || "").trim()).slice(0, 50),
+      timing: sanitizeClinicalText((m.timing || "").trim()).slice(0, 50),
+      duration: sanitizeClinicalText((m.duration || "").trim()).slice(0, 50),
+      instruction: m.instruction ? sanitizeClinicalText(m.instruction.trim()).slice(0, 150) : undefined,
     }));
 }
 

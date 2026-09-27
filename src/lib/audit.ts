@@ -1,7 +1,9 @@
-import { db } from '@/db';
+import crypto from 'crypto';
+import { db, sqlite } from '@/db';
 import { auditLogs } from '@/db/schema';
 import { desc } from 'drizzle-orm';
 import { getClientIp } from './rate-limiter';
+import { getSessionSecret } from './auth';
 
 export type AuditAction =
   | 'AUTH_LOGIN_SUCCESS'
@@ -166,3 +168,47 @@ export async function getRecentAuditLogs(limit = 20): Promise<AuditLogItem[]> {
     return [];
   }
 }
+
+/**
+ * Computes a cryptographic hash chain over all chronological audit events (NIST SP 800-92 / ISO 27799 / HIPAA § 164.312(b)).
+ * Any tampering, row deletion, or retroactive alteration will break the computed chain hash.
+ */
+export function computeAuditTrailIntegrityHash(): { logCount: number; chainHash: string; verifiedAt: string } {
+  try {
+    const rows = sqlite
+      .prepare('SELECT id, timestamp, action, actor_role, details, ip_address, status FROM audit_logs ORDER BY id ASC')
+      .all() as Array<{
+        id: number;
+        timestamp: number | string | null;
+        action: string;
+        actor_role: string | null;
+        details: string | null;
+        ip_address: string | null;
+        status: string | null;
+      }>;
+
+    let chain = 'MEDSCRIPT_GENESIS_ROOT_V1';
+    const secret = getSessionSecret();
+
+    for (const r of rows) {
+      const entryPayload = `${chain}||${r.id}||${r.timestamp}||${r.action}||${r.actor_role || ''}||${r.details || ''}||${r.ip_address || ''}||${r.status || ''}`;
+      chain = crypto
+        .createHmac('sha256', secret)
+        .update(entryPayload)
+        .digest('hex');
+    }
+
+    return {
+      logCount: rows.length,
+      chainHash: chain,
+      verifiedAt: new Date().toISOString(),
+    };
+  } catch {
+    return {
+      logCount: 0,
+      chainHash: 'UNABLE_TO_COMPUTE',
+      verifiedAt: new Date().toISOString(),
+    };
+  }
+}
+

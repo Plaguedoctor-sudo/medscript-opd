@@ -3,9 +3,11 @@
 import React, { useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 
+import { maskAbhaId, maskPhoneNumber, maskEmail, maskAadhaar } from '@/lib/phi-sanitizer';
+
 interface MaskedIdentifierProps {
   value: string | null | undefined;
-  type: 'phone' | 'abha' | 'text';
+  type: 'phone' | 'abha' | 'email' | 'aadhaar' | 'text';
   icon?: React.ReactNode;
 }
 
@@ -16,21 +18,21 @@ export function MaskedIdentifier({ value, type, icon }: MaskedIdentifierProps) {
     return <span className="text-slate-400 text-xs">—</span>;
   }
 
-  const maskValue = (raw: string, maskType: 'phone' | 'abha' | 'text'): string => {
+  const maskValue = (raw: string, maskType: 'phone' | 'abha' | 'email' | 'aadhaar' | 'text'): string => {
     const clean = raw.trim();
     if (maskType === 'phone') {
-      if (clean.length > 5) {
-        return `${clean.slice(0, 5)} •••••`;
-      }
-      return '•••••';
+      return maskPhoneNumber(clean);
     }
     if (maskType === 'abha') {
-      if (clean.length > 4) {
-        return `•••• •••• ${clean.slice(-4)}`;
-      }
-      return '•••• •••• ••••';
+      return maskAbhaId(clean);
     }
-    // generic
+    if (maskType === 'email') {
+      return maskEmail(clean);
+    }
+    if (maskType === 'aadhaar') {
+      return maskAadhaar(clean);
+    }
+    // generic fallback
     if (clean.length > 4) {
       return `${clean.slice(0, 2)}••••${clean.slice(-2)}`;
     }

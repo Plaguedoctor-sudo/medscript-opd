@@ -4,7 +4,8 @@ import path from 'path';
 import { sqlite } from '@/db';
 import { logAuditEvent } from '@/lib/audit';
 import { getSessionSecret } from '@/lib/auth';
-import { decryptPhi } from '@/lib/crypto-storage';
+import { decryptPhi, encryptBufferAesGcm } from '@/lib/crypto-storage';
+export { encryptBufferAesGcm };
 
 export interface GoogleDriveConfigInput {
   clientEmail: string;
@@ -22,27 +23,6 @@ export interface GoogleDriveBackupResult {
   fileSizeKb?: number;
   uploadedAt?: Date;
   error?: string;
-}
-
-/**
- * Encrypts a buffer using AES-256-GCM with memory-hard scrypt key derivation.
- * Output format: [Salt 16B][IV 12B][Tag 16B][Ciphertext]
- */
-export function encryptBufferAesGcm(buffer: Buffer, passphrase: string): Buffer {
-  const salt = crypto.randomBytes(16);
-  const iv = crypto.randomBytes(12);
-  const key = crypto.scryptSync(passphrase, salt, 32, {
-    N: 16384,
-    r: 8,
-    p: 1,
-    maxmem: 32 * 1024 * 1024,
-  });
-
-  const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
-  const ciphertext = Buffer.concat([cipher.update(buffer), cipher.final()]);
-  const tag = cipher.getAuthTag();
-
-  return Buffer.concat([salt, iv, tag, ciphertext]);
 }
 
 /**

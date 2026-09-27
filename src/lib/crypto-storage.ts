@@ -1,5 +1,4 @@
 import crypto from 'crypto';
-import fs from 'fs';
 import { getSessionSecret } from '@/lib/auth';
 
 /**
@@ -101,4 +100,51 @@ export function validateCredentialPolicy(
   }
 
   return { valid: true };
+}
+
+/**
+ * Encrypts a binary buffer using AES-256-GCM with memory-hard scrypt key derivation (NIST SP 800-38D / SP 800-132)
+ * Output structure: [Salt 16B][IV 12B][Tag 16B][Ciphertext]
+ */
+export function encryptBufferAesGcm(buffer: Buffer, passphrase: string): Buffer {
+  const salt = crypto.randomBytes(16);
+  const iv = crypto.randomBytes(12);
+  const key = crypto.scryptSync(passphrase, salt, 32, {
+    N: 16384,
+    r: 8,
+    p: 1,
+    maxmem: 32 * 1024 * 1024,
+  });
+
+  const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+  const ciphertext = Buffer.concat([cipher.update(buffer), cipher.final()]);
+  const tag = cipher.getAuthTag();
+
+  return Buffer.concat([salt, iv, tag, ciphertext]);
+}
+
+/**
+ * Decrypts an AES-256-GCM encrypted binary buffer, verifying cryptographic authentication tag integrity
+ */
+export function decryptBufferAesGcm(encryptedBuffer: Buffer, passphrase: string): Buffer {
+  if (encryptedBuffer.length < 16 + 12 + 16) {
+    throw new Error('Encrypted buffer is too short to contain valid header, salt, IV, and auth tag');
+  }
+
+  const salt = encryptedBuffer.subarray(0, 16);
+  const iv = encryptedBuffer.subarray(16, 28);
+  const tag = encryptedBuffer.subarray(28, 44);
+  const ciphertext = encryptedBuffer.subarray(44);
+
+  const key = crypto.scryptSync(passphrase, salt, 32, {
+    N: 16384,
+    r: 8,
+    p: 1,
+    maxmem: 32 * 1024 * 1024,
+  });
+
+  const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
+  decipher.setAuthTag(tag);
+
+  return Buffer.concat([decipher.update(ciphertext), decipher.final()]);
 }
