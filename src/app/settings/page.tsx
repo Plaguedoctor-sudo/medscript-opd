@@ -3,7 +3,7 @@ import SettingsForm from "./SettingsForm";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Settings, BarChart3, Bed, FlaskConical, CalendarCheck, Pill, Users } from "lucide-react";
-import { requireRole, getSecurityConfig, getCurrentUserRole, getCurrentUser } from "@/lib/auth";
+import { requirePermission, getSecurityConfig, getCurrentUserRole, getCurrentUser } from "@/lib/auth";
 import { getLocalBackupSnapshots } from "./backup-actions";
 import { LockDeskButton } from "@/components/LockDeskButton";
 import { getRecentAuditLogs } from "@/lib/audit";
@@ -18,7 +18,7 @@ import { GoogleDriveBackupCard } from "@/components/GoogleDriveBackupCard";
 export const dynamic = 'force-dynamic';
 
 export default async function SettingsPage() {
-  await requireRole(['admin_doctor', 'doctor'], '/settings');
+  await requirePermission('settings:clinic', '/settings');
   const [settings, securityConfig, backupSnapshots, recentAuditLogs, role, currentUser, staffUsers, gdriveConfig] = await Promise.all([
     getSettings(),
     getSecurityConfig(),

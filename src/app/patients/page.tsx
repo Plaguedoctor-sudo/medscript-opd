@@ -15,6 +15,7 @@ import { UserProfileMenu } from "@/components/UserProfileMenu";
 import { MaskedIdentifier } from "@/components/MaskedIdentifier";
 import { SecurityAlertBell } from "@/components/SecurityAlertBell";
 import { EditPatientModal } from "@/app/patient/[id]/EditPatientModal";
+import { PatientsImportButton } from "@/components/PatientsImportButton";
 
 export const dynamic = 'force-dynamic';
 
@@ -117,10 +118,18 @@ export default async function PatientsPage({ searchParams }: { searchParams: Pro
                 <BarChart3 className="w-4 h-4 text-blue-600" /> Reports & Export
               </Button>
             </Link>
+            <PatientsImportButton />
             {(role === 'admin_doctor' || role === 'doctor') && (
               <Link href="/prescription/new">
                 <Button size="sm" className="gap-1.5 text-xs shadow-xs">
                   <PlusCircle className="w-4 h-4" /> New Consultation
+                </Button>
+              </Link>
+            )}
+            {(role === 'nurse' || role === 'receptionist') && (
+              <Link href="/patients/register">
+                <Button size="sm" className="gap-1.5 text-xs shadow-xs bg-amber-600 hover:bg-amber-700 text-white">
+                  <PlusCircle className="w-4 h-4" /> Register Patient
                 </Button>
               </Link>
             )}

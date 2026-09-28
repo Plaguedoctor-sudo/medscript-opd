@@ -49,11 +49,15 @@ import {
   ShieldCheck,
   AlertTriangle,
   Droplets,
+  FileText,
 } from "lucide-react";
 import { NurseEmarSection } from "@/components/ipd/NurseEmarSection";
 import { ClinicalConsentsSection } from "@/components/ipd/ClinicalConsentsSection";
 import { IpdDepositsSection } from "@/components/ipd/IpdDepositsSection";
 import { InputOutputChartSection } from "@/components/ipd/InputOutputChartSection";
+import { IpdDischargeModal } from "@/components/ipd/IpdDischargeModal";
+import { IpdNursingNotesSection } from "@/components/ipd/IpdNursingNotesSection";
+import { IpdDischarge, IpdNursingNote } from "@/types";
 
 interface IpdCaseSheetProps {
   admission: IpdAdmissionWithPatient;
@@ -66,6 +70,8 @@ interface IpdCaseSheetProps {
   settings: ClinicSettings | null;
   userRole?: string;
   currentStaffName?: string;
+  existingDischarge?: IpdDischarge | null;
+  nursingNotes?: IpdNursingNote[];
 }
 
 export function IpdCaseSheet({
@@ -79,6 +85,8 @@ export function IpdCaseSheet({
   settings,
   userRole,
   currentStaffName,
+  existingDischarge,
+  nursingNotes = [],
 }: IpdCaseSheetProps) {
   const router = useRouter();
 
@@ -122,6 +130,14 @@ export function IpdCaseSheet({
   }
 
   const isAdmitted = admission.status === "ADMITTED";
+
+  // Role-derived capability flags (client-side UI gating)
+  const isDoctor = userRole === 'admin_doctor' || userRole === 'doctor';
+  const isNurseOrAbove = isDoctor || userRole === 'nurse';
+  const canDischarge = isDoctor; // Only doctors can discharge
+  const canOrderLab = isNurseOrAbove; // Nurses can order labs
+  const canAddClinicalRound = isNurseOrAbove; // Nurses add nursing notes; doctors add rounds
+  const canViewBilling = isDoctor || userRole === 'receptionist';
 
   const calculateDays = (admissionDate: Date, dischargeDate?: Date | null) => {
     const start = new Date(admissionDate).getTime();
@@ -254,20 +270,22 @@ export function IpdCaseSheet({
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Order Lab Investigation Modal */}
-          <LabEntryModal
-            initialPatient={admission.patient}
-            initialPatientId={admission.patientId}
-            ipdAdmissionId={admission.id}
-            triggerButton={
-              <Button variant="outline" size="sm" className="gap-1.5 border-indigo-200 text-indigo-700 hover:bg-indigo-50">
-                <FlaskConical className="w-4 h-4 text-indigo-600" /> Order Lab Test
-              </Button>
-            }
-          />
+          {/* Order Lab Investigation Modal — nurse and above */}
+          {canOrderLab && (
+            <LabEntryModal
+              initialPatient={admission.patient}
+              initialPatientId={admission.patientId}
+              ipdAdmissionId={admission.id}
+              triggerButton={
+                <Button variant="outline" size="sm" className="gap-1.5 border-indigo-200 text-indigo-700 hover:bg-indigo-50">
+                  <FlaskConical className="w-4 h-4 text-indigo-600" /> Order Lab Test
+                </Button>
+              }
+            />
+          )}
 
-          {/* Record Clinical Round Button */}
-          {isAdmitted && (
+          {/* Record Clinical Round Button — nurse and above */}
+          {isAdmitted && canAddClinicalRound && (
             <Dialog open={roundModalOpen} onOpenChange={setRoundModalOpen}>
               <DialogTrigger render={<Button size="sm" className="gap-1.5 bg-purple-600 hover:bg-purple-700 text-white" />}>
                 <PlusCircle className="w-4 h-4" /> Doctor Round / Note
@@ -423,8 +441,8 @@ export function IpdCaseSheet({
             </Dialog>
           )}
 
-          {/* Discharge Patient Modal */}
-          {isAdmitted ? (
+          {/* Discharge Patient — Doctors only */}
+          {canDischarge && (isAdmitted ? (
             <Dialog open={dischargeModalOpen} onOpenChange={setDischargeModalOpen}>
               <DialogTrigger render={<Button variant="outline" size="sm" className="gap-1.5 border-emerald-300 text-emerald-700 hover:bg-emerald-50" />}>
                 <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Discharge Patient
@@ -497,14 +515,25 @@ export function IpdCaseSheet({
             <span className="text-xs font-bold bg-slate-100 text-slate-700 px-3 py-1.5 rounded-md border border-slate-200">
               Discharged on {admission.dischargeDate ? formatDate(admission.dischargeDate) : "N/A"}
             </span>
+          ))}
+
+          {/* Formal Discharge Summary Modal — doctors only */}
+          {canDischarge && (
+            <IpdDischargeModal
+              admission={admission}
+              existingDischarge={existingDischarge}
+              settings={settings}
+            />
           )}
 
-          {/* 1-Click Bill IPD Stay */}
-          <Link href={`/billing?patientId=${admission.patientId}`}>
-            <Button variant="outline" size="sm" className="gap-1.5 border-blue-200 text-blue-700 hover:bg-blue-50">
-              <Receipt className="w-4 h-4 text-blue-600" /> Bill Inpatient Stay
-            </Button>
-          </Link>
+          {/* 1-Click Bill IPD Stay — doctors + receptionist */}
+          {canViewBilling && (
+            <Link href={`/billing?patientId=${admission.patientId}`}>
+              <Button variant="outline" size="sm" className="gap-1.5 border-blue-200 text-blue-700 hover:bg-blue-50">
+                <Receipt className="w-4 h-4 text-blue-600" /> Bill Inpatient Stay
+              </Button>
+            </Link>
+          )}
 
           {/* Print Button */}
           <Button size="sm" onClick={handlePrint} className="gap-1.5 bg-slate-900 hover:bg-black text-white shadow-xs">
@@ -864,12 +893,32 @@ export function IpdCaseSheet({
           userRole={userRole}
         />
 
-        {/* SECTION 7: Discharge Summary (if discharged) */}
+        {/* SECTION 7: Shift-to-Shift Nursing Handover Notes */}
+        <IpdNursingNotesSection
+          admission={admission}
+          notes={nursingNotes}
+          currentStaffName={currentStaffName}
+          userRole={userRole}
+        />
+
+        {/* SECTION 8: Discharge Summary (if discharged) */}
         {!isAdmitted && (
           <div className="border-2 border-emerald-200 rounded-xl p-5 bg-emerald-50/30 mb-8">
-            <h2 className="text-sm font-bold text-emerald-950 uppercase tracking-wider mb-3 flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Hospital Discharge Summary
-            </h2>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-sm font-bold text-emerald-950 uppercase tracking-wider flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Hospital Discharge Summary
+              </h2>
+              <IpdDischargeModal
+                admission={admission}
+                existingDischarge={existingDischarge}
+                settings={settings}
+                triggerButton={
+                  <Button size="sm" variant="outline" className="h-7 text-xs border-emerald-400 text-emerald-800 hover:bg-emerald-100 gap-1.5 font-semibold">
+                    <FileText className="w-3.5 h-3.5 text-emerald-600" /> Open Formal Discharge Certificate
+                  </Button>
+                }
+              />
+            </div>
 
             <div className="space-y-3 text-xs">
               <div>

@@ -571,7 +571,7 @@ try {
   // Ignore migration errors
 }
 
-// Auto-migrate newly added columns on patients and clinic_settings
+// Auto-migrate newly added columns on patients, clinic_settings, and prescriptions
 try {
   const patientColumns = sqlite.prepare("PRAGMA table_info(patients)").all() as { name: string }[];
   const pCols = new Set(patientColumns.map((c) => c.name));
@@ -591,9 +591,203 @@ try {
   if (!sCols.has("gdrive_last_backup_file_id")) sqlite.prepare("ALTER TABLE clinic_settings ADD COLUMN gdrive_last_backup_file_id TEXT").run();
   if (!sCols.has("gdrive_last_backup_file_name")) sqlite.prepare("ALTER TABLE clinic_settings ADD COLUMN gdrive_last_backup_file_name TEXT").run();
   if (!sCols.has("gdrive_auto_backup_interval")) sqlite.prepare("ALTER TABLE clinic_settings ADD COLUMN gdrive_auto_backup_interval TEXT DEFAULT 'DAILY'").run();
-} catch (migrErr) {
+  if (!sCols.has("upi_id")) sqlite.prepare("ALTER TABLE clinic_settings ADD COLUMN upi_id TEXT").run();
+  if (!sCols.has("gst_number")) sqlite.prepare("ALTER TABLE clinic_settings ADD COLUMN gst_number TEXT").run();
+  if (!sCols.has("whatsapp_cloud_token")) sqlite.prepare("ALTER TABLE clinic_settings ADD COLUMN whatsapp_cloud_token TEXT").run();
+  if (!sCols.has("whatsapp_phone_number_id")) sqlite.prepare("ALTER TABLE clinic_settings ADD COLUMN whatsapp_phone_number_id TEXT").run();
+  if (!sCols.has("cloud_sync_provider")) sqlite.prepare("ALTER TABLE clinic_settings ADD COLUMN cloud_sync_provider TEXT DEFAULT 'disabled'").run();
+  if (!sCols.has("cloud_sync_endpoint")) sqlite.prepare("ALTER TABLE clinic_settings ADD COLUMN cloud_sync_endpoint TEXT").run();
+  if (!sCols.has("cloud_sync_api_key")) sqlite.prepare("ALTER TABLE clinic_settings ADD COLUMN cloud_sync_api_key TEXT").run();
+
+  const invoiceColumns = sqlite.prepare("PRAGMA table_info(invoices)").all() as { name: string }[];
+  const invCols = new Set(invoiceColumns.map((c) => c.name));
+  if (!invCols.has("cgst")) sqlite.prepare("ALTER TABLE invoices ADD COLUMN cgst REAL DEFAULT 0").run();
+  if (!invCols.has("sgst")) sqlite.prepare("ALTER TABLE invoices ADD COLUMN sgst REAL DEFAULT 0").run();
+
+  const rxColumns = sqlite.prepare("PRAGMA table_info(prescriptions)").all() as { name: string }[];
+  const rxCols = new Set(rxColumns.map((c) => c.name));
+  if (!rxCols.has("doctor_id")) sqlite.prepare("ALTER TABLE prescriptions ADD COLUMN doctor_id INTEGER").run();
+  if (!rxCols.has("doctor_name")) sqlite.prepare("ALTER TABLE prescriptions ADD COLUMN doctor_name TEXT").run();
+  if (!rxCols.has("height")) sqlite.prepare("ALTER TABLE prescriptions ADD COLUMN height TEXT").run();
+  if (!rxCols.has("bmi")) sqlite.prepare("ALTER TABLE prescriptions ADD COLUMN bmi TEXT").run();
+  if (!rxCols.has("rbs")) sqlite.prepare("ALTER TABLE prescriptions ADD COLUMN rbs TEXT").run();
+  if (!rxCols.has("respiratory_rate")) sqlite.prepare("ALTER TABLE prescriptions ADD COLUMN respiratory_rate TEXT").run();
+
+  // Create new clinical feature tables
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS prescription_templates (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      category TEXT NOT NULL DEFAULT 'General',
+      description TEXT,
+      chief_complaints TEXT,
+      diagnosis TEXT,
+      medications TEXT NOT NULL,
+      advice TEXT,
+      lab_tests TEXT,
+      created_by TEXT,
+      created_at INTEGER
+    );
+
+    CREATE TABLE IF NOT EXISTS patient_documents (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      patient_id INTEGER NOT NULL REFERENCES patients(id),
+      prescription_id INTEGER REFERENCES prescriptions(id),
+      title TEXT NOT NULL,
+      document_type TEXT NOT NULL DEFAULT 'LAB_REPORT',
+      file_data TEXT NOT NULL,
+      file_name TEXT,
+      file_size_kb INTEGER,
+      mime_type TEXT,
+      notes TEXT,
+      uploaded_by TEXT,
+      uploaded_at INTEGER
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_patient_documents_patient ON patient_documents(patient_id);
+
+    CREATE TABLE IF NOT EXISTS medical_certificates (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      certificate_no TEXT NOT NULL UNIQUE,
+      patient_id INTEGER NOT NULL REFERENCES patients(id),
+      doctor_id INTEGER,
+      doctor_name TEXT NOT NULL,
+      doctor_reg_no TEXT,
+      type TEXT NOT NULL DEFAULT 'FITNESS',
+      diagnosis TEXT,
+      start_date TEXT,
+      end_date TEXT,
+      rest_days INTEGER,
+      referral_hospital TEXT,
+      referral_specialist TEXT,
+      remarks TEXT,
+      issued_at INTEGER
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_medical_certificates_patient ON medical_certificates(patient_id);
+
+    CREATE TABLE IF NOT EXISTS ipd_discharges (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      admission_id INTEGER NOT NULL UNIQUE REFERENCES ipd_admissions(id),
+      patient_id INTEGER NOT NULL REFERENCES patients(id),
+      discharge_date TEXT NOT NULL,
+      discharge_time TEXT,
+      discharge_condition TEXT NOT NULL DEFAULT 'Recovered',
+      admission_diagnosis TEXT,
+      final_diagnosis TEXT NOT NULL,
+      clinical_summary TEXT NOT NULL,
+      investigation_summary TEXT,
+      procedures_performed TEXT,
+      discharge_vitals TEXT,
+      discharge_medications TEXT NOT NULL DEFAULT '[]',
+      diet_advice TEXT,
+      activity_restrictions TEXT,
+      follow_up_date TEXT,
+      follow_up_instructions TEXT,
+      urgent_warning_signs TEXT,
+      consultant_doctor_name TEXT NOT NULL,
+      doctor_reg_no TEXT,
+      digital_seal_hash TEXT,
+      created_at INTEGER
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_ipd_discharges_admission ON ipd_discharges(admission_id);
+    CREATE INDEX IF NOT EXISTS idx_ipd_discharges_patient ON ipd_discharges(patient_id);
+
+    CREATE TABLE IF NOT EXISTS ipd_nursing_notes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      admission_id INTEGER NOT NULL REFERENCES ipd_admissions(id),
+      patient_id INTEGER NOT NULL REFERENCES patients(id),
+      shift TEXT NOT NULL DEFAULT 'Morning',
+      shift_date TEXT NOT NULL,
+      nurse_name TEXT NOT NULL,
+      observations TEXT NOT NULL,
+      vitals_summary TEXT,
+      handover_notes TEXT,
+      created_at INTEGER
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_ipd_nursing_notes_admission ON ipd_nursing_notes(admission_id);
+  `);
+
+  // Seed default prescription templates if empty
+  const tmplCount = sqlite.prepare('SELECT COUNT(*) as count FROM prescription_templates').get() as { count: number } | undefined;
+  if (!tmplCount || tmplCount.count === 0) {
+    const insertTmpl = sqlite.prepare(`
+      INSERT INTO prescription_templates (name, category, description, chief_complaints, diagnosis, medications, advice, lab_tests, created_by, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    insertTmpl.run(
+      'Acute Upper Respiratory Infection (URI / Common Cold)',
+      'General Medicine',
+      'Standard 5-day protocol for fever, rhinorrhea, sore throat',
+      'Fever, running nose, sore throat, dry cough x 2 days',
+      'Acute Upper Respiratory Tract Infection (J06.9)',
+      JSON.stringify([
+        { prefix: 'Tab.', name: 'Dolo 650', genericName: 'Paracetamol', strength: '650mg', dosage: '1-0-1', timing: 'After food', duration: '3 days', instruction: 'Take for fever / body ache SOS' },
+        { prefix: 'Tab.', name: 'Cetzine', genericName: 'Cetirizine', strength: '10mg', dosage: '0-0-1', timing: 'At bedtime', duration: '5 days', instruction: 'May cause mild drowsiness' },
+        { prefix: 'Syr.', name: 'Ascoril-D', genericName: 'Dextromethorphan + Chlorpheniramine', strength: '100ml', dosage: '10ml TDS', timing: 'After food', duration: '5 days', instruction: 'Take with warm water' },
+        { prefix: 'Cap.', name: 'Pan-40', genericName: 'Pantoprazole', strength: '40mg', dosage: '1-0-0', timing: 'Before breakfast', duration: '5 days', instruction: 'Empty stomach' }
+      ]),
+      'Steam inhalation twice daily. Warm saline gargles 3-4 times daily. Drink plenty of warm water. Rest well.',
+      'CBC (if fever persists > 3 days)',
+      'System Protocol',
+      Date.now()
+    );
+
+    insertTmpl.run(
+      'Acute Gastroenteritis (AGE) & Diarrhea',
+      'Gastroenterology',
+      'Rehydration & anti-emetic protocol for acute diarrhea/vomiting',
+      'Loose watery stools (4-5 episodes), nausea, abdominal cramps',
+      'Acute Gastroenteritis (A09)',
+      JSON.stringify([
+        { prefix: 'Cap.', name: 'Econorm', genericName: 'Saccharomyces boulardii', strength: '250mg', dosage: '1-0-1', timing: 'Before food', duration: '5 days', instruction: 'Probiotic support' },
+        { prefix: 'Tab.', name: 'Emeset 4', genericName: 'Ondansetron', strength: '4mg', dosage: '1-0-1', timing: 'Before food SOS', duration: '3 days', instruction: 'Take if vomiting / nausea' },
+        { prefix: 'Tab.', name: 'Cyclopam', genericName: 'Dicyclomine + Paracetamol', strength: '20mg/500mg', dosage: '1-0-1', timing: 'After food SOS', duration: '3 days', instruction: 'Only if severe abdominal pain' },
+        { prefix: 'Sachet', name: 'Electral ORS', genericName: 'WHO Oral Rehydration Salts', strength: '21.8g', dosage: '1-1-1', timing: 'Throughout day', duration: '3 days', instruction: 'Dissolve 1 sachet in 1 liter clean drinking water' }
+      ]),
+      'Strict bland diet (Khichdi, curd, banana, coconut water). Avoid oily, spicy, raw street food. Hydrate frequently.',
+      'Stool Routine & Microscopy, Serum Electrolytes',
+      'System Protocol',
+      Date.now()
+    );
+
+    insertTmpl.run(
+      'Essential Hypertension (First Line Starter)',
+      'Cardiology',
+      'Angiotensin receptor blocker starter for newly diagnosed mild-to-moderate hypertension',
+      'Routine medical checkup, elevated blood pressure readings',
+      'Essential (Primary) Hypertension (I10)',
+      JSON.stringify([
+        { prefix: 'Tab.', name: 'Telma 40', genericName: 'Telmisartan', strength: '40mg', dosage: '1-0-0', timing: 'Morning after breakfast', duration: '30 days', instruction: 'Take consistently at the same time each morning' }
+      ]),
+      'Maintain low-sodium DASH diet (salt < 5g/day). Brisk walking 30 min daily. Maintain daily morning home BP log. Avoid NSAID painkillers.',
+      'Lipid Profile, Serum Creatinine, Serum Electrolytes, ECG (12-Lead)',
+      'System Protocol',
+      Date.now()
+    );
+
+    insertTmpl.run(
+      'Type 2 Diabetes Mellitus (Starter)',
+      'Endocrinology',
+      'First-line Metformin monotherapy for newly diagnosed T2DM',
+      'Increased thirst, frequent urination, fatigue, elevated HbA1c',
+      'Type 2 Diabetes Mellitus without complications (E11.9)',
+      JSON.stringify([
+        { prefix: 'Tab.', name: 'Glycomet-SR 500', genericName: 'Metformin Hydrochloride SR', strength: '500mg', dosage: '1-0-0', timing: 'With dinner / after food', duration: '30 days', instruction: 'Take with evening meal to minimize GI upset' }
+      ]),
+      'Strict diabetic diet (cut refined sugar, white rice, sweets). Regular 45 min physical exercise. Monitor Fasting & Post-prandial blood glucose weekly.',
+      'HbA1c, Fasting Blood Sugar (FBS), Post-Prandial Blood Sugar (PPBS), Urine Microalbumin, Lipid Profile',
+      'System Protocol',
+      Date.now()
+    );
+  }
+} catch {
   // Ignore migration column addition errors if already present
 }
+
 
 // Auto-seed sample IPD admissions and lab investigations if admissions table is empty
 try {

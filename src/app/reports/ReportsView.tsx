@@ -205,15 +205,27 @@ export default function ReportsView({ initialData }: ReportsViewProps) {
           </p>
         </div>
 
-        {/* Global Patient Master Directory Download */}
-        <Button
-          onClick={handleExportPatients}
-          variant="outline"
-          className="border-blue-200 bg-blue-50/50 hover:bg-blue-100 text-blue-800 text-xs font-semibold gap-1.5 shadow-2xs"
-        >
-          <FileSpreadsheet className="w-4 h-4 text-blue-600" />
-          Export Patient Directory ({data.stats.allTimePatients})
-        </Button>
+        {/* Global Patient Master Directory & IDSP Surveillance Buttons */}
+        <div className="flex flex-wrap items-center gap-2">
+          <Link href="/reports/idsp">
+            <Button
+              variant="outline"
+              className="border-red-200 bg-red-50/70 hover:bg-red-100 text-red-800 text-xs font-semibold gap-1.5 shadow-2xs"
+            >
+              <Activity className="w-4 h-4 text-red-600" />
+              IDSP Weekly Surveillance (Form P)
+            </Button>
+          </Link>
+
+          <Button
+            onClick={handleExportPatients}
+            variant="outline"
+            className="border-blue-200 bg-blue-50/50 hover:bg-blue-100 text-blue-800 text-xs font-semibold gap-1.5 shadow-2xs"
+          >
+            <FileSpreadsheet className="w-4 h-4 text-blue-600" />
+            Export Patient Directory ({data.stats.allTimePatients})
+          </Button>
+        </div>
       </div>
 
       {/* Date Range Filter Bar */}

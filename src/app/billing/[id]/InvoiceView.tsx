@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import QRCode from 'qrcode';
 import {
   Printer,
   ChevronLeft,
@@ -17,6 +18,7 @@ import {
   Phone,
   Mail,
   ShieldCheck,
+  QrCode,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/toast';
@@ -35,6 +37,16 @@ export function InvoiceView({ invoice, patient, settings, prescriptionDetails }:
   const router = useRouter();
   const [copied, setCopied] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [upiQrUrl, setUpiQrUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (settings?.upiId && invoice.totalAmount > 0) {
+      const upiUri = `upi://pay?pa=${encodeURIComponent(settings.upiId)}&pn=${encodeURIComponent(settings.clinicName || 'Clinic')}&am=${invoice.totalAmount.toFixed(2)}&tn=${encodeURIComponent('Bill ' + invoice.invoiceNo)}&cu=INR`;
+      QRCode.toDataURL(upiUri, { width: 180, margin: 1 })
+        .then(setUpiQrUrl)
+        .catch((err) => console.error('Failed to generate UPI QR:', err));
+    }
+  }, [settings?.upiId, settings?.clinicName, invoice.totalAmount, invoice.invoiceNo]);
 
   let items: InvoiceItem[] = [];
   try {
@@ -147,6 +159,7 @@ Thank you for visiting ${settings?.clinicName || 'our clinic'}.`;
               <div className="text-xs text-slate-500 mt-1 flex flex-wrap items-center gap-3">
                 {settings?.address && <span>{settings.address}</span>}
                 {settings?.contact && <span> • Tel: {settings.contact}</span>}
+                {settings?.gstNumber && <span className="font-mono font-semibold text-slate-700"> • GSTIN: {settings.gstNumber}</span>}
               </div>
             </div>
 
@@ -255,6 +268,27 @@ Thank you for visiting ${settings?.clinicName || 'our clinic'}.`;
               </div>
             </div>
 
+            {upiQrUrl ? (
+              <div className="p-3 bg-indigo-50/70 rounded-xl border border-indigo-200/80 flex items-center gap-3">
+                <div className="w-20 h-20 bg-white p-1 rounded-lg border border-indigo-200 shrink-0 flex items-center justify-center shadow-2xs">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={upiQrUrl} alt="UPI Payment QR Code" className="w-full h-full object-contain" />
+                </div>
+                <div className="space-y-0.5 min-w-0">
+                  <div className="flex items-center gap-1 font-bold text-indigo-950 text-xs">
+                    <QrCode className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                    Instant UPI QR
+                  </div>
+                  <p className="text-[10px] text-slate-600 leading-snug">
+                    Scan with GPay, PhonePe, Paytm, or BHIM.
+                  </p>
+                  <p className="text-[10px] font-mono text-indigo-700 font-bold truncate">
+                    {settings?.upiId}
+                  </p>
+                </div>
+              </div>
+            ) : null}
+
             {invoice.notes && (
               <div className="text-[11px] text-slate-500 bg-slate-50 p-2.5 rounded-lg border border-slate-200">
                 <span className="font-bold text-slate-700">Remarks:</span> {invoice.notes}
@@ -276,7 +310,21 @@ Thank you for visiting ${settings?.clinicName || 'our clinic'}.`;
               </div>
             )}
 
-            {invoice.tax > 0 && (
+            {invoice.cgst && invoice.cgst > 0 ? (
+              <div className="flex justify-between text-slate-600">
+                <span>CGST (Central Tax):</span>
+                <span className="font-mono">+ ₹{invoice.cgst.toFixed(2)}</span>
+              </div>
+            ) : null}
+
+            {invoice.sgst && invoice.sgst > 0 ? (
+              <div className="flex justify-between text-slate-600">
+                <span>SGST (State Tax):</span>
+                <span className="font-mono">+ ₹{invoice.sgst.toFixed(2)}</span>
+              </div>
+            ) : null}
+
+            {(!invoice.cgst && !invoice.sgst && invoice.tax > 0) && (
               <div className="flex justify-between text-slate-600">
                 <span>Tax / GST:</span>
                 <span className="font-mono">+ ₹{invoice.tax.toFixed(2)}</span>

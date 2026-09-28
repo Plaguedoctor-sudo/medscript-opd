@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { requireAuth, getCurrentUserRole, getSecurityConfig, getCurrentUser } from "@/lib/auth";
 import { getIpdAdmissionById } from "../actions";
+import { getIpdDischargeRecord, getIpdNursingNotes } from "@/app/actions/ipd-discharge-actions";
 import { IpdCaseSheet } from "./IpdCaseSheet";
 import Link from "next/link";
 import { Bed, Users, Settings, Receipt, ChevronLeft, FlaskConical } from "lucide-react";
@@ -21,11 +22,13 @@ export default async function IpdAdmissionPage({
   const admissionId = parseInt(id, 10);
   if (isNaN(admissionId)) notFound();
 
-  const [{ securityEnabled }, role, currentUser, data] = await Promise.all([
+  const [{ securityEnabled }, role, currentUser, data, existingDischarge, nursingNotes] = await Promise.all([
     getSecurityConfig(),
     getCurrentUserRole(),
     getCurrentUser(),
     getIpdAdmissionById(admissionId),
+    getIpdDischargeRecord(admissionId),
+    getIpdNursingNotes(admissionId),
   ]);
 
   if (!data.admission) notFound();
@@ -99,6 +102,8 @@ export default async function IpdAdmissionPage({
           settings={data.settings}
           userRole={role}
           currentStaffName={currentUser?.name}
+          existingDischarge={existingDischarge}
+          nursingNotes={nursingNotes}
         />
       </main>
     </div>

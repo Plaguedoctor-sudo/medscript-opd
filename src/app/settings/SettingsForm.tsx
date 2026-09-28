@@ -2,7 +2,7 @@
 
 import { saveSettings, seedDemoData } from "./actions";
 import { updateSecuritySettings, runDatabaseDiagnostics } from "@/app/login/actions";
-import { createManualBackupSnapshot, BackupItem, exportAuditLogsCsvAction } from "./backup-actions";
+import { createManualBackupSnapshot, BackupItem, exportAuditLogsCsvAction, restoreLocalDatabaseSnapshotAction } from "./backup-actions";
 import { verifyPatientAbhaAction } from "@/app/actions/abdm-actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,6 +38,8 @@ import {
   AlertTriangle,
   Globe,
   Share2,
+  RotateCcw,
+  Receipt,
 } from "lucide-react";
 import { ClinicSettings, SafeClinicSettings } from "@/types";
 import { AuditLogItem } from "@/lib/audit";
@@ -81,6 +83,13 @@ export default function SettingsForm({
     clinicName: settings?.clinicName || "",
     address: settings?.address || "",
     logoUrl: settings?.logoUrl || null,
+    upiId: settings?.upiId || "",
+    gstNumber: settings?.gstNumber || "",
+    whatsappPhoneNumberId: settings?.whatsappPhoneNumberId || "",
+    whatsappCloudToken: "",
+    cloudSyncProvider: settings?.cloudSyncProvider || "disabled",
+    cloudSyncEndpoint: settings?.cloudSyncEndpoint || "",
+    cloudSyncApiKey: "",
   });
 
   const [isPending, setIsPending] = useState(false);
@@ -91,6 +100,37 @@ export default function SettingsForm({
   const [testAbhaInput, setTestAbhaInput] = useState("");
   const [isVerifyingAbha, setIsVerifyingAbha] = useState(false);
   const [abhaVerifyResult, setAbhaVerifyResult] = useState<string | null>(null);
+  const [isRestoring, setIsRestoring] = useState(false);
+
+  const handleRestore = async (filename: string) => {
+    if (
+      !confirm(
+        `WARNING: Are you sure you want to restore the database from snapshot "${filename}"?\n\nA safety pre-restore backup of the current database will be automatically created before restoration.`
+      )
+    ) {
+      return;
+    }
+    setIsRestoring(true);
+    try {
+      const res = await restoreLocalDatabaseSnapshotAction(filename);
+      if (res.success) {
+        toast.show({
+          title: "Database Restored!",
+          description: res.message,
+          type: "success",
+        });
+        router.refresh();
+      } else {
+        toast.show({
+          title: "Restore Failed",
+          description: res.message,
+          type: "error",
+        });
+      }
+    } finally {
+      setIsRestoring(false);
+    }
+  };
 
   const handleTestAbha = async () => {
     if (!testAbhaInput.trim()) return;
@@ -269,7 +309,8 @@ export default function SettingsForm({
       const formData = new FormData(e.currentTarget);
       const updated = await saveSettings(formData);
       if (updated) {
-        setProfile({
+        setProfile((prev) => ({
+          ...prev,
           doctorName: updated.doctorName,
           qualifications: updated.qualifications,
           regNumber: updated.regNumber,
@@ -277,7 +318,12 @@ export default function SettingsForm({
           clinicName: updated.clinicName,
           address: updated.address,
           logoUrl: updated.logoUrl || null,
-        });
+          upiId: updated.upiId || "",
+          gstNumber: updated.gstNumber || "",
+          whatsappPhoneNumberId: updated.whatsappPhoneNumberId || "",
+          cloudSyncProvider: updated.cloudSyncProvider || "disabled",
+          cloudSyncEndpoint: updated.cloudSyncEndpoint || "",
+        }));
       }
       toast.show({
         title: "Settings Saved",
@@ -560,6 +606,105 @@ export default function SettingsForm({
                   <p className="text-xs text-slate-500">
                     PNG or JPG image. Logos are automatically scaled down and converted to standard PNG for error-free PDF letterheads without network errors.
                   </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Dynamic UPI & GST Invoicing */}
+            <div className="space-y-4 pt-3 border-t border-slate-200">
+              <div className="flex items-center gap-2 pb-1 border-b text-sm font-semibold text-slate-700">
+                <Receipt className="w-4 h-4 text-emerald-600" /> Dynamic UPI Payments & Invoicing GST
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="upiId">Clinic UPI VPA / ID (Instant Scan-to-Pay)</Label>
+                  <Input
+                    id="upiId"
+                    name="upiId"
+                    value={profile.upiId}
+                    onChange={(e) => setProfile((p) => ({ ...p, upiId: e.target.value }))}
+                    placeholder="e.g. dr.sonare@okaxis or 9810123456@paytm"
+                  />
+                  <p className="text-[11px] text-slate-500">
+                    Generates dynamic UPI QR codes on all invoice receipts for instant payment via GPay, PhonePe, Paytm, or BHIM.
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="gstNumber">GSTIN / Tax Identification No.</Label>
+                  <Input
+                    id="gstNumber"
+                    name="gstNumber"
+                    value={profile.gstNumber}
+                    onChange={(e) => setProfile((p) => ({ ...p, gstNumber: e.target.value.toUpperCase() }))}
+                    placeholder="e.g. 27AAAAA0000A1Z5"
+                    className="font-mono uppercase"
+                  />
+                  <p className="text-[11px] text-slate-500">
+                    Displayed on clinical billing statements with CGST/SGST tax split breakdown.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Meta WhatsApp Cloud API & Cloud Disaster Recovery */}
+            <div className="space-y-4 pt-3 border-t border-slate-200">
+              <div className="flex items-center gap-2 pb-1 border-b text-sm font-semibold text-slate-700">
+                <Globe className="w-4 h-4 text-blue-600" /> Messaging API & Off-Site Disaster Recovery
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="whatsappPhoneNumberId">WhatsApp Phone Number ID</Label>
+                  <Input
+                    id="whatsappPhoneNumberId"
+                    name="whatsappPhoneNumberId"
+                    value={profile.whatsappPhoneNumberId}
+                    onChange={(e) => setProfile((p) => ({ ...p, whatsappPhoneNumberId: e.target.value }))}
+                    placeholder="e.g. 104829105928471"
+                  />
+                  <p className="text-[11px] text-slate-500">
+                    Optional Meta Cloud API ID for automated background dispatch without opening WhatsApp Web.
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="whatsappCloudToken">
+                    WhatsApp Access Token {(settings as SafeClinicSettings | null)?.hasWhatsappToken && <span className="text-emerald-600 font-semibold">(Configured)</span>}
+                  </Label>
+                  <Input
+                    id="whatsappCloudToken"
+                    name="whatsappCloudToken"
+                    type="password"
+                    value={profile.whatsappCloudToken}
+                    onChange={(e) => setProfile((p) => ({ ...p, whatsappCloudToken: e.target.value }))}
+                    placeholder={(settings as SafeClinicSettings | null)?.hasWhatsappToken ? "Leave blank to keep existing token" : "Bearer EAAB..."}
+                  />
+                  <p className="text-[11px] text-slate-500">
+                    Meta Cloud API System User access token.
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="cloudSyncProvider">Off-Site Cloud Backup Provider</Label>
+                  <select
+                    id="cloudSyncProvider"
+                    name="cloudSyncProvider"
+                    value={profile.cloudSyncProvider}
+                    onChange={(e) => setProfile((p) => ({ ...p, cloudSyncProvider: e.target.value }))}
+                    className="w-full h-9 px-3 border border-slate-300 rounded-md bg-white text-xs font-medium text-slate-900"
+                  >
+                    <option value="disabled">Disabled (Local Snapshots Only)</option>
+                    <option value="custom_webhook">Encrypted Webhook Endpoint</option>
+                    <option value="s3">Encrypted Cloud Storage (S3 / R2 API)</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="cloudSyncEndpoint">Cloud Sync Endpoint / Webhook URL</Label>
+                  <Input
+                    id="cloudSyncEndpoint"
+                    name="cloudSyncEndpoint"
+                    value={profile.cloudSyncEndpoint}
+                    onChange={(e) => setProfile((p) => ({ ...p, cloudSyncEndpoint: e.target.value }))}
+                    placeholder="https://api.yourclinic.com/backup-sync"
+                    disabled={profile.cloudSyncProvider === "disabled"}
+                  />
                 </div>
               </div>
             </div>
@@ -1127,6 +1272,17 @@ export default function SettingsForm({
                     <div className="flex items-center gap-3 shrink-0 text-slate-500">
                       <span>{b.sizeKb} KB</span>
                       <span>{b.createdAt}</span>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        type="button"
+                        disabled={isRestoring}
+                        onClick={() => handleRestore(b.filename)}
+                        className="h-7 text-[11px] gap-1 border-rose-300 text-rose-700 hover:bg-rose-50"
+                        title="Restore database from this snapshot (creates safety pre-restore backup first)"
+                      >
+                        <RotateCcw className="w-3 h-3 text-rose-600" /> Restore
+                      </Button>
                     </div>
                   </div>
                 ))}

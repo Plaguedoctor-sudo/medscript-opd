@@ -186,3 +186,40 @@ export function checkDrugAllergyConflict(
 
   return null;
 }
+
+/**
+ * Evaluates an entire list of prescribed medications against patient allergies.
+ */
+export function checkDrugAllergies(
+  patientAllergies: string | null | undefined,
+  medications: Array<{ name: string; genericName?: string }>
+): AllergyConflict[] {
+  if (!patientAllergies || !patientAllergies.trim() || !medications || medications.length === 0) {
+    return [];
+  }
+
+  const conflicts: AllergyConflict[] = [];
+  const seenAllergens = new Set<string>();
+
+  for (const med of medications) {
+    // Check against brand name first
+    let conflict = checkDrugAllergyConflict(patientAllergies, med.name);
+    // If not found, check generic name
+    if (!conflict && med.genericName) {
+      conflict = checkDrugAllergyConflict(patientAllergies, med.genericName);
+      if (conflict) {
+        conflict.matchedMedication = `${med.name} (${med.genericName})`;
+      }
+    }
+
+    if (conflict) {
+      const key = `${conflict.allergen}_${conflict.matchedMedication}`;
+      if (!seenAllergens.has(key)) {
+        seenAllergens.add(key);
+        conflicts.push(conflict);
+      }
+    }
+  }
+
+  return conflicts;
+}

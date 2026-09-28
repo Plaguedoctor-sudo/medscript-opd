@@ -147,63 +147,101 @@ export default async function DashboardPage({
             <UserProfileMenu user={currentUser} role={role} securityEnabled={securityEnabled} />
             <PrivacyShield />
             <SecurityAlertBell initialStats={securityAlertsData} />
-            <Link href="/appointments">
-              <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
-                <CalendarCheck className="w-4 h-4 text-blue-600" /> Queue
-              </Button>
-            </Link>
-            <Link href="/patients">
-              <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
-                <Users className="w-4 h-4" /> Patients
-              </Button>
-            </Link>
-            <Link href="/inventory">
-              <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
-                <Pill className="w-4 h-4 text-emerald-600" /> Pharmacy
-              </Button>
-            </Link>
-            <Link href="/ipd">
-              <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
-                <Bed className="w-4 h-4 text-purple-600" /> IPD
-              </Button>
-            </Link>
-            <Link href="/labs">
-              <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
-                <FlaskConical className="w-4 h-4 text-indigo-600" /> Labs
-              </Button>
-            </Link>
-            <Link href="/billing">
-              <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
-                <Receipt className="w-4 h-4 text-emerald-600" /> Billing
-              </Button>
-            </Link>
-            <Link href="/reports">
-              <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
-                <BarChart3 className="w-4 h-4 text-blue-600" /> Reports
-              </Button>
-            </Link>
-            <Link href="/settings">
-              <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
-                <Settings className="w-4 h-4" /> Settings
-              </Button>
-            </Link>
+            {/* Appointments — all roles except lab_technician */}
+            {role !== 'lab_technician' && (
+              <Link href="/appointments">
+                <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
+                  <CalendarCheck className="w-4 h-4 text-blue-600" /> Queue
+                </Button>
+              </Link>
+            )}
+            {/* Patients — all roles except lab_technician */}
+            {role !== 'lab_technician' && (
+              <Link href="/patients">
+                <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
+                  <Users className="w-4 h-4" /> Patients
+                </Button>
+              </Link>
+            )}
+            {/* Pharmacy — doctors, nurses, receptionist, admin */}
+            {role !== 'lab_technician' && (
+              <Link href="/inventory">
+                <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
+                  <Pill className="w-4 h-4 text-emerald-600" /> Pharmacy
+                </Button>
+              </Link>
+            )}
+            {/* IPD — doctors, nurses, admin; receptionist can view */}
+            {(role === 'admin_doctor' || role === 'doctor' || role === 'nurse' || role === 'receptionist') && (
+              <Link href="/ipd">
+                <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
+                  <Bed className="w-4 h-4 text-purple-600" /> IPD
+                </Button>
+              </Link>
+            )}
+            {/* Labs — doctors, lab_technician, nurse (read), admin */}
+            {(role === 'admin_doctor' || role === 'doctor' || role === 'nurse' || role === 'lab_technician') && (
+              <Link href="/labs">
+                <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
+                  <FlaskConical className="w-4 h-4 text-indigo-600" /> Labs
+                </Button>
+              </Link>
+            )}
+            {/* Billing — doctors, receptionist, admin */}
+            {(role === 'admin_doctor' || role === 'doctor' || role === 'receptionist') && (
+              <Link href="/billing">
+                <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
+                  <Receipt className="w-4 h-4 text-emerald-600" /> Billing
+                </Button>
+              </Link>
+            )}
+            {/* Reports — doctors and admin only */}
+            {(role === 'admin_doctor' || role === 'doctor') && (
+              <Link href="/reports">
+                <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
+                  <BarChart3 className="w-4 h-4 text-blue-600" /> Reports
+                </Button>
+              </Link>
+            )}
+            {/* Settings — admin and doctor only */}
+            {(role === 'admin_doctor' || role === 'doctor') && (
+              <Link href="/settings">
+                <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
+                  <Settings className="w-4 h-4" /> Settings
+                </Button>
+              </Link>
+            )}
+            {/* Primary action button — role-contextual */}
             {(role === 'admin_doctor' || role === 'doctor') ? (
               <Link href="/prescription/new">
                 <Button size="sm" className="gap-1.5 text-xs shadow-xs">
                   <PlusCircle className="w-4 h-4" /> New Consultation
                 </Button>
               </Link>
-            ) : (
+            ) : role === 'nurse' ? (
+              <Link href="/ipd">
+                <Button size="sm" variant="outline" className="gap-1.5 text-xs text-purple-800 border-purple-300 bg-purple-50 hover:bg-purple-100">
+                  <Bed className="w-4 h-4" /> IPD Ward
+                </Button>
+              </Link>
+            ) : role === 'receptionist' ? (
               <Link href="/patients">
                 <Button size="sm" variant="outline" className="gap-1.5 text-xs text-amber-800 border-amber-300 bg-amber-50 hover:bg-amber-100">
                   <Users className="w-4 h-4" /> Patient Intake
                 </Button>
               </Link>
-            )}
+            ) : role === 'lab_technician' ? (
+              <Link href="/labs">
+                <Button size="sm" variant="outline" className="gap-1.5 text-xs text-indigo-800 border-indigo-300 bg-indigo-50 hover:bg-indigo-100">
+                  <FlaskConical className="w-4 h-4" /> Lab Reports
+                </Button>
+              </Link>
+            ) : null}
             {securityEnabled && <LockDeskButton />}
           </div>
         </div>
       </nav>
+
 
       <main className="container mx-auto px-4 py-8 max-w-6xl">
         {/* Breach Containment & Deception Lockdown Banner */}

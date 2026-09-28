@@ -38,6 +38,8 @@ import { PrivacyShield } from "@/components/PrivacyShield";
 import { UserProfileMenu } from "@/components/UserProfileMenu";
 import { MaskedIdentifier } from "@/components/MaskedIdentifier";
 import { SecurityAlertBell } from "@/components/SecurityAlertBell";
+import { PatientDocumentsSection } from "@/components/PatientDocumentsSection";
+import { PatientCertificatesButton } from "@/components/PatientCertificatesButton";
 
 export const dynamic = 'force-dynamic';
 
@@ -120,6 +122,7 @@ export default async function PatientProfilePage({ params }: { params: Promise<{
                 </Button>
               }
             />
+            <PatientCertificatesButton patient={typedPatient} settings={null} />
             {(role === 'admin_doctor' || role === 'doctor') && (
               <Link href={`/prescription/new?patientId=${typedPatient.id}`}>
                 <Button size="sm" className="gap-1.5 shadow-xs">
@@ -505,6 +508,11 @@ export default async function PatientProfilePage({ params }: { params: Promise<{
             )}
           </CardContent>
         </Card>
+
+        {/* Clinical Documents & Attachments Section */}
+        <div className="pt-2">
+          <PatientDocumentsSection patientId={patientId} userRole={role} />
+        </div>
       </main>
     </div>
   );

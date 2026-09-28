@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useSyncExternalStore } from 'react';
+import { useState, useEffect, useCallback, useSyncExternalStore } from 'react';
 import { PDFViewer, PDFDownloadLink } from '@react-pdf/renderer';
 import { PrescriptionPDF } from '@/components/PrescriptionPDF';
 import { Button } from '@/components/ui/button';
@@ -60,29 +60,31 @@ export default function PrescriptionPreview({
   const router = useRouter();
   const isClient = useSyncExternalStore(emptySubscribe, () => true, () => false);
   const [viewMode, setViewMode] = useState<'letterhead' | 'pdf'>('letterhead');
+  const [pageSize, setPageSize] = useState<'A4' | 'A5'>('A4');
+  const [preprintedPad, setPreprintedPad] = useState<boolean>(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isDispatchOpen, setIsDispatchOpen] = useState(false);
   const [dispatchChannel, setDispatchChannel] = useState<'whatsapp' | 'sms'>('whatsapp');
 
   const fileName = `Prescription_${patient.name.replace(/\s+/g, '_')}_#${prescription.id}.pdf`;
 
-  const handlePrintAudit = () => {
+  const handlePrintAudit = useCallback(() => {
     logClinicalAuditAction(
       'PRESCRIPTION_PRINTED',
       `Prescription #${prescription.id} printed for patient ${patient.name}`
     ).catch(() => {});
     window.print();
-  };
+  }, [prescription.id, patient.name]);
 
-  const handleDownloadPdfAudit = () => {
+  const handleDownloadPdfAudit = useCallback(() => {
     logClinicalAuditAction(
       'PRESCRIPTION_PDF_DOWNLOADED',
       `Prescription #${prescription.id} PDF downloaded for patient ${patient.name}`
     ).catch(() => {});
-  };
+  }, [prescription.id, patient.name]);
 
   // Direct 1-Click WhatsApp or SMS Dispatch
-  const handleDirectSend = (channel: 'whatsapp' | 'sms' = 'whatsapp') => {
+  const handleDirectSend = useCallback((channel: 'whatsapp' | 'sms' = 'whatsapp') => {
     const rawDigits = (patient.phone || '').replace(/\D/g, '');
     if (rawDigits.length >= 10) {
       sendPrescriptionDirectly(prescription, patient, settings, { channel });
@@ -90,7 +92,7 @@ export default function PrescriptionPreview({
       setDispatchChannel(channel);
       setIsDispatchOpen(true);
     }
-  };
+  }, [prescription, patient, settings]);
 
   // Trigger print automatically if redirected from "Save & Print"
   useEffect(() => {
@@ -100,7 +102,7 @@ export default function PrescriptionPreview({
       }, 350);
       return () => clearTimeout(timer);
     }
-  }, [autoPrint]);
+  }, [autoPrint, handlePrintAudit]);
 
   // Trigger 1-click WhatsApp send automatically if redirected from "Save & Send"
   useEffect(() => {
@@ -110,7 +112,7 @@ export default function PrescriptionPreview({
       }, 400);
       return () => clearTimeout(timer);
     }
-  }, [autoSend]);
+  }, [autoSend, handleDirectSend]);
 
   const handleDelete = async () => {
     if (!confirm('Are you sure you want to delete this prescription? This action cannot be undone.')) {
@@ -145,10 +147,14 @@ export default function PrescriptionPreview({
 
   const hasVitals = !!(
     prescription.weight ||
+    prescription.height ||
+    prescription.bmi ||
     prescription.bp ||
     prescription.pulse ||
     prescription.temp ||
-    prescription.spo2
+    prescription.spo2 ||
+    prescription.rbs ||
+    prescription.respiratoryRate
   );
 
   return (
@@ -157,8 +163,8 @@ export default function PrescriptionPreview({
       <style jsx global>{`
         @media print {
           @page {
-            size: A4 portrait;
-            margin: 10mm 12mm 10mm 12mm;
+            size: ${pageSize} portrait;
+            margin: ${preprintedPad ? '35mm 12mm 10mm 12mm' : '10mm 12mm 10mm 12mm'};
           }
           html, body {
             background: #ffffff !important;
@@ -249,6 +255,48 @@ export default function PrescriptionPreview({
             </button>
           </div>
 
+          {/* Paper Size Selector */}
+          <div className="flex items-center rounded-lg border border-slate-200 bg-slate-100 p-0.5 text-xs font-medium mr-1">
+            <button
+              type="button"
+              onClick={() => setPageSize('A4')}
+              className={`px-2.5 py-1 rounded-md transition-all ${
+                pageSize === 'A4'
+                  ? 'bg-white text-blue-700 font-bold shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              A4
+            </button>
+            <button
+              type="button"
+              onClick={() => setPageSize('A5')}
+              className={`px-2.5 py-1 rounded-md transition-all ${
+                pageSize === 'A5'
+                  ? 'bg-white text-blue-700 font-bold shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              A5
+            </button>
+          </div>
+
+          {/* Pre-printed Pad Stationery Mode Toggle */}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setPreprintedPad((prev) => !prev)}
+            className={`gap-1 text-xs border transition-colors ${
+              preprintedPad
+                ? 'bg-amber-100 border-amber-400 text-amber-900 font-bold'
+                : 'border-slate-300 text-slate-700 hover:bg-slate-50'
+            }`}
+            title="Toggle Pre-printed Pad Mode (hides digital header to print on clinic letterhead stationery)"
+          >
+            Pad Mode {preprintedPad ? '(ON)' : ''}
+          </Button>
+
           {/* Primary Print Button */}
           <Button
             size="sm"
@@ -261,7 +309,15 @@ export default function PrescriptionPreview({
           {/* PDF Download */}
           {isClient && (
             <PDFDownloadLink
-              document={<PrescriptionPDF prescription={prescription} patient={patient} settings={settings} />}
+              document={
+                <PrescriptionPDF
+                  prescription={prescription}
+                  patient={patient}
+                  settings={settings}
+                  pageSize={pageSize}
+                  preprintedPad={preprintedPad}
+                />
+              }
               fileName={fileName}
               onClick={handleDownloadPdfAudit}
             >
@@ -487,44 +543,66 @@ export default function PrescriptionPreview({
             className={`prescription-sheet bg-white rounded-xl shadow-md border border-slate-200 p-8 sm:p-12 text-slate-900 font-sans ${
               viewMode === 'letterhead' ? 'block' : 'hidden print:block'
             }`}
+            style={preprintedPad ? { paddingTop: '80pt' } : undefined}
           >
-            {/* Clinic Header */}
-            <div className="flex justify-between items-start pb-4 border-b-2 border-blue-600 mb-5 gap-4">
-              <div className="max-w-[48%]">
-                <h1 className="text-xl sm:text-2xl font-black text-blue-900 tracking-tight leading-tight">
-                  {settings.doctorName || 'Doctor Name'}
-                </h1>
-                {settings.qualifications && (
-                  <p className="font-semibold text-slate-700 text-sm mt-0.5">{settings.qualifications}</p>
-                )}
-                <p className="text-xs text-slate-500 font-mono mt-0.5">
-                  Reg. No: <span className="font-bold text-slate-700">{settings.regNumber || 'N/A'}</span>
-                </p>
-              </div>
-
-              {settings.logoUrl && (
-                <div className="w-20 h-20 flex items-center justify-center shrink-0">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={settings.logoUrl}
-                    alt="Clinic Logo"
-                    className="max-h-20 max-w-[120px] object-contain"
-                  />
+            {/* Pre-printed stationery alert banner */}
+            {preprintedPad && (
+              <div className="mb-4 p-3 bg-amber-50 border border-amber-300 rounded-lg text-amber-900 text-xs flex items-center justify-between print:hidden">
+                <div className="flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span>
+                    <strong>Pre-printed Stationery Mode Active:</strong> Clinic header is suppressed and 80pt top margin padding has been inserted to align with your physical printed clinic letterhead pad.
+                  </span>
                 </div>
-              )}
-
-              <div className="text-right max-w-[48%]">
-                <h2 className="text-lg sm:text-xl font-bold text-slate-900 leading-tight">
-                  {settings.clinicName || 'Clinic OPD'}
-                </h2>
-                {settings.address && (
-                  <p className="text-xs text-slate-600 mt-1 whitespace-pre-line leading-relaxed">{settings.address}</p>
-                )}
-                {settings.contact && (
-                  <p className="text-xs text-slate-600 mt-0.5 font-medium">Contact: {settings.contact}</p>
-                )}
+                <button
+                  type="button"
+                  onClick={() => setPreprintedPad(false)}
+                  className="text-amber-800 underline font-bold shrink-0 hover:text-amber-950 ml-2"
+                >
+                  Turn Off
+                </button>
               </div>
-            </div>
+            )}
+
+            {/* Clinic Header - hidden when printing on pre-printed stationery */}
+            {!preprintedPad && (
+              <div className="flex justify-between items-start pb-4 border-b-2 border-blue-600 mb-5 gap-4">
+                <div className="max-w-[48%]">
+                  <h1 className="text-xl sm:text-2xl font-black text-blue-900 tracking-tight leading-tight">
+                    {prescription.doctorName || settings.doctorName || 'Doctor Name'}
+                  </h1>
+                  {settings.qualifications && (
+                    <p className="font-semibold text-slate-700 text-sm mt-0.5">{settings.qualifications}</p>
+                  )}
+                  <p className="text-xs text-slate-500 font-mono mt-0.5">
+                    Reg. No: <span className="font-bold text-slate-700">{settings.regNumber || 'N/A'}</span>
+                  </p>
+                </div>
+
+                {settings.logoUrl && (
+                  <div className="w-20 h-20 flex items-center justify-center shrink-0">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={settings.logoUrl}
+                      alt="Clinic Logo"
+                      className="max-h-20 max-w-[120px] object-contain"
+                    />
+                  </div>
+                )}
+
+                <div className="text-right max-w-[48%]">
+                  <h2 className="text-lg sm:text-xl font-bold text-slate-900 leading-tight">
+                    {settings.clinicName || 'Clinic OPD'}
+                  </h2>
+                  {settings.address && (
+                    <p className="text-xs text-slate-600 mt-1 whitespace-pre-line leading-relaxed">{settings.address}</p>
+                  )}
+                  {settings.contact && (
+                    <p className="text-xs text-slate-600 mt-0.5 font-medium">Contact: {settings.contact}</p>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Patient Demographics Bar */}
             <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 sm:p-3.5 mb-4 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
@@ -562,6 +640,12 @@ export default function PrescriptionPreview({
                 {prescription.weight && (
                   <div><span className="text-blue-700 text-[10px] uppercase font-bold">Weight:</span> <span className="font-bold">{prescription.weight} kg</span></div>
                 )}
+                {prescription.height && (
+                  <div><span className="text-blue-700 text-[10px] uppercase font-bold">Height:</span> <span className="font-bold">{prescription.height} cm</span></div>
+                )}
+                {prescription.bmi && (
+                  <div><span className="text-blue-700 text-[10px] uppercase font-bold">BMI:</span> <span className="font-bold">{prescription.bmi} kg/m²</span></div>
+                )}
                 {prescription.bp && (
                   <div><span className="text-blue-700 text-[10px] uppercase font-bold">BP:</span> <span className="font-bold">{prescription.bp} mmHg</span></div>
                 )}
@@ -576,6 +660,12 @@ export default function PrescriptionPreview({
                 )}
                 {prescription.spo2 && (
                   <div><span className="text-blue-700 text-[10px] uppercase font-bold">SpO2:</span> <span className="font-bold">{prescription.spo2} %</span></div>
+                )}
+                {prescription.rbs && (
+                  <div><span className="text-blue-700 text-[10px] uppercase font-bold">RBS:</span> <span className="font-bold">{prescription.rbs} mg/dL</span></div>
+                )}
+                {prescription.respiratoryRate && (
+                  <div><span className="text-blue-700 text-[10px] uppercase font-bold">RR:</span> <span className="font-bold">{prescription.respiratoryRate} /min</span></div>
                 )}
               </div>
             )}
@@ -757,13 +847,19 @@ export default function PrescriptionPreview({
             <div className="h-[750px] bg-white shadow-lg rounded-xl overflow-hidden border print:hidden">
               {isClient ? (
                 <PDFViewer
-                  key={`${prescription.id}-${settings?.doctorName}-${settings?.clinicName}-${settings?.logoUrl || 'nologo'}`}
+                  key={`${prescription.id}-${settings?.doctorName}-${settings?.clinicName}-${pageSize}-${preprintedPad}`}
                   width="100%"
                   height="100%"
                   style={{ border: 'none' }}
                   showToolbar={true}
                 >
-                  <PrescriptionPDF prescription={prescription} patient={patient} settings={settings} />
+                  <PrescriptionPDF
+                    prescription={prescription}
+                    patient={patient}
+                    settings={settings}
+                    pageSize={pageSize}
+                    preprintedPad={preprintedPad}
+                  />
                 </PDFViewer>
               ) : (
                 <div className="flex items-center justify-center h-full text-slate-400 gap-2">

@@ -134,8 +134,10 @@ export function generateSMSPrescriptionMessage(
   }. Seal: ${sealCode}`;
 }
 
+import { dispatchWhatsAppCloudMessageAction } from '@/app/actions/whatsapp-cloud-actions';
+
 /**
- * 1-Click Dispatch: Immediately launches WhatsApp or SMS client with recipient and message prefilled.
+ * 1-Click Dispatch: Dispatches via Meta WhatsApp Cloud API in background if configured, or launches WhatsApp/SMS client.
  */
 export function sendPrescriptionDirectly(
   prescription: Prescription,
@@ -161,6 +163,47 @@ export function sendPrescriptionDirectly(
 
   if (channel === 'whatsapp') {
     const text = generateWhatsAppPrescriptionMessage(prescription, patient, settings);
+
+    // If Meta WhatsApp Cloud API is configured, attempt automated background dispatch
+    if (settings.whatsappPhoneNumberId) {
+      toast.show({
+        title: 'Dispatching WhatsApp...',
+        description: `Sending automated WhatsApp to +${international}...`,
+        type: 'info',
+      });
+
+      dispatchWhatsAppCloudMessageAction({
+        phone: international,
+        message: text,
+        prescriptionId: prescription.id,
+        patientName: patient.name,
+      })
+        .then((res) => {
+          if (res.success && res.mode === 'CLOUD_API') {
+            toast.show({
+              title: 'WhatsApp Delivered via Cloud API',
+              description: `Prescription sent to ${patient.name} (+${international}) without browser popup.`,
+              type: 'success',
+            });
+          } else {
+            // Fallback to WhatsApp Web
+            const fallbackUrl = `https://api.whatsapp.com/send?phone=${international}&text=${encodeURIComponent(text)}`;
+            window.open(fallbackUrl, '_blank', 'noopener,noreferrer');
+            toast.show({
+              title: 'Opening WhatsApp Web',
+              description: `Redirecting to chat with ${patient.name}...`,
+              type: 'info',
+            });
+          }
+        })
+        .catch(() => {
+          const fallbackUrl = `https://api.whatsapp.com/send?phone=${international}&text=${encodeURIComponent(text)}`;
+          window.open(fallbackUrl, '_blank', 'noopener,noreferrer');
+        });
+
+      return true;
+    }
+
     logClinicalAuditAction(
       'PRESCRIPTION_DISPATCHED_WHATSAPP',
       `Prescription #${prescription.id} dispatched via WhatsApp to +${international} (Patient: ${patient.name})`

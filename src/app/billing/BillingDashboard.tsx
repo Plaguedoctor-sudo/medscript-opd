@@ -177,12 +177,18 @@ export function BillingDashboard({
     }
 
     startTransition(async () => {
+      const taxNum = Number(tax) || 0;
+      const cgstNum = Number((taxNum / 2).toFixed(2));
+      const sgstNum = Number((taxNum - cgstNum).toFixed(2));
+
       const res = await createInvoiceAction({
         patientId: selectedPatient.id,
         prescriptionId: prescriptionId || null,
         items,
         discount: Number(discount) || 0,
-        tax: Number(tax) || 0,
+        tax: taxNum,
+        cgst: cgstNum,
+        sgst: sgstNum,
         paymentMethod,
         paymentStatus,
         notes: notes.trim() || undefined,
@@ -769,17 +775,43 @@ export function BillingDashboard({
                       />
                     </div>
                   </div>
-                  <div className="flex items-center justify-between text-slate-600">
-                    <span>Tax / GST (₹):</span>
-                    <div className="w-24">
-                      <Input
-                        type="number"
-                        min="0"
-                        value={tax}
-                        onChange={(e) => setTax(Number(e.target.value) || 0)}
-                        className="h-7 text-xs bg-white text-right font-mono"
-                      />
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between text-slate-600">
+                      <span>Tax / GST (₹):</span>
+                      <div className="w-24">
+                        <Input
+                          type="number"
+                          min="0"
+                          value={tax}
+                          onChange={(e) => setTax(Number(e.target.value) || 0)}
+                          className="h-7 text-xs bg-white text-right font-mono"
+                        />
+                      </div>
                     </div>
+                    <div className="flex items-center justify-between text-[10px]">
+                      <span className="text-slate-400">GST Rates:</span>
+                      <div className="flex items-center gap-1">
+                        {[0, 5, 12, 18].map((rate) => (
+                          <button
+                            key={rate}
+                            type="button"
+                            onClick={() => {
+                              const calculated = Number(((Math.max(0, subtotal - discount)) * (rate / 100)).toFixed(2));
+                              setTax(Math.max(0, calculated));
+                            }}
+                            className="px-1.5 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 font-mono text-[10px]"
+                          >
+                            {rate}%
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    {tax > 0 && (
+                      <div className="text-[10px] text-slate-500 flex justify-between font-mono pt-0.5">
+                        <span>CGST: ₹{(tax / 2).toFixed(2)}</span>
+                        <span>SGST: ₹{(tax / 2).toFixed(2)}</span>
+                      </div>
+                    )}
                   </div>
                   <div className="border-t border-slate-300 pt-2 flex items-center justify-between font-bold text-sm text-slate-900">
                     <span>Total Payable:</span>

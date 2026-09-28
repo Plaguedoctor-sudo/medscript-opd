@@ -1,7 +1,7 @@
 import { db } from '@/db';
 import { patients, prescriptions } from '@/db/schema';
 import { eq } from 'drizzle-orm';
-import { requireAuth, getCurrentUserRole, getSecurityConfig, getCurrentUser } from '@/lib/auth';
+import { requirePermission, getCurrentUserRole, getSecurityConfig, getCurrentUser } from '@/lib/auth';
 import { getBillingSummary } from './actions';
 import { BillingDashboard } from './BillingDashboard';
 import { getSecurityAlerts } from '@/lib/security-engine';
@@ -21,7 +21,7 @@ export default async function BillingPage({
 }: {
   searchParams: Promise<{ patientId?: string; prescriptionId?: string; q?: string; status?: string }>;
 }) {
-  await requireAuth('/billing');
+  await requirePermission('billing:view', '/billing');
   const [{ securityEnabled }, role, currentUser, resolvedParams, securityAlertsData] = await Promise.all([
     getSecurityConfig(),
     getCurrentUserRole(),

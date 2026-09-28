@@ -1,24 +1,61 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Volume2,
+  VolumeX,
   Clock,
   UserCheck,
   Stethoscope,
   Building2,
   Maximize,
+  Minimize,
   ArrowRight,
   CheckCircle2,
 } from 'lucide-react';
 import { getAppointments, AppointmentQueueStats } from '../actions';
 import { AppointmentWithPatient } from '@/types';
 
+function playHospitalChime() {
+  try {
+    const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const now = ctx.currentTime;
+
+    const osc1 = ctx.createOscillator();
+    const gain1 = ctx.createGain();
+    osc1.type = 'sine';
+    osc1.frequency.setValueAtTime(587.33, now); // D5
+    gain1.gain.setValueAtTime(0.3, now);
+    gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+    osc1.connect(gain1);
+    gain1.connect(ctx.destination);
+    osc1.start(now);
+    osc1.stop(now + 0.5);
+
+    const osc2 = ctx.createOscillator();
+    const gain2 = ctx.createGain();
+    osc2.type = 'sine';
+    osc2.frequency.setValueAtTime(880, now + 0.22); // A5
+    gain2.gain.setValueAtTime(0.3, now + 0.22);
+    gain2.gain.exponentialRampToValueAtTime(0.001, now + 1.1);
+    osc2.connect(gain2);
+    gain2.connect(ctx.destination);
+    osc2.start(now + 0.22);
+    osc2.stop(now + 1.1);
+  } catch {
+    // AudioContext blocked before user gesture
+  }
+}
+
 export default function QueueDisplayPage() {
   const [appointments, setAppointments] = useState<AppointmentWithPatient[]>([]);
   const [stats, setStats] = useState<AppointmentQueueStats | null>(null);
   const [currentTime, setCurrentTime] = useState('');
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isAudioEnabled, setIsAudioEnabled] = useState(false);
+  const lastAnnouncedTokenRef = useRef<number | null>(null);
 
   const fetchQueue = async () => {
     try {
@@ -26,6 +63,25 @@ export default function QueueDisplayPage() {
       const data = await getAppointments(todayStr);
       setAppointments(data.appointments);
       setStats(data.stats);
+
+      // Check if newly called patient
+      const inConsultation = data.appointments.find((a) => a.status === 'IN_CONSULTATION');
+      if (inConsultation && inConsultation.tokenNo !== lastAnnouncedTokenRef.current) {
+        lastAnnouncedTokenRef.current = inConsultation.tokenNo;
+        if (isAudioEnabled) {
+          playHospitalChime();
+          if ('speechSynthesis' in window) {
+            setTimeout(() => {
+              window.speechSynthesis.cancel();
+              const utterance = new SpeechSynthesisUtterance(
+                `Token number ${inConsultation.tokenNo}. ${inConsultation.patient.name}. Please proceed to Consulting Room One.`
+              );
+              utterance.rate = 0.9;
+              window.speechSynthesis.speak(utterance);
+            }, 600);
+          }
+        }
+      }
     } catch (err) {
       console.error('Queue poll error:', err);
     }
@@ -111,11 +167,37 @@ export default function QueueDisplayPage() {
           </div>
 
           <button
+            onClick={() => {
+              const next = !isAudioEnabled;
+              setIsAudioEnabled(next);
+              if (next) playHospitalChime();
+            }}
+            title={isAudioEnabled ? "Mute Voice Announcements" : "Enable Audio Chime & Voice Call"}
+            className={`p-2.5 rounded-xl transition-colors flex items-center gap-2 text-xs font-bold ${
+              isAudioEnabled
+                ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                : 'bg-slate-800 hover:bg-slate-700 text-slate-400'
+            }`}
+          >
+            {isAudioEnabled ? (
+              <>
+                <Volume2 className="w-5 h-5 text-white animate-pulse" />
+                <span className="hidden md:inline">Voice Call Active</span>
+              </>
+            ) : (
+              <>
+                <VolumeX className="w-5 h-5" />
+                <span className="hidden md:inline">Voice Off</span>
+              </>
+            )}
+          </button>
+
+          <button
             onClick={toggleFullscreen}
-            title="Toggle Fullscreen for TV"
+            title={isFullscreen ? "Exit Fullscreen" : "Toggle Fullscreen for TV"}
             className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
           >
-            <Maximize className="w-5 h-5" />
+            {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
           </button>
         </div>
       </header>

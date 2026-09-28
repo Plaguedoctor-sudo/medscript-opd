@@ -28,6 +28,8 @@ export const patientsRelations = relations(patients, ({ many }) => ({
   labReports: many(labReports),
   appointments: many(appointments),
   consents: many(clinicalConsents),
+  documents: many(patientDocuments),
+  certificates: many(medicalCertificates),
 }));
 
 export const prescriptions = sqliteTable("prescriptions", {
@@ -38,10 +40,18 @@ export const prescriptions = sqliteTable("prescriptions", {
   
   // Vitals
   weight: text("weight"),
+  height: text("height"), // in cm
+  bmi: text("bmi"), // computed Body Mass Index
   bp: text("bp"),
   pulse: text("pulse"),
   temp: text("temp"),
   spo2: text("spo2"),
+  rbs: text("rbs"), // Random / Fasting Blood Sugar in mg/dL
+  respiratoryRate: text("respiratory_rate"), // breaths/min
+
+  // Doctor Attribution
+  doctorId: integer("doctor_id"),
+  doctorName: text("doctor_name"),
 
   // Clinical Info
   chiefComplaints: text("chief_complaints"),
@@ -106,6 +116,16 @@ export const clinicSettings = sqliteTable("clinic_settings", {
   gdriveLastBackupFileId: text("gdrive_last_backup_file_id"),
   gdriveLastBackupFileName: text("gdrive_last_backup_file_name"),
   gdriveAutoBackupInterval: text("gdrive_auto_backup_interval").default("DAILY"),
+  // Dynamic UPI Payments & Invoicing GST
+  upiId: text("upi_id"), // e.g. "sonarehospital@upi" or "9876543210@paytm"
+  gstNumber: text("gst_number"), // e.g. "27AAAAA0000A1Z5"
+  // Automated Meta WhatsApp Cloud API
+  whatsappCloudToken: text("whatsapp_cloud_token"),
+  whatsappPhoneNumberId: text("whatsapp_phone_number_id"),
+  // Off-Site Cloud Sync Provider
+  cloudSyncProvider: text("cloud_sync_provider").default("disabled"), // 'disabled' | 'custom_webhook' | 's3' | 'drive'
+  cloudSyncEndpoint: text("cloud_sync_endpoint"),
+  cloudSyncApiKey: text("cloud_sync_api_key"),
 });
 
 export const auditLogs = sqliteTable("audit_logs", {
@@ -142,6 +162,8 @@ export const invoices = sqliteTable("invoices", {
   subtotal: real("subtotal").notNull().default(0),
   discount: real("discount").default(0),
   tax: real("tax").default(0),
+  cgst: real("cgst").default(0),
+  sgst: real("sgst").default(0),
   totalAmount: real("total_amount").notNull().default(0),
   paymentMethod: text("payment_method").notNull().default("Cash"), // 'Cash' | 'UPI' | 'Card' | 'Due'
   paymentStatus: text("payment_status").notNull().default("PAID"), // 'PAID' | 'PENDING' | 'REFUNDED'
@@ -456,6 +478,149 @@ export const ipdFluidBalanceRelations = relations(ipdFluidBalance, ({ one }) => 
   admission: one(ipdAdmissions, {
     fields: [ipdFluidBalance.admissionId],
     references: [ipdAdmissions.id],
+  }),
+}));
+
+// Reusable Prescription Sets / Clinical Protocols
+export const prescriptionTemplates = sqliteTable("prescription_templates", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull(),
+  category: text("category").notNull().default("General"),
+  description: text("description"),
+  chiefComplaints: text("chief_complaints"),
+  diagnosis: text("diagnosis"),
+  medications: text("medications").notNull(), // JSON string of Medication[]
+  advice: text("advice"),
+  labTests: text("lab_tests"),
+  createdBy: text("created_by"),
+  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+});
+
+// Patient Clinical Documents & Radiology/Lab/Photo Attachments
+export const patientDocuments = sqliteTable("patient_documents", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  patientId: integer("patient_id")
+    .notNull()
+    .references(() => patients.id),
+  prescriptionId: integer("prescription_id").references(() => prescriptions.id),
+  title: text("title").notNull(),
+  documentType: text("document_type").notNull().default("LAB_REPORT"), // 'LAB_REPORT' | 'IMAGING_XRAY' | 'ECG' | 'CLINICAL_PHOTO' | 'REFERRAL' | 'OTHER'
+  fileData: text("file_data").notNull(), // Base64 data URL or file storage URI
+  fileName: text("file_name"),
+  fileSizeKb: integer("file_size_kb"),
+  mimeType: text("mime_type"),
+  notes: text("notes"),
+  uploadedBy: text("uploaded_by"),
+  uploadedAt: integer("uploaded_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+});
+
+export const patientDocumentsRelations = relations(patientDocuments, ({ one }) => ({
+  patient: one(patients, {
+    fields: [patientDocuments.patientId],
+    references: [patients.id],
+  }),
+  prescription: one(prescriptions, {
+    fields: [patientDocuments.prescriptionId],
+    references: [prescriptions.id],
+  }),
+}));
+
+// Outpatient Medical Certificates & Referral Letters
+export const medicalCertificates = sqliteTable("medical_certificates", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  certificateNo: text("certificate_no").notNull().unique(),
+  patientId: integer("patient_id")
+    .notNull()
+    .references(() => patients.id),
+  doctorId: integer("doctor_id"),
+  doctorName: text("doctor_name").notNull(),
+  doctorRegNo: text("doctor_reg_no"),
+  type: text("type").notNull().default("FITNESS"), // 'FITNESS' | 'LEAVE' | 'REFERRAL'
+  diagnosis: text("diagnosis"),
+  startDate: text("start_date"),
+  endDate: text("end_date"),
+  restDays: integer("rest_days"),
+  referralHospital: text("referral_hospital"),
+  referralSpecialist: text("referral_specialist"),
+  remarks: text("remarks"),
+  issuedAt: integer("issued_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+});
+
+export const medicalCertificatesRelations = relations(medicalCertificates, ({ one }) => ({
+  patient: one(patients, {
+    fields: [medicalCertificates.patientId],
+    references: [patients.id],
+  }),
+}));
+
+// Inpatient Hospital Discharge Summaries & Death / LAMA Certificates
+export const ipdDischarges = sqliteTable("ipd_discharges", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  admissionId: integer("admission_id")
+    .notNull()
+    .unique()
+    .references(() => ipdAdmissions.id),
+  patientId: integer("patient_id")
+    .notNull()
+    .references(() => patients.id),
+  dischargeDate: text("discharge_date").notNull(), // YYYY-MM-DD
+  dischargeTime: text("discharge_time"), // e.g. "04:30 PM"
+  dischargeCondition: text("discharge_condition").notNull().default("Recovered"), // 'Recovered' | 'Improved' | 'Stable' | 'LAMA' | 'Referred' | 'Deceased'
+  admissionDiagnosis: text("admission_diagnosis"),
+  finalDiagnosis: text("final_diagnosis").notNull(),
+  clinicalSummary: text("clinical_summary").notNull(), // Hospital course and clinical summary
+  investigationSummary: text("investigation_summary"),
+  proceduresPerformed: text("procedures_performed"),
+  dischargeVitals: text("discharge_vitals"), // JSON string { bp, pulse, temp, spo2, rr }
+  dischargeMedications: text("discharge_medications").notNull().default("[]"), // JSON Medication[]
+  dietAdvice: text("diet_advice"),
+  activityRestrictions: text("activity_restrictions"),
+  followUpDate: text("follow_up_date"), // YYYY-MM-DD
+  followUpInstructions: text("follow_up_instructions"),
+  urgentWarningSigns: text("urgent_warning_signs"), // When to report back to emergency
+  consultantDoctorName: text("consultant_doctor_name").notNull(),
+  doctorRegNo: text("doctor_reg_no"),
+  digitalSealHash: text("digital_seal_hash"),
+  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+});
+
+export const ipdDischargesRelations = relations(ipdDischarges, ({ one }) => ({
+  admission: one(ipdAdmissions, {
+    fields: [ipdDischarges.admissionId],
+    references: [ipdAdmissions.id],
+  }),
+  patient: one(patients, {
+    fields: [ipdDischarges.patientId],
+    references: [patients.id],
+  }),
+}));
+
+// Inpatient Shift-to-Shift Nursing Handover Notes
+export const ipdNursingNotes = sqliteTable("ipd_nursing_notes", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  admissionId: integer("admission_id")
+    .notNull()
+    .references(() => ipdAdmissions.id),
+  patientId: integer("patient_id")
+    .notNull()
+    .references(() => patients.id),
+  shift: text("shift").notNull().default("Morning"), // 'Morning' | 'Evening' | 'Night'
+  shiftDate: text("shift_date").notNull(), // YYYY-MM-DD
+  nurseName: text("nurse_name").notNull(),
+  observations: text("observations").notNull(), // General condition, complaints, IV lines, site dressings
+  vitalsSummary: text("vitals_summary"), // e.g. "BP 120/80, Pulse 74, SpO2 99%"
+  handoverNotes: text("handover_notes"), // Specific tasks handed over to next shift
+  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+});
+
+export const ipdNursingNotesRelations = relations(ipdNursingNotes, ({ one }) => ({
+  admission: one(ipdAdmissions, {
+    fields: [ipdNursingNotes.admissionId],
+    references: [ipdAdmissions.id],
+  }),
+  patient: one(patients, {
+    fields: [ipdNursingNotes.patientId],
+    references: [patients.id],
   }),
 }));
 

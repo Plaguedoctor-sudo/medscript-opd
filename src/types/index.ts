@@ -27,10 +27,16 @@ export interface Prescription {
   id: number;
   patientId: number;
   weight: string | null;
+  height?: string | null; // in cm
+  bmi?: string | null;
   bp: string | null;
   pulse: string | null;
   temp: string | null;
   spo2: string | null;
+  rbs?: string | null; // Blood sugar mg/dL
+  respiratoryRate?: string | null; // breaths/min
+  doctorId?: number | null;
+  doctorName?: string | null;
   chiefComplaints: string | null;
   clinicalHistory: string | null;
   diagnosis: string | null;
@@ -72,12 +78,22 @@ export interface ClinicSettings {
   lockdownReason?: string | null;
   lockdownTriggeredAt?: Date | null;
   deceptionModeActive?: boolean | null;
+  upiId?: string | null;
+  gstNumber?: string | null;
+  whatsappCloudToken?: string | null;
+  whatsappPhoneNumberId?: string | null;
+  cloudSyncProvider?: string | null;
+  cloudSyncEndpoint?: string | null;
+  cloudSyncApiKey?: string | null;
 }
 
 export type SafeClinicSettings = Omit<
   ClinicSettings,
-  'pinHash' | 'staffPinHash' | 'mfaSecret' | 'mfaBackupCodes' | 'sessionSecret'
->;
+  'pinHash' | 'staffPinHash' | 'mfaSecret' | 'mfaBackupCodes' | 'sessionSecret' | 'whatsappCloudToken' | 'cloudSyncApiKey'
+> & {
+  hasWhatsappToken?: boolean;
+  hasCloudSyncKey?: boolean;
+};
 
 export type InvoiceItemCategory = 'Consultation' | 'Medication' | 'Procedure' | 'Lab Test' | 'Other';
 
@@ -88,6 +104,9 @@ export interface InvoiceItem {
   quantity: number;
   unitPrice: number;
   total: number;
+  gstRate?: number; // 0, 5, 12, 18
+  cgst?: number;
+  sgst?: number;
 }
 
 export interface Invoice {
@@ -99,6 +118,8 @@ export interface Invoice {
   subtotal: number;
   discount: number;
   tax: number;
+  cgst?: number | null;
+  sgst?: number | null;
   totalAmount: number;
   paymentMethod: 'Cash' | 'UPI' | 'Card' | 'Due' | string;
   paymentStatus: 'PAID' | 'PENDING' | 'REFUNDED' | string;
@@ -371,3 +392,97 @@ export interface FluidBalanceRecord {
   createdAt?: Date | null;
 }
 
+export interface PrescriptionTemplate {
+  id: number;
+  name: string;
+  category: string;
+  description?: string | null;
+  chiefComplaints?: string | null;
+  diagnosis?: string | null;
+  medications: string; // JSON string of Medication[]
+  advice?: string | null;
+  labTests?: string | null;
+  createdBy?: string | null;
+  createdAt?: Date | null;
+}
+
+export type PatientDocumentType =
+  | 'LAB_REPORT'
+  | 'IMAGING_XRAY'
+  | 'ECG'
+  | 'CLINICAL_PHOTO'
+  | 'REFERRAL'
+  | 'OTHER';
+
+export interface PatientDocument {
+  id: number;
+  patientId: number;
+  prescriptionId?: number | null;
+  title: string;
+  documentType: PatientDocumentType;
+  fileData: string; // Base64 data URL or storage URI
+  fileName?: string | null;
+  fileSizeKb?: number | null;
+  mimeType?: string | null;
+  notes?: string | null;
+  uploadedBy?: string | null;
+  uploadedAt?: Date | null;
+}
+
+export type MedicalCertificateType = 'FITNESS' | 'LEAVE' | 'REFERRAL';
+
+export interface MedicalCertificate {
+  id: number;
+  certificateNo: string;
+  patientId: number;
+  doctorId?: number | null;
+  doctorName: string;
+  doctorRegNo?: string | null;
+  type: MedicalCertificateType;
+  diagnosis?: string | null;
+  startDate?: string | null;
+  endDate?: string | null;
+  restDays?: number | null;
+  referralHospital?: string | null;
+  referralSpecialist?: string | null;
+  remarks?: string | null;
+  issuedAt?: Date | null;
+}
+
+export interface IpdDischarge {
+  id: number;
+  admissionId: number;
+  patientId: number;
+  dischargeDate: string;
+  dischargeTime?: string | null;
+  dischargeCondition: 'Recovered' | 'Improved' | 'Stable' | 'LAMA' | 'Referred' | 'Deceased' | string;
+  admissionDiagnosis?: string | null;
+  finalDiagnosis: string;
+  clinicalSummary: string;
+  investigationSummary?: string | null;
+  proceduresPerformed?: string | null;
+  dischargeVitals?: string | null; // JSON string { bp, pulse, temp, spo2, rr }
+  dischargeMedications: string; // JSON Medication[]
+  dietAdvice?: string | null;
+  activityRestrictions?: string | null;
+  followUpDate?: string | null;
+  followUpInstructions?: string | null;
+  urgentWarningSigns?: string | null;
+  consultantDoctorName: string;
+  doctorRegNo?: string | null;
+  digitalSealHash?: string | null;
+  createdAt?: Date | null;
+}
+
+export interface IpdNursingNote {
+  id: number;
+  admissionId: number;
+  patientId: number;
+  shift: 'Morning' | 'Evening' | 'Night' | string;
+  shiftDate: string;
+  nurseName: string;
+  observations: string;
+  vitalsSummary?: string | null;
+  handoverNotes?: string | null;
+  createdAt?: Date | null;
+}

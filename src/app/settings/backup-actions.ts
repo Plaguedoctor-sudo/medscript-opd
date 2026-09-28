@@ -162,3 +162,74 @@ export async function exportAuditLogsCsvAction(): Promise<{ success: boolean; cs
     return { success: false, error: errorMsg };
   }
 }
+
+/**
+ * Restores SQLite database from a selected local backup snapshot file.
+ * Creates a safety backup of the active database before replacing.
+ */
+export async function restoreLocalDatabaseSnapshotAction(filename: string): Promise<{ success: boolean; message: string }> {
+  const authed = await isAuthenticated();
+  const role = await getCurrentUserRole();
+  if (!authed || !isDoctor(role)) {
+    return { success: false, message: 'Forbidden: Only authorized Doctor accounts can restore databases.' };
+  }
+
+  // Path validation against path traversal
+  const cleanName = path.basename(filename);
+  if (!cleanName.startsWith('medscript-backup-') || !cleanName.endsWith('.db')) {
+    return { success: false, message: 'Invalid backup file selected.' };
+  }
+
+  const backupsDir = path.join(process.cwd(), 'backups');
+  const sourcePath = path.join(backupsDir, cleanName);
+  if (!fs.existsSync(sourcePath)) {
+    return { success: false, message: 'Specified backup file does not exist.' };
+  }
+
+  const dbPath = process.env.DATABASE_PATH || path.resolve(process.cwd(), 'sqlite.db');
+
+  try {
+    // 1. Create emergency pre-restore safety backup
+    const safetyName = `medscript-backup-pre-restore-${Date.now()}.db`;
+    const safetyPath = path.join(backupsDir, safetyName);
+    await sqlite.backup(safetyPath);
+
+    // 2. Checkpoint and close WAL on current db
+    try {
+      sqlite.pragma('wal_checkpoint(TRUNCATE)');
+    } catch {
+      // Ignore if cannot truncate
+    }
+
+    // 3. Overwrite current DB with snapshot
+    fs.copyFileSync(sourcePath, dbPath);
+    try {
+      if (fs.existsSync(`${dbPath}-wal`)) fs.unlinkSync(`${dbPath}-wal`);
+      if (fs.existsSync(`${dbPath}-shm`)) fs.unlinkSync(`${dbPath}-shm`);
+    } catch {
+      // Ignore
+    }
+
+    // 4. Enforce POSIX 0600
+    try {
+      fs.chmodSync(dbPath, 0o600);
+    } catch {
+      // Ignore
+    }
+
+    await logAuditEvent({
+      action: 'SYSTEM_CONFIG_UPDATED',
+      actorRole: 'DOCTOR',
+      details: `Database successfully restored from snapshot: ${cleanName}. Pre-restore safety backup created: ${safetyName}`,
+      status: 'SUCCESS',
+    });
+
+    revalidatePath('/settings');
+    revalidatePath('/');
+    return { success: true, message: `Database successfully restored from ${cleanName}! Pre-restore safety copy preserved.` };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Restore failed';
+    return { success: false, message: `Database restore failed: ${msg}` };
+  }
+}
+

@@ -223,9 +223,25 @@ interface PrescriptionPDFProps {
   prescription: Prescription;
   patient: Patient;
   settings: SafeClinicSettings | ClinicSettings;
+  pageSize?: 'A4' | 'A5';
+  preprintedPad?: boolean;
+  topMarginPt?: number;
+  attendingDoctor?: {
+    name?: string;
+    qualifications?: string;
+    regNumber?: string;
+  };
 }
 
-export const PrescriptionPDF = ({ prescription, patient, settings }: PrescriptionPDFProps) => {
+export const PrescriptionPDF = ({
+  prescription,
+  patient,
+  settings,
+  pageSize = 'A4',
+  preprintedPad = false,
+  topMarginPt = 80,
+  attendingDoctor,
+}: PrescriptionPDFProps) => {
   let medications: Medication[] = [];
   try {
     medications = JSON.parse(prescription.medications || '[]');
@@ -233,8 +249,17 @@ export const PrescriptionPDF = ({ prescription, patient, settings }: Prescriptio
     medications = [];
   }
 
-  const hasVitals =
-    prescription.bp || prescription.pulse || prescription.weight || prescription.temp || prescription.spo2;
+  const hasVitals = Boolean(
+    prescription.bp ||
+    prescription.pulse ||
+    prescription.weight ||
+    prescription.height ||
+    prescription.bmi ||
+    prescription.temp ||
+    prescription.spo2 ||
+    prescription.rbs ||
+    prescription.respiratoryRate
+  );
 
   const formatDateSafe = (dateVal: string | Date | null | undefined) => {
     if (!dateVal) return '';
@@ -256,6 +281,10 @@ export const PrescriptionPDF = ({ prescription, patient, settings }: Prescriptio
     ? formatDateSafe(prescription.createdAt)
     : new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 
+  const displayDrName = prescription.doctorName || attendingDoctor?.name || settings.doctorName || 'Doctor Name';
+  const displayDrQual = attendingDoctor?.qualifications || settings.qualifications || '';
+  const displayDrReg = attendingDoctor?.regNumber || settings.regNumber || 'N/A';
+
   // Safe check for @react-pdf/renderer compatible image (PNG and JPEG only; WebP causes 'Network error while fetching resources')
   const isSafePdfLogo =
     typeof settings.logoUrl === 'string' &&
@@ -269,28 +298,30 @@ export const PrescriptionPDF = ({ prescription, patient, settings }: Prescriptio
 
   return (
     <Document>
-      <Page size="A4" style={styles.page}>
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={styles.doctorInfo}>
-            <Text style={styles.drName}>{settings.doctorName || 'Doctor Name'}</Text>
-            <Text style={styles.drQualifications}>{settings.qualifications || ''}</Text>
-            <Text style={styles.drReg}>Reg. No: {settings.regNumber || 'N/A'}</Text>
-          </View>
-
-          {isSafePdfLogo && (
-            <View style={styles.logoContainer}>
-              {/* eslint-disable-next-line jsx-a11y/alt-text */}
-              <Image src={settings.logoUrl!} style={styles.logo} />
+      <Page size={pageSize} style={[styles.page, preprintedPad ? { paddingTop: topMarginPt } : {}]}>
+        {/* Header - suppressed when printing directly onto clinic's pre-printed letterhead */}
+        {!preprintedPad && (
+          <View style={styles.header}>
+            <View style={styles.doctorInfo}>
+              <Text style={styles.drName}>{displayDrName}</Text>
+              {displayDrQual ? <Text style={styles.drQualifications}>{displayDrQual}</Text> : null}
+              <Text style={styles.drReg}>Reg. No: {displayDrReg}</Text>
             </View>
-          )}
 
-          <View style={styles.clinicInfo}>
-            <Text style={styles.clinicName}>{settings.clinicName || 'Clinic Name'}</Text>
-            <Text style={styles.clinicAddress}>{settings.address || ''}</Text>
-            <Text style={styles.clinicContact}>Contact: {settings.contact || 'N/A'}</Text>
+            {isSafePdfLogo && (
+              <View style={styles.logoContainer}>
+                {/* eslint-disable-next-line jsx-a11y/alt-text */}
+                <Image src={settings.logoUrl!} style={styles.logo} />
+              </View>
+            )}
+
+            <View style={styles.clinicInfo}>
+              <Text style={styles.clinicName}>{settings.clinicName || 'Clinic Name'}</Text>
+              <Text style={styles.clinicAddress}>{settings.address || ''}</Text>
+              <Text style={styles.clinicContact}>Contact: {settings.contact || 'N/A'}</Text>
+            </View>
           </View>
-        </View>
+        )}
 
         {/* Patient Bar */}
         <View style={styles.patientBar}>
@@ -320,6 +351,18 @@ export const PrescriptionPDF = ({ prescription, patient, settings }: Prescriptio
                 {prescription.weight} kg
               </Text>
             )}
+            {prescription.height && (
+              <Text style={styles.vitalItem}>
+                <Text style={styles.vitalLabel}>Height: </Text>
+                {prescription.height} cm
+              </Text>
+            )}
+            {prescription.bmi && (
+              <Text style={styles.vitalItem}>
+                <Text style={styles.vitalLabel}>BMI: </Text>
+                {prescription.bmi} kg/m²
+              </Text>
+            )}
             {prescription.bp && (
               <Text style={styles.vitalItem}>
                 <Text style={styles.vitalLabel}>BP: </Text>
@@ -342,6 +385,18 @@ export const PrescriptionPDF = ({ prescription, patient, settings }: Prescriptio
               <Text style={styles.vitalItem}>
                 <Text style={styles.vitalLabel}>SPO2: </Text>
                 {prescription.spo2}%
+              </Text>
+            )}
+            {prescription.rbs && (
+              <Text style={styles.vitalItem}>
+                <Text style={styles.vitalLabel}>RBS: </Text>
+                {prescription.rbs} mg/dL
+              </Text>
+            )}
+            {prescription.respiratoryRate && (
+              <Text style={styles.vitalItem}>
+                <Text style={styles.vitalLabel}>RR: </Text>
+                {prescription.respiratoryRate} /min
               </Text>
             )}
           </View>

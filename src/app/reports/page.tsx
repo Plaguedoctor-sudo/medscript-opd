@@ -3,7 +3,7 @@ import ReportsView from "./ReportsView";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, BarChart3, Settings, PlusCircle, Users, Receipt, Bed, FlaskConical, CalendarCheck, Pill } from "lucide-react";
-import { requireRole, getSecurityConfig, getCurrentUserRole, getCurrentUser } from "@/lib/auth";
+import { requirePermission, getSecurityConfig, getCurrentUserRole, getCurrentUser } from "@/lib/auth";
 import { LockDeskButton } from "@/components/LockDeskButton";
 import { SecurityAlertBell } from "@/components/SecurityAlertBell";
 import { UserProfileMenu } from "@/components/UserProfileMenu";
@@ -13,7 +13,7 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 export default async function ReportsPage() {
-  await requireRole(['admin_doctor', 'doctor'], '/reports');
+  await requirePermission('reports:view', '/reports');
   const [{ securityEnabled }, role, currentUser, initialData, settings] = await Promise.all([
     getSecurityConfig(),
     getCurrentUserRole(),

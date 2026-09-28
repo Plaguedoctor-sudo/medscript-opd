@@ -12,7 +12,7 @@ import { patients, prescriptions, clinicSettings } from "@/db/schema";
 import { revalidatePath } from "next/cache";
 import { or, like, eq } from "drizzle-orm";
 import { Medication, Patient } from "@/types";
-import { requireAuth, requireRole } from "@/lib/auth";
+import { requireAuth, requireRole, requirePermission, getCurrentUser } from "@/lib/auth";
 import { logAuditEvent } from "@/lib/audit";
 import {
   generatePrescriptionSignature,
@@ -32,10 +32,16 @@ export interface PrescriptionFormData {
   bloodGroup?: string;
   abhaAddress?: string;
   weight?: string;
+  height?: string;
+  bmi?: string;
   bp?: string;
   pulse?: string;
   temp?: string;
   spo2?: string;
+  rbs?: string;
+  respiratoryRate?: string;
+  doctorId?: number;
+  doctorName?: string;
   chiefComplaints?: string;
   clinicalHistory?: string;
   diagnosis?: string;
@@ -131,7 +137,7 @@ function sanitizeMedications(meds: unknown): Medication[] {
 }
 
 export async function createPrescription(formData: PrescriptionFormData) {
-  await requireRole(['doctor'], '/prescription/new');
+  await requirePermission('prescription:create', '/prescription/new');
 
   // Enforce autonomous breach containment lockdown
   const settings = await db.query.clinicSettings.findFirst();
@@ -180,14 +186,24 @@ export async function createPrescription(formData: PrescriptionFormData) {
     });
   }
 
+  const currentUser = await getCurrentUser();
+  const doctorId = formData.doctorId || currentUser?.id || null;
+  const doctorName = formData.doctorName || currentUser?.name || null;
+
   // 2. Create Prescription
   const prescriptionData = {
     patientId: patientId,
     weight: sanitizeString(formData.weight, 20),
+    height: sanitizeString(formData.height, 10),
+    bmi: sanitizeString(formData.bmi, 10),
     bp: sanitizeString(formData.bp, 20),
     pulse: sanitizeString(formData.pulse, 20),
     temp: sanitizeString(formData.temp, 20),
     spo2: sanitizeString(formData.spo2, 20),
+    rbs: sanitizeString(formData.rbs, 10),
+    respiratoryRate: sanitizeString(formData.respiratoryRate, 10),
+    doctorId,
+    doctorName,
     chiefComplaints: sanitizeString(formData.chiefComplaints, 1000),
     clinicalHistory: sanitizeString(formData.clinicalHistory, 2000),
     diagnosis: sanitizeString(formData.diagnosis, 500),
@@ -238,12 +254,22 @@ export async function createPrescription(formData: PrescriptionFormData) {
 export async function updatePrescription(id: number, formData: PrescriptionFormData) {
   await requireRole(['doctor'], `/prescription/${id}/edit`);
 
+  const currentUser = await getCurrentUser();
+  const doctorId = formData.doctorId || currentUser?.id || null;
+  const doctorName = formData.doctorName || currentUser?.name || null;
+
   const prescriptionData = {
     weight: sanitizeString(formData.weight, 20),
+    height: sanitizeString(formData.height, 10),
+    bmi: sanitizeString(formData.bmi, 10),
     bp: sanitizeString(formData.bp, 20),
     pulse: sanitizeString(formData.pulse, 20),
     temp: sanitizeString(formData.temp, 20),
     spo2: sanitizeString(formData.spo2, 20),
+    rbs: sanitizeString(formData.rbs, 10),
+    respiratoryRate: sanitizeString(formData.respiratoryRate, 10),
+    doctorId,
+    doctorName,
     chiefComplaints: sanitizeString(formData.chiefComplaints, 1000),
     clinicalHistory: sanitizeString(formData.clinicalHistory, 2000),
     diagnosis: sanitizeString(formData.diagnosis, 500),

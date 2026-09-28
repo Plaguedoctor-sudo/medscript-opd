@@ -1,5 +1,5 @@
 import { db } from "@/db";
-import { requireAuth, getCurrentUserRole, getSecurityConfig, getCurrentUser } from "@/lib/auth";
+import { requirePermission, getCurrentUserRole, getSecurityConfig, getCurrentUser } from "@/lib/auth";
 import { getPharmacyInventory } from "./actions";
 import { InventoryDashboard } from "./InventoryDashboard";
 import { getSecurityAlerts } from "@/lib/security-engine";
@@ -29,7 +29,7 @@ export default async function InventoryPage({
 }: {
   searchParams: Promise<{ q?: string; category?: string; filter?: 'all' | 'low_stock' | 'expiring_soon' }>;
 }) {
-  await requireAuth("/inventory");
+  await requirePermission('inventory:view', '/inventory');
   const [{ securityEnabled }, role, currentUser, resolvedParams, securityAlertsData] = await Promise.all([
     getSecurityConfig(),
     getCurrentUserRole(),

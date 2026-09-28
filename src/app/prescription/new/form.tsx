@@ -39,9 +39,15 @@ import {
   Check,
   Printer,
   MessageCircle,
+  Calculator,
+  BookmarkCheck,
+  FileText,
 } from "lucide-react";
 import { toast } from "@/components/ui/toast";
-import { Medication, Patient, Prescription, ClinicSettings, SafeClinicSettings } from "@/types";
+import { Medication, Patient, Prescription, ClinicSettings, SafeClinicSettings, PrescriptionTemplate } from "@/types";
+import { calculateBmi } from "@/lib/vitals-calculator";
+import { ClinicalCalculatorsModal } from "@/components/ClinicalCalculatorsModal";
+import { PrescriptionTemplatesModal } from "@/components/PrescriptionTemplatesModal";
 import {
   DRUG_LIBRARY,
   DRUG_CATEGORIES,
@@ -169,6 +175,7 @@ export default function NewPrescriptionForm({
   // Standard data prefilled in vitals (can be modified by doctor as required)
   const [vitals, setVitals] = useState({
     weight: initialData?.weight || "",
+    height: initialData?.height || "",
     bp: initialData?.bp !== undefined && initialData?.bp !== null && initialData?.bp !== ""
       ? initialData.bp
       : isEditMode ? "" : DEFAULT_STANDARD_VITALS.bp,
@@ -183,7 +190,13 @@ export default function NewPrescriptionForm({
     spo2: initialData?.spo2 !== undefined && initialData?.spo2 !== null && initialData?.spo2 !== ""
       ? initialData.spo2
       : isEditMode ? "" : DEFAULT_STANDARD_VITALS.spo2,
+    rbs: initialData?.rbs || "",
+    respiratoryRate: initialData?.respiratoryRate || "",
   });
+
+  const computedBmi = useMemo(() => {
+    return calculateBmi(vitals.weight, vitals.height);
+  }, [vitals.weight, vitals.height]);
 
   const [patientSearch, setPatientSearch] = useState("");
   const [searchResults, setSearchResults] = useState<Patient[]>([]);
@@ -192,6 +205,11 @@ export default function NewPrescriptionForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [postSaveAction, setPostSaveAction] = useState<'view' | 'print' | 'whatsapp'>('view');
   const [diagnosis, setDiagnosis] = useState<string>(initialData?.diagnosis || "");
+  const [chiefComplaints, setChiefComplaints] = useState<string>(initialData?.chiefComplaints || "");
+  const [clinicalHistory, setClinicalHistory] = useState<string>(initialData?.clinicalHistory || "");
+  const [advice, setAdvice] = useState<string>(initialData?.advice || "");
+  const [isCalculatorModalOpen, setIsCalculatorModalOpen] = useState(false);
+  const [isTemplatesModalOpen, setIsTemplatesModalOpen] = useState(false);
 
   // Real-time Drug-Drug Interaction Detection
   const detectedInteractions = useMemo(() => {
@@ -301,10 +319,34 @@ export default function NewPrescriptionForm({
   const clearVitals = () => {
     setVitals({
       weight: "",
+      height: "",
       bp: "",
       pulse: "",
       temp: "",
       spo2: "",
+      rbs: "",
+      respiratoryRate: "",
+    });
+  };
+
+  const handleApplyTemplate = (template: PrescriptionTemplate) => {
+    try {
+      const templateMeds = JSON.parse(template.medications);
+      if (Array.isArray(templateMeds) && templateMeds.length > 0) {
+        setMedications(templateMeds);
+      }
+    } catch {
+      // ignore
+    }
+    if (template.diagnosis) setDiagnosis(template.diagnosis);
+    if (template.chiefComplaints) setChiefComplaints(template.chiefComplaints);
+    if (template.advice) setAdvice(template.advice);
+    if (template.labTests) setLabTests(template.labTests);
+
+    toast.show({
+      title: `Applied "${template.name}"`,
+      description: "Medications, diagnosis, advice, and tests loaded from protocol.",
+      type: "success",
     });
   };
 
@@ -405,16 +447,22 @@ export default function NewPrescriptionForm({
         patientPhone: formData.get("patientPhone") as string,
         abhaId: formData.get("abhaId") as string,
         weight: vitals.weight,
+        height: vitals.height,
+        bmi: computedBmi ? String(computedBmi.bmi) : (initialData?.bmi || undefined),
         bp: vitals.bp,
         pulse: vitals.pulse,
         temp: vitals.temp,
         spo2: vitals.spo2,
-        chiefComplaints: formData.get("chiefComplaints") as string,
-        clinicalHistory: formData.get("clinicalHistory") as string,
+        rbs: vitals.rbs,
+        respiratoryRate: vitals.respiratoryRate,
+        doctorId: doctorSettings?.id,
+        doctorName: doctorSettings?.doctorName,
+        chiefComplaints,
+        clinicalHistory,
         diagnosis: (formData.get("diagnosis") as string) || diagnosis,
         medications: medications.filter((m) => m.name.trim().length > 0),
-        advice: formData.get("advice") as string,
-        labTests: formData.get("labTests") as string,
+        advice,
+        labTests: (formData.get("labTests") as string) || labTests,
         followUpDate: formData.get("followUpDate") as string,
       };
 
@@ -825,6 +873,16 @@ export default function NewPrescriptionForm({
               type="button"
               variant="outline"
               size="sm"
+              onClick={() => setIsCalculatorModalOpen(true)}
+              className="text-xs h-8 text-indigo-700 border-indigo-200 bg-indigo-50/50 hover:bg-indigo-100 font-medium"
+              title="Open Clinical Calculators (Pediatric Dosing, BMI, Renal Clearance)"
+            >
+              <Calculator className="w-3.5 h-3.5 mr-1 text-indigo-600" /> Calculators
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
               onClick={prefillNormalVitals}
               className="text-xs h-8 text-blue-700 border-blue-200 bg-blue-50/50 hover:bg-blue-100"
               title="Reset all vitals to standard normal clinical adult values"
@@ -844,7 +902,8 @@ export default function NewPrescriptionForm({
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          {/* Row 1: Anthropometry & Cardiovascular */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3.5">
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <Label htmlFor="vital-weight" className="text-xs font-semibold text-slate-700">Weight (kg)</Label>
@@ -858,6 +917,38 @@ export default function NewPrescriptionForm({
                 onChange={(e) => setVitals((v) => ({ ...v, weight: e.target.value }))}
                 className="bg-white"
               />
+            </div>
+
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="vital-height" className="text-xs font-semibold text-slate-700">Height (cm)</Label>
+                <span className="text-[10px] text-slate-400">Optional</span>
+              </div>
+              <Input
+                id="vital-height"
+                name="height"
+                placeholder="e.g. 170"
+                value={vitals.height}
+                onChange={(e) => setVitals((v) => ({ ...v, height: e.target.value }))}
+                className="bg-white"
+              />
+            </div>
+
+            <div className="space-y-1.5 col-span-2 sm:col-span-1">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-semibold text-slate-700">BMI (kg/m²)</Label>
+                <span className="text-[10px] text-blue-600 font-medium">Auto-Calc</span>
+              </div>
+              <div className="h-10 px-3 py-2 bg-slate-50 border border-slate-200 rounded-md flex items-center justify-between">
+                <span className="font-bold text-sm text-slate-800">
+                  {computedBmi ? computedBmi.bmi : "—"}
+                </span>
+                {computedBmi && (
+                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${computedBmi.badgeColor}`}>
+                    {computedBmi.categoryLabel}
+                  </span>
+                )}
+              </div>
             </div>
 
             <div className="space-y-1.5">
@@ -917,7 +1008,10 @@ export default function NewPrescriptionForm({
                 ))}
               </div>
             </div>
+          </div>
 
+          {/* Row 2: Metabolic & Respiratory */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5 pt-2 border-t border-slate-100">
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <Label htmlFor="vital-temp" className="text-xs font-semibold text-slate-700">Temp (°C)</Label>
@@ -975,6 +1069,64 @@ export default function NewPrescriptionForm({
                 ))}
               </div>
             </div>
+
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="vital-rbs" className="text-xs font-semibold text-slate-700">Blood Sugar / RBS (mg/dL)</Label>
+                <span className="text-[10px] text-slate-400">Optional</span>
+              </div>
+              <Input
+                id="vital-rbs"
+                name="rbs"
+                placeholder="e.g. 110"
+                value={vitals.rbs}
+                onChange={(e) => setVitals((v) => ({ ...v, rbs: e.target.value }))}
+                className="bg-white"
+              />
+              <div className="flex flex-wrap gap-1 pt-0.5">
+                {["100 (FBS)", "140 (PP)", "180", "220"].map((val) => (
+                  <button
+                    key={val}
+                    type="button"
+                    onClick={() => setVitals((v) => ({ ...v, rbs: val.split(" ")[0] }))}
+                    className={`text-[10px] px-1.5 py-0.5 rounded border transition-colors ${
+                      vitals.rbs === val.split(" ")[0] ? "bg-blue-600 text-white border-blue-600 font-medium" : "bg-white text-slate-600 hover:bg-slate-100"
+                    }`}
+                  >
+                    {val}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="vital-rr" className="text-xs font-semibold text-slate-700">Resp. Rate (/min)</Label>
+                <span className="text-[10px] text-emerald-600 font-medium">Std: 16</span>
+              </div>
+              <Input
+                id="vital-rr"
+                name="respiratoryRate"
+                placeholder="16"
+                value={vitals.respiratoryRate}
+                onChange={(e) => setVitals((v) => ({ ...v, respiratoryRate: e.target.value }))}
+                className="bg-white"
+              />
+              <div className="flex flex-wrap gap-1 pt-0.5">
+                {["14", "16", "18", "20"].map((val) => (
+                  <button
+                    key={val}
+                    type="button"
+                    onClick={() => setVitals((v) => ({ ...v, respiratoryRate: val }))}
+                    className={`text-[10px] px-1.5 py-0.5 rounded border transition-colors ${
+                      vitals.respiratoryRate === val ? "bg-blue-600 text-white border-blue-600 font-medium" : "bg-white text-slate-600 hover:bg-slate-100"
+                    }`}
+                  >
+                    {val}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -991,7 +1143,8 @@ export default function NewPrescriptionForm({
               id="chiefComplaints"
               name="chiefComplaints"
               placeholder="e.g. Fever, persistent cough x 3 days"
-              defaultValue={initialData?.chiefComplaints || ""}
+              value={chiefComplaints}
+              onChange={(e) => setChiefComplaints(e.target.value)}
               list="complaints-list"
             />
           </div>
@@ -1001,7 +1154,8 @@ export default function NewPrescriptionForm({
               id="clinicalHistory"
               name="clinicalHistory"
               placeholder="e.g. Type 2 Diabetes, Hypertension, No known drug allergies"
-              defaultValue={initialData?.clinicalHistory || ""}
+              value={clinicalHistory}
+              onChange={(e) => setClinicalHistory(e.target.value)}
             />
           </div>
           <div className="space-y-2">
@@ -1048,6 +1202,15 @@ export default function NewPrescriptionForm({
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setIsTemplatesModalOpen(true)}
+              className="gap-1.5 text-xs text-purple-700 border-purple-200 hover:bg-purple-50 bg-white shadow-2xs font-medium"
+            >
+              <BookmarkCheck className="w-3.5 h-3.5 text-purple-600" /> Templates & Protocols
+            </Button>
             <Button
               type="button"
               variant="outline"
@@ -1631,7 +1794,8 @@ export default function NewPrescriptionForm({
                 id="advice"
                 name="advice"
                 placeholder="e.g. Low salt diet, plenty of fluids, avoid cold drinks"
-                defaultValue={initialData?.advice || ""}
+                value={advice}
+                onChange={(e) => setAdvice(e.target.value)}
               />
             </div>
 
@@ -2271,13 +2435,42 @@ export default function NewPrescriptionForm({
         <option value="Upper Respiratory Tract Infection (URTI)" />
         <option value="Acute Gastroenteritis" />
         <option value="Essential Hypertension" />
-        <option value="Type 2 Diabetes Mellitus" />
         <option value="Allergic Rhinitis" />
         <option value="Migraine" />
         <option value="Viral Pyrexia" />
         <option value="Urinary Tract Infection (UTI)" />
         <option value="Osteoarthritis" />
       </datalist>
+
+      {/* Clinical Calculators Modal (Pediatric mg/kg, BMI, Cockcroft-Gault CrCl) */}
+      <ClinicalCalculatorsModal
+        isOpen={isCalculatorModalOpen}
+        onClose={() => setIsCalculatorModalOpen(false)}
+        initialWeight={vitals.weight}
+        initialHeight={vitals.height}
+        patientAge={selectedPatient?.age}
+        patientGender={selectedPatient?.gender}
+        onApplyCalculations={(calcText) => {
+          setAdvice((prev) => (prev ? `${prev}\n${calcText}` : calcText));
+          toast.show({
+            title: "Calculation Inserted",
+            description: "Result inserted into Dietary Advice / Clinical Notes.",
+            type: "success",
+          });
+        }}
+      />
+
+      {/* Prescription Templates & Protocols Modal */}
+      <PrescriptionTemplatesModal
+        isOpen={isTemplatesModalOpen}
+        onClose={() => setIsTemplatesModalOpen(false)}
+        currentMedications={medications}
+        currentDiagnosis={diagnosis}
+        currentChiefComplaints={chiefComplaints}
+        currentAdvice={advice}
+        currentLabTests={labTests}
+        onApplyTemplate={handleApplyTemplate}
+      />
     </form>
   );
 }

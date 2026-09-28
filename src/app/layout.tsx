@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toast";
 import { IdleAutoLock } from "@/components/IdleAutoLock";
+import { PwaRegister } from "@/components/PwaRegister";
 import { getSecurityConfig } from "@/lib/auth";
 
 const geistSans = Geist({
@@ -17,7 +18,12 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "MedScript OPD",
-  description: "Prescription Management System",
+  description: "Offline-First Outpatient Prescription & Electronic Medical Records (EMR) System",
+  manifest: "/manifest.json",
+  icons: {
+    icon: "/icon.svg",
+    apple: "/icon.svg",
+  },
 };
 
 export default async function RootLayout({
@@ -35,6 +41,7 @@ export default async function RootLayout({
         <Toaster>
           {children}
         </Toaster>
+        <PwaRegister />
         <IdleAutoLock
           autoLockMinutes={securityConfig.autoLockMinutes}
           enabled={securityConfig.securityEnabled}

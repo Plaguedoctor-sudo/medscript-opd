@@ -1,5 +1,5 @@
 import { db } from "@/db";
-import { requireAuth, getCurrentUserRole, getSecurityConfig, getCurrentUser } from "@/lib/auth";
+import { requirePermission, getCurrentUserRole, getSecurityConfig, getCurrentUser } from "@/lib/auth";
 import { getLabReports } from "./actions";
 import { LabDashboard } from "./LabDashboard";
 import { getSecurityAlerts } from "@/lib/security-engine";
@@ -19,7 +19,7 @@ export default async function LabsPage({
 }: {
   searchParams: Promise<{ q?: string; status?: string; category?: string }>;
 }) {
-  await requireAuth("/labs");
+  await requirePermission('lab:view', '/labs');
   const [{ securityEnabled }, role, currentUser, resolvedParams, securityAlertsData] = await Promise.all([
     getSecurityConfig(),
     getCurrentUserRole(),
@@ -27,6 +27,7 @@ export default async function LabsPage({
     searchParams,
     getSecurityAlerts({ unacknowledgedOnly: false, limit: 30 }),
   ]);
+
 
   const { reports, stats } = await getLabReports({
     query: resolvedParams?.q,

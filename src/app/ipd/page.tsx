@@ -1,5 +1,5 @@
 import { db } from "@/db";
-import { requireAuth, getCurrentUserRole, getSecurityConfig, getCurrentUser } from "@/lib/auth";
+import { requirePermission, getCurrentUserRole, getSecurityConfig, getCurrentUser } from "@/lib/auth";
 import { getIpdAdmissions } from "./actions";
 import { IpdDashboard } from "./IpdDashboard";
 import { getSecurityAlerts } from "@/lib/security-engine";
@@ -19,7 +19,7 @@ export default async function IpdPage({
 }: {
   searchParams: Promise<{ q?: string; status?: string; ward?: string }>;
 }) {
-  await requireAuth("/ipd");
+   await requirePermission('ipd:view', '/ipd');
   const [{ securityEnabled }, role, currentUser, resolvedParams, securityAlertsData] = await Promise.all([
     getSecurityConfig(),
     getCurrentUserRole(),

@@ -4,7 +4,7 @@ import { db } from '@/db';
 import { invoices, patients, clinicSettings, prescriptions } from '@/db/schema';
 import { desc, eq, like, or, and, gte, lte, sql } from 'drizzle-orm';
 import { InvoiceItem, Invoice, InvoiceWithPatient, Patient, SafeClinicSettings } from '@/types';
-import { requireAuth, getCurrentUserRole, isDoctor, isReceptionist } from '@/lib/auth';
+import { requireAuth, requirePermission, getCurrentUserRole, isDoctor, isReceptionist } from '@/lib/auth';
 import { logAuditEvent } from '@/lib/audit';
 import { revalidatePath } from 'next/cache';
 
@@ -159,6 +159,8 @@ export async function createInvoiceAction(data: {
   items: InvoiceItem[];
   discount?: number;
   tax?: number;
+  cgst?: number;
+  sgst?: number;
   paymentMethod: 'Cash' | 'UPI' | 'Card' | 'Due';
   paymentStatus: 'PAID' | 'PENDING' | 'REFUNDED';
   notes?: string;
@@ -198,6 +200,8 @@ export async function createInvoiceAction(data: {
     const subtotal = sanitizedItems.reduce((acc, it) => acc + (Number(it.total) || 0), 0);
     const discount = Math.max(0, Math.min(Number(data.discount) || 0, subtotal));
     const tax = Math.max(0, Math.min(Number(data.tax) || 0, 1000000));
+    const cgst = Number.isFinite(data.cgst) ? Number(data.cgst) : (tax > 0 ? Number((tax / 2).toFixed(2)) : 0);
+    const sgst = Number.isFinite(data.sgst) ? Number(data.sgst) : (tax > 0 ? Number((tax - cgst).toFixed(2)) : 0);
     const totalAmount = Math.max(0, subtotal - discount + tax);
 
     const ALLOWED_METHODS = ['Cash', 'UPI', 'Card', 'Due'] as const;
@@ -218,6 +222,8 @@ export async function createInvoiceAction(data: {
         subtotal,
         discount,
         tax,
+        cgst,
+        sgst,
         totalAmount,
         paymentMethod,
         paymentStatus,
@@ -313,6 +319,8 @@ export async function getInvoiceDetails(id: number): Promise<{
       subtotal: inv.subtotal,
       discount: inv.discount || 0,
       tax: inv.tax || 0,
+      cgst: inv.cgst || 0,
+      sgst: inv.sgst || 0,
       totalAmount: inv.totalAmount,
       paymentMethod: inv.paymentMethod,
       paymentStatus: inv.paymentStatus,

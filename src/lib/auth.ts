@@ -497,3 +497,117 @@ export function isReceptionist(role: UserRole): boolean {
 export function isLabTech(role: UserRole): boolean {
   return role === 'admin_doctor' || role === 'lab_technician';
 }
+
+// ── Granular Permission Keys ──────────────────────────────────────────────────
+export type Permission =
+  // Prescriptions / Consultations
+  | 'prescription:create'
+  | 'prescription:edit'
+  | 'prescription:view'
+  // Patients
+  | 'patient:register'
+  | 'patient:edit_demographics'
+  | 'patient:view'
+  // Appointments / Queue
+  | 'appointment:manage'
+  | 'appointment:view'
+  // IPD
+  | 'ipd:view'
+  | 'ipd:admit_discharge'
+  | 'ipd:clinical_rounds'
+  | 'ipd:nursing_notes'
+  | 'ipd:emar'
+  | 'ipd:fluid_io'
+  // Labs
+  | 'lab:view'
+  | 'lab:manage'
+  // Billing / Invoicing
+  | 'billing:view'
+  | 'billing:manage'
+  // Pharmacy / Inventory
+  | 'inventory:view'
+  | 'inventory:manage'
+  // Reports & Analytics
+  | 'reports:view'
+  | 'reports:idsp'
+  // Settings / Admin
+  | 'settings:view_own_pin'
+  | 'settings:clinic'
+  | 'settings:staff_management'
+  | 'settings:security'
+  | 'settings:backup'
+  // Medical Documents
+  | 'certificate:issue'
+  | 'document:upload'
+  | 'template:manage';
+
+/**
+ * Declarative permission matrix.
+ * admin_doctor inherits ALL permissions (checked first in canDo).
+ */
+const ROLE_PERMISSIONS: Record<Exclude<UserRole, 'admin_doctor'>, Permission[]> = {
+  doctor: [
+    'prescription:create', 'prescription:edit', 'prescription:view',
+    'patient:register', 'patient:edit_demographics', 'patient:view',
+    'appointment:manage', 'appointment:view',
+    'ipd:view', 'ipd:admit_discharge', 'ipd:clinical_rounds', 'ipd:nursing_notes', 'ipd:emar', 'ipd:fluid_io',
+    'lab:view', 'lab:manage',
+    'billing:view', 'billing:manage',
+    'inventory:view', 'inventory:manage',
+    'reports:view', 'reports:idsp',
+    'settings:view_own_pin', 'settings:clinic',
+    'certificate:issue', 'document:upload', 'template:manage',
+  ],
+  nurse: [
+    'prescription:view',
+    'patient:register', 'patient:edit_demographics', 'patient:view',
+    'appointment:view',
+    'ipd:view', 'ipd:nursing_notes', 'ipd:emar', 'ipd:fluid_io',
+    'lab:view',
+    'inventory:view',
+    'settings:view_own_pin',
+    'document:upload',
+  ],
+  receptionist: [
+    'prescription:view',
+    'patient:register', 'patient:edit_demographics', 'patient:view',
+    'appointment:manage', 'appointment:view',
+    'ipd:view',
+    'billing:view', 'billing:manage',
+    'inventory:view',
+    'settings:view_own_pin',
+    'document:upload',
+  ],
+  lab_technician: [
+    'prescription:view',
+    'patient:view',
+    'lab:view', 'lab:manage',
+    'settings:view_own_pin',
+  ],
+};
+
+/**
+ * Returns true if the given role has the specified permission.
+ * admin_doctor always returns true.
+ */
+export function canDo(role: UserRole, permission: Permission): boolean {
+  if (role === 'admin_doctor') return true;
+  return ROLE_PERMISSIONS[role]?.includes(permission) ?? false;
+}
+
+/**
+ * Server action guard: redirects to home if the current user
+ * does not have the required permission. Returns the current role on success.
+ */
+export async function requirePermission(
+  permission: Permission,
+  redirectPath = '/'
+): Promise<UserRole> {
+  await requireAuth(redirectPath);
+  const role = await getCurrentUserRole();
+  if (!canDo(role, permission)) {
+    redirect(`/?unauthorized=access_denied_role_${role}`);
+  }
+  return role;
+}
+

@@ -13,8 +13,12 @@ export async function getSettings(): Promise<SafeClinicSettings | null> {
   await requireRole(['doctor'], '/settings');
   const settings = await db.query.clinicSettings.findFirst();
   if (!settings) return null;
-  const { pinHash, staffPinHash, mfaSecret, mfaBackupCodes, sessionSecret, ...safe } = settings;
-  return safe as SafeClinicSettings;
+  const { pinHash, staffPinHash, mfaSecret, mfaBackupCodes, sessionSecret, whatsappCloudToken, cloudSyncApiKey, ...safe } = settings;
+  return {
+    ...safe,
+    hasWhatsappToken: Boolean(whatsappCloudToken),
+    hasCloudSyncKey: Boolean(cloudSyncApiKey),
+  } as SafeClinicSettings;
 }
 
 export async function saveSettings(formData: FormData): Promise<SafeClinicSettings> {
@@ -56,36 +60,46 @@ export async function saveSettings(formData: FormData): Promise<SafeClinicSettin
   const clinicName = ((formData.get("clinicName") as string) || "").trim().slice(0, 150);
   const address = ((formData.get("address") as string) || "").trim().slice(0, 300);
   const contact = ((formData.get("contact") as string) || "").trim().slice(0, 100);
+  const upiId = ((formData.get("upiId") as string) || "").trim().slice(0, 100);
+  const gstNumber = ((formData.get("gstNumber") as string) || "").trim().toUpperCase().slice(0, 20);
+  const whatsappPhoneNumberId = ((formData.get("whatsappPhoneNumberId") as string) || "").trim().slice(0, 100);
+  const whatsappCloudToken = (formData.get("whatsappCloudToken") as string | null)?.trim();
+  const cloudSyncProvider = ((formData.get("cloudSyncProvider") as string) || "disabled").trim().slice(0, 50);
+  const cloudSyncEndpoint = ((formData.get("cloudSyncEndpoint") as string) || "").trim().slice(0, 300);
+  const cloudSyncApiKey = (formData.get("cloudSyncApiKey") as string | null)?.trim();
 
   if (!doctorName) {
     throw new Error("Doctor name is required.");
   }
 
-  const data: {
-    doctorName: string;
-    qualifications: string;
-    regNumber: string;
-    clinicName: string;
-    address: string;
-    contact: string;
-    logoUrl?: string | null;
-  } = {
+  const data: Record<string, unknown> = {
     doctorName,
     qualifications: qualifications || existing?.qualifications || "MBBS",
     regNumber: regNumber || existing?.regNumber || "REG-PENDING",
     clinicName: clinicName || existing?.clinicName || "Clinic OPD",
     address: address || existing?.address || "Clinic Address",
     contact: contact || existing?.contact || "+91",
+    upiId: upiId || null,
+    gstNumber: gstNumber || null,
+    whatsappPhoneNumberId: whatsappPhoneNumberId || null,
+    cloudSyncProvider: cloudSyncProvider || "disabled",
+    cloudSyncEndpoint: cloudSyncEndpoint || null,
   };
 
   if (logoUrl !== undefined) {
     data.logoUrl = logoUrl;
   }
+  if (whatsappCloudToken !== undefined && whatsappCloudToken !== "") {
+    data.whatsappCloudToken = whatsappCloudToken;
+  }
+  if (cloudSyncApiKey !== undefined && cloudSyncApiKey !== "") {
+    data.cloudSyncApiKey = cloudSyncApiKey;
+  }
 
   if (existing) {
     await db.update(clinicSettings).set(data).where(eq(clinicSettings.id, existing.id));
   } else {
-    await db.insert(clinicSettings).values({ id: 1, ...data });
+    await db.insert(clinicSettings).values({ id: 1, ...data } as typeof clinicSettings.$inferInsert);
   }
 
   await logAuditEvent({
