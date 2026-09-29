@@ -84,8 +84,8 @@ export default function RegisterPatientPage() {
       <nav className="bg-white border-b shadow-sm sticky top-0 z-10">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Link href="/patients">
-              <Button variant="ghost" size="icon" title="Back to Patients">
+            <Link href="/">
+              <Button variant="ghost" size="icon" title="Back to Dashboard">
                 <ArrowLeft className="w-5 h-5" />
               </Button>
             </Link>
@@ -129,7 +129,7 @@ export default function RegisterPatientPage() {
               <p className="text-xs text-emerald-700 max-w-sm mx-auto">
                 The patient chart has been created. A doctor can now start a consultation, or you can register another patient.
               </p>
-              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <div className="flex flex-col sm:flex-row gap-3 justify-center flex-wrap">
                 <Link href={`/patient/${registeredPatient.id}`}>
                   <Button className="gap-2 bg-emerald-700 hover:bg-emerald-800 text-white w-full sm:w-auto">
                     View Patient Chart
@@ -142,6 +142,11 @@ export default function RegisterPatientPage() {
                 >
                   <UserPlus className="w-4 h-4" /> Register Another Patient
                 </Button>
+                <Link href="/">
+                  <Button variant="ghost" className="gap-2 text-slate-600 hover:text-slate-900 w-full sm:w-auto">
+                    Back to Dashboard
+                  </Button>
+                </Link>
               </div>
             </CardContent>
           </Card>

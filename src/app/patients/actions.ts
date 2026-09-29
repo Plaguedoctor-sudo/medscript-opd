@@ -1,7 +1,7 @@
 'use server';
 
 import { sqlite } from '@/db';
-import { requireAuth, isDoctor, getCurrentUserRole } from '@/lib/auth';
+import { requirePermission, isDoctor } from '@/lib/auth';
 import { logAuditEvent } from '@/lib/audit';
 import { revalidatePath } from 'next/cache';
 
@@ -13,8 +13,7 @@ export interface ImportResult {
 }
 
 export async function importPatientsFromCsvAction(csvText: string): Promise<ImportResult> {
-  await requireAuth('/patients');
-  const role = await getCurrentUserRole();
+  const role = await requirePermission('patient:register', '/patients');
   const doctorAuthorized = isDoctor(role);
 
   if (!doctorAuthorized && role !== 'receptionist') {

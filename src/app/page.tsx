@@ -23,6 +23,7 @@ import {
   Pill,
   ShieldAlert,
   ShieldCheck,
+  UserPlus,
 } from "lucide-react";
 import { DashboardSearch } from "@/components/DashboardSearch";
 import { formatDate } from "@/lib/utils";
@@ -428,25 +429,90 @@ export default async function DashboardPage({
             </Card>
           </Link>
 
-          <Link href="/prescription/new" className="block col-span-2 md:col-span-1 xl:col-span-1 h-full">
-            <Card className="bg-gradient-to-r from-blue-600 to-blue-700 text-white cursor-pointer hover:from-blue-700 hover:to-blue-800 transition-all shadow-xs h-full">
-              <CardContent className="pt-4 pb-4 px-3 flex flex-col justify-between h-full">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center">
-                    <PlusCircle className="w-4 h-4 text-white" />
+          {(role === 'admin_doctor' || role === 'doctor') ? (
+            <Link href="/prescription/new" className="block col-span-2 md:col-span-1 xl:col-span-1 h-full">
+              <Card className="bg-gradient-to-r from-blue-600 to-blue-700 text-white cursor-pointer hover:from-blue-700 hover:to-blue-800 transition-all shadow-xs h-full">
+                <CardContent className="pt-4 pb-4 px-3 flex flex-col justify-between h-full">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center">
+                      <PlusCircle className="w-4 h-4 text-white" />
+                    </div>
+                    <span className="text-[10px] text-blue-100 font-medium">New Rx &rarr;</span>
                   </div>
-                  <span className="text-[10px] text-blue-100 font-medium">New Rx &rarr;</span>
-                </div>
-                <div>
-                  <h3 className="text-xs font-bold leading-tight">Consultation</h3>
-                  <p className="text-blue-100 text-[10px] mt-0.5">Start Visit</p>
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
+                  <div>
+                    <h3 className="text-xs font-bold leading-tight">Consultation</h3>
+                    <p className="text-blue-100 text-[10px] mt-0.5">Start Visit</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+          ) : role === 'receptionist' ? (
+            <Link href="/patients/register" className="block col-span-2 md:col-span-1 xl:col-span-1 h-full">
+              <Card className="bg-gradient-to-r from-amber-500 to-amber-600 text-white cursor-pointer hover:from-amber-600 hover:to-amber-700 transition-all shadow-xs h-full">
+                <CardContent className="pt-4 pb-4 px-3 flex flex-col justify-between h-full">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center">
+                      <UserPlus className="w-4 h-4 text-white" />
+                    </div>
+                    <span className="text-[10px] text-amber-100 font-medium">New &rarr;</span>
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-bold leading-tight">Register</h3>
+                    <p className="text-amber-100 text-[10px] mt-0.5">New Patient</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+          ) : null}
         </div>
 
-        {/* Recent Records */}
+        {/* Receptionist Workspace — shown only for receptionist role */}
+        {role === 'receptionist' && (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+            <Link href="/patients/register" className="block group">
+              <Card className="border-amber-200 bg-amber-50 hover:border-amber-400 hover:shadow-md transition-all cursor-pointer h-full">
+                <CardContent className="pt-5 pb-5 px-5 flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-amber-500 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                    <UserPlus className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <p className="font-bold text-amber-900 text-sm">Register New Patient</p>
+                    <p className="text-xs text-amber-700 mt-0.5">Add name, age, phone, ABHA ID</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+            <Link href="/appointments" className="block group">
+              <Card className="border-blue-200 bg-blue-50 hover:border-blue-400 hover:shadow-md transition-all cursor-pointer h-full">
+                <CardContent className="pt-5 pb-5 px-5 flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-blue-500 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                    <CalendarCheck className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <p className="font-bold text-blue-900 text-sm">OPD Queue</p>
+                    <p className="text-xs text-blue-700 mt-0.5">{waitingQueueCount} waiting · {todayAppointments.length} today</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+            <Link href="/billing" className="block group">
+              <Card className="border-emerald-200 bg-emerald-50 hover:border-emerald-400 hover:shadow-md transition-all cursor-pointer h-full">
+                <CardContent className="pt-5 pb-5 px-5 flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-emerald-500 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                    <Receipt className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <p className="font-bold text-emerald-900 text-sm">Billing</p>
+                    <p className="text-xs text-emerald-700 mt-0.5">Create & manage invoices</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+          </div>
+        )}
+
+        {/* Recent Records — only shown for clinical roles */}
+        {role !== 'receptionist' && role !== 'lab_technician' && (
         <Card className="border-slate-200">
           <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
@@ -533,6 +599,7 @@ export default async function DashboardPage({
             )}
           </CardContent>
         </Card>
+        )}
       </main>
     </div>
   );

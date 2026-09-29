@@ -5,10 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import Link from "next/link";
-import { Users, PlusCircle, ArrowLeft, Phone, Fingerprint, BarChart3, FileSpreadsheet, Receipt, Bed, FlaskConical, CalendarCheck, Pill, AlertTriangle, Edit } from "lucide-react";
+import { Users, PlusCircle, UserPlus, ArrowLeft, Phone, Fingerprint, BarChart3, FileSpreadsheet, Receipt, Bed, FlaskConical, CalendarCheck, Pill, AlertTriangle, Edit } from "lucide-react";
 import { DashboardSearch } from "@/components/DashboardSearch";
 import { Patient } from "@/types";
-import { requireAuth, getSecurityConfig, getCurrentUserRole, getCurrentUser } from "@/lib/auth";
+import { requirePermission, getSecurityConfig, getCurrentUserRole, getCurrentUser, canDo } from "@/lib/auth";
 import { LockDeskButton } from "@/components/LockDeskButton";
 import { PrivacyShield } from "@/components/PrivacyShield";
 import { UserProfileMenu } from "@/components/UserProfileMenu";
@@ -20,7 +20,7 @@ import { PatientsImportButton } from "@/components/PatientsImportButton";
 export const dynamic = 'force-dynamic';
 
 export default async function PatientsPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
-  await requireAuth('/patients');
+  await requirePermission('patient:view', '/patients');
   const [{ securityEnabled }, role, currentUser] = await Promise.all([
     getSecurityConfig(),
     getCurrentUserRole(),
@@ -103,21 +103,27 @@ export default async function PatientsPage({ searchParams }: { searchParams: Pro
                 <Bed className="w-4 h-4 text-purple-600" /> IPD
               </Button>
             </Link>
-            <Link href="/labs">
-              <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
-                <FlaskConical className="w-4 h-4 text-indigo-600" /> Labs
-              </Button>
-            </Link>
-            <Link href="/billing">
-              <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
-                <Receipt className="w-4 h-4 text-emerald-600" /> Billing
-              </Button>
-            </Link>
-            <Link href="/reports">
-              <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
-                <BarChart3 className="w-4 h-4 text-blue-600" /> Reports & Export
-              </Button>
-            </Link>
+            {canDo(role, 'lab:view') && (
+              <Link href="/labs">
+                <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
+                  <FlaskConical className="w-4 h-4 text-indigo-600" /> Labs
+                </Button>
+              </Link>
+            )}
+            {canDo(role, 'billing:view') && (
+              <Link href="/billing">
+                <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
+                  <Receipt className="w-4 h-4 text-emerald-600" /> Billing
+                </Button>
+              </Link>
+            )}
+            {canDo(role, 'reports:view') && (
+              <Link href="/reports">
+                <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
+                  <BarChart3 className="w-4 h-4 text-blue-600" /> Reports &amp; Export
+                </Button>
+              </Link>
+            )}
             <PatientsImportButton />
             {(role === 'admin_doctor' || role === 'doctor') && (
               <Link href="/prescription/new">
@@ -151,11 +157,20 @@ export default async function PatientsPage({ searchParams }: { searchParams: Pro
             </div>
             <div className="flex items-center gap-2.5">
               <DashboardSearch />
-              <Link href="/reports">
-                <Button variant="outline" size="sm" className="gap-1.5 text-xs h-9 text-slate-700">
-                  <FileSpreadsheet className="w-3.5 h-3.5 text-blue-600" /> Export CSV
-                </Button>
-              </Link>
+              {canDo(role, 'reports:view') && (
+                <Link href="/reports">
+                  <Button variant="outline" size="sm" className="gap-1.5 text-xs h-9 text-slate-700">
+                    <FileSpreadsheet className="w-3.5 h-3.5 text-blue-600" /> Export CSV
+                  </Button>
+                </Link>
+              )}
+              {canDo(role, 'patient:register') && (
+                <Link href="/patients/register">
+                  <Button size="sm" className="gap-1.5 text-xs h-9 bg-amber-600 hover:bg-amber-700 text-white">
+                    <UserPlus className="w-3.5 h-3.5" /> Register Patient
+                  </Button>
+                </Link>
+              )}
             </div>
           </CardHeader>
           <CardContent>
@@ -166,11 +181,21 @@ export default async function PatientsPage({ searchParams }: { searchParams: Pro
                   {query ? "No patients matching your search." : "No patients registered yet."}
                 </p>
                 <p className="text-sm text-slate-400 mb-4">
-                  Patients are automatically registered when creating a new consultation.
+                  {canDo(role, 'prescription:create')
+                    ? "Patients are automatically registered when creating a new consultation."
+                    : "Register a new patient to get started."}
                 </p>
-                <Link href="/prescription/new">
-                  <Button size="sm">Register New Patient Consultation</Button>
-                </Link>
+                {canDo(role, 'prescription:create') ? (
+                  <Link href="/prescription/new">
+                    <Button size="sm">Start New Consultation</Button>
+                  </Link>
+                ) : canDo(role, 'patient:register') ? (
+                  <Link href="/patients/register">
+                    <Button size="sm" className="bg-amber-600 hover:bg-amber-700 text-white gap-2">
+                      <UserPlus className="w-4 h-4" /> Register New Patient
+                    </Button>
+                  </Link>
+                ) : null}
               </div>
             ) : (
               <Table>
