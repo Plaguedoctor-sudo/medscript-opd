@@ -1,7 +1,7 @@
 'use server';
 
 import { sqlite } from '@/db';
-import { requireAuth, getCurrentUserRole, getCurrentUser } from '@/lib/auth';
+import { requirePermission, getCurrentUserRole, getCurrentUser } from '@/lib/auth';
 import { logAuditEvent } from '@/lib/audit';
 import { revalidatePath } from 'next/cache';
 import { AppointmentWithPatient, AppointmentStatus, AppointmentType } from '@/types';
@@ -20,7 +20,7 @@ export async function getAppointments(dateStr?: string): Promise<{
   appointments: AppointmentWithPatient[];
   stats: AppointmentQueueStats;
 }> {
-  await requireAuth('/appointments');
+  await requirePermission('appointment:view', '/appointments');
 
   const targetDate = dateStr && /^\d{4}-\d{2}-\d{2}$/.test(dateStr.trim())
     ? dateStr.trim()
@@ -161,7 +161,7 @@ export async function createAppointment(data: {
   chiefComplaint?: string;
   notes?: string;
 }): Promise<{ success: boolean; tokenNo?: number; error?: string }> {
-  await requireAuth('/appointments');
+  await requirePermission('appointment:view', '/appointments');
   const role = await getCurrentUserRole();
 
   if (!data.patientId || typeof data.patientId !== 'number' || data.patientId <= 0) {
@@ -230,7 +230,7 @@ export async function updateAppointmentStatus(
   id: number,
   newStatus: AppointmentStatus
 ): Promise<{ success: boolean; error?: string }> {
-  await requireAuth('/appointments');
+  await requirePermission('appointment:view', '/appointments');
   const role = await getCurrentUserRole();
 
   const ALLOWED_STATUSES: AppointmentStatus[] = ['WAITING', 'IN_CONSULTATION', 'COMPLETED', 'CANCELLED', 'NO_SHOW'];
@@ -266,7 +266,7 @@ export async function callNextPatientAction(dateStr?: string): Promise<{
   calledPatient?: string;
   error?: string;
 }> {
-  await requireAuth('/appointments');
+  await requirePermission('appointment:view', '/appointments');
   const role = await getCurrentUserRole();
   const targetDate = dateStr && /^\d{4}-\d{2}-\d{2}$/.test(dateStr.trim())
     ? dateStr.trim()

@@ -3,13 +3,13 @@
 import { db, sqlite } from '@/db';
 import { medicalCertificates, patients, clinicSettings } from '@/db/schema';
 import { eq, desc } from 'drizzle-orm';
-import { requireAuth, isDoctor, getCurrentUser } from '@/lib/auth';
+import { requirePermission, isDoctor, getCurrentUser } from '@/lib/auth';
 import { logAuditEvent } from '@/lib/audit';
 import { MedicalCertificate, MedicalCertificateType } from '@/types';
 import { revalidatePath } from 'next/cache';
 
 export async function getMedicalCertificatesAction(patientId: number): Promise<MedicalCertificate[]> {
-  await requireAuth();
+  await requirePermission('certificate:issue');
   const rows = await db
     .select()
     .from(medicalCertificates)
@@ -30,7 +30,7 @@ export async function issueMedicalCertificateAction(params: {
   referralSpecialist?: string;
   remarks?: string;
 }): Promise<{ success: boolean; certificate?: MedicalCertificate; error?: string }> {
-  await requireAuth();
+  await requirePermission('certificate:issue');
   const user = await getCurrentUser();
   const doctorAuthorized = !user || isDoctor(user.role);
   if (!doctorAuthorized) {

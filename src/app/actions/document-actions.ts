@@ -3,13 +3,13 @@
 import { db, sqlite } from '@/db';
 import { patientDocuments } from '@/db/schema';
 import { eq, desc } from 'drizzle-orm';
-import { requireAuth, getCurrentUser } from '@/lib/auth';
+import { requirePermission, getCurrentUser } from '@/lib/auth';
 import { logAuditEvent } from '@/lib/audit';
 import { PatientDocument, PatientDocumentType } from '@/types';
 import { revalidatePath } from 'next/cache';
 
 export async function getPatientDocumentsAction(patientId: number): Promise<PatientDocument[]> {
-  await requireAuth();
+  await requirePermission('document:upload');
   const rows = await db
     .select()
     .from(patientDocuments)
@@ -30,7 +30,7 @@ export async function uploadPatientDocumentAction(params: {
   mimeType?: string;
   notes?: string;
 }): Promise<{ success: boolean; id?: number; error?: string }> {
-  await requireAuth();
+  await requirePermission('document:upload');
   const user = await getCurrentUser();
   const uploadedBy = user ? `${user.name} (${user.role})` : 'Staff';
 
@@ -78,7 +78,7 @@ export async function deletePatientDocumentAction(
   documentId: number,
   patientId: number
 ): Promise<{ success: boolean; error?: string }> {
-  await requireAuth();
+  await requirePermission('document:upload');
   try {
     await db.delete(patientDocuments).where(eq(patientDocuments.id, documentId));
     await logAuditEvent({

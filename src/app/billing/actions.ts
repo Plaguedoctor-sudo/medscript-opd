@@ -4,7 +4,7 @@ import { db } from '@/db';
 import { invoices, patients, clinicSettings, prescriptions } from '@/db/schema';
 import { desc, eq, like, or, and, gte, lte, sql } from 'drizzle-orm';
 import { InvoiceItem, Invoice, InvoiceWithPatient, Patient, SafeClinicSettings } from '@/types';
-import { requireAuth, requirePermission, getCurrentUserRole, isDoctor, isReceptionist } from '@/lib/auth';
+import { requirePermission, getCurrentUserRole, isDoctor, isReceptionist } from '@/lib/auth';
 import { logAuditEvent } from '@/lib/audit';
 import { revalidatePath } from 'next/cache';
 
@@ -56,7 +56,7 @@ export async function getBillingSummary(params?: {
   status?: string;
   limit?: number;
 }): Promise<BillingSummary> {
-  await requireAuth('/billing');
+  await requirePermission('billing:view', '/billing');
 
   const cleanQuery = (params?.query || '').trim();
   const statusFilter = params?.status && params.status !== 'ALL' ? params.status : undefined;
@@ -166,7 +166,7 @@ export async function createInvoiceAction(data: {
   notes?: string;
 }): Promise<{ success: boolean; invoiceId?: number; error?: string }> {
   try {
-    await requireAuth('/billing');
+    await requirePermission('billing:view', '/billing');
     const role = await getCurrentUserRole();
 
     if (!data.patientId || typeof data.patientId !== 'number' || data.patientId <= 0) {
@@ -257,7 +257,7 @@ export async function getInvoiceDetails(id: number): Promise<{
   settings: SafeClinicSettings | null;
   prescriptionDetails?: { diagnosis: string | null; createdAt: Date | null } | null;
 } | null> {
-  await requireAuth('/billing');
+  await requirePermission('billing:view', '/billing');
 
   const row = await db
     .select({
@@ -351,7 +351,7 @@ export async function updateInvoiceStatusAction(
   paymentMethod?: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    await requireAuth('/billing');
+    await requirePermission('billing:view', '/billing');
     const role = await getCurrentUserRole();
 
     // Only Doctor or Receptionist can modify billing invoices
@@ -398,7 +398,7 @@ export async function updateInvoiceStatusAction(
  */
 export async function deleteInvoiceAction(id: number): Promise<{ success: boolean; error?: string }> {
   try {
-    await requireAuth('/billing');
+    await requirePermission('billing:view', '/billing');
     const role = await getCurrentUserRole();
 
     if (!isDoctor(role)) {
@@ -431,7 +431,7 @@ export async function deleteInvoiceAction(id: number): Promise<{ success: boolea
  * Search patients for quick invoice billing selection
  */
 export async function searchPatientsForBilling(query: string): Promise<Patient[]> {
-  await requireAuth('/billing');
+  await requirePermission('billing:view', '/billing');
   const clean = query.trim();
   if (!clean) {
     const recent = await db.select().from(patients).orderBy(desc(patients.id)).limit(10);

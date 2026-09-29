@@ -1,7 +1,7 @@
 'use server';
 
 import { sqlite } from '@/db';
-import { requireAuth, getCurrentUserRole, getCurrentUser, isDoctor, isNurse, isReceptionist } from '@/lib/auth';
+import { requirePermission, getCurrentUserRole, getCurrentUser, isDoctor, isNurse, isReceptionist } from '@/lib/auth';
 import { logAuditEvent } from '@/lib/audit';
 import { revalidatePath } from 'next/cache';
 import { PharmacyInventoryItem, PharmacyTransaction, MedicineCategory } from '@/types';
@@ -22,7 +22,7 @@ export async function getPharmacyInventory(params?: {
   items: PharmacyInventoryItem[];
   stats: InventoryStats;
 }> {
-  await requireAuth('/inventory');
+  await requirePermission('inventory:view', '/inventory');
 
   try {
     let sql = 'SELECT * FROM pharmacy_inventory WHERE 1=1';
@@ -153,7 +153,7 @@ export async function addPharmacyItem(data: {
   rackLocation?: string;
   supplierName?: string;
 }): Promise<{ success: boolean; id?: number; error?: string }> {
-  await requireAuth('/inventory');
+  await requirePermission('inventory:view', '/inventory');
   const role = await getCurrentUserRole();
   const user = await getCurrentUser();
 
@@ -245,7 +245,7 @@ export async function dispenseOrAdjustStock(data: {
   admissionId?: number;
   remarks?: string;
 }): Promise<{ success: boolean; newStock?: number; error?: string }> {
-  await requireAuth('/inventory');
+  await requirePermission('inventory:view', '/inventory');
   const role = await getCurrentUserRole();
   const user = await getCurrentUser();
 
@@ -339,7 +339,7 @@ export async function getPharmacyTransactions(limit = 30): Promise<
     patientName?: string | null;
   })[]
 > {
-  await requireAuth('/inventory');
+  await requirePermission('inventory:view', '/inventory');
 
   const safeLimit = Math.max(1, Math.min(Number(limit) || 30, 200));
 

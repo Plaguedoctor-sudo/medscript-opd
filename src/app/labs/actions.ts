@@ -3,7 +3,7 @@
 import { db, sqlite } from "@/db";
 import { labReports, patients } from "@/db/schema";
 import { eq, desc, or, like, and } from "drizzle-orm";
-import { requireAuth, getCurrentUserRole, isDoctor, isLabTech } from "@/lib/auth";
+import { requirePermission, getCurrentUserRole, isDoctor, isLabTech } from "@/lib/auth";
 import { logAuditEvent } from "@/lib/audit";
 import { LabReportWithPatient, LabResultParameter, LabReportStatus, LabResultFlag, ClinicSettings } from "@/types";
 
@@ -60,7 +60,7 @@ export async function getLabReports(options: LabFilterOptions = {}): Promise<{
   reports: LabReportWithPatient[];
   stats: LabSummaryStats;
 }> {
-  await requireAuth('/labs');
+  await requirePermission('lab:view', '/labs');
 
   const conditions = [];
 
@@ -169,7 +169,7 @@ export async function getLabReportById(id: number): Promise<{
   report: LabReportWithPatient | null;
   settings: ClinicSettings | null;
 }> {
-  await requireAuth(`/labs/${id}`);
+  await requirePermission('lab:view', `/labs/${id}`);
 
   const row = await db
     .select({
@@ -242,7 +242,7 @@ export async function createLabReport(input: CreateLabReportInput): Promise<{
   reportNo?: string;
   error?: string;
 }> {
-  await requireAuth('/labs');
+  await requirePermission('lab:view', '/labs');
   const role = await getCurrentUserRole();
 
   if (!input.patientId || typeof input.patientId !== 'number' || input.patientId <= 0) {
@@ -325,7 +325,7 @@ export async function updateLabReport(
   id: number,
   data: Partial<CreateLabReportInput>
 ): Promise<{ success: boolean; error?: string }> {
-  await requireAuth('/labs');
+  await requirePermission('lab:view', '/labs');
   const role = await getCurrentUserRole();
 
   if (!isDoctor(role) && !isLabTech(role)) {
@@ -371,7 +371,7 @@ export async function updateLabReport(
  * Delete a Lab Report
  */
 export async function deleteLabReport(id: number): Promise<{ success: boolean; error?: string }> {
-  await requireAuth('/labs');
+  await requirePermission('lab:view', '/labs');
   const role = await getCurrentUserRole();
 
   if (!isDoctor(role) && !isLabTech(role)) {
@@ -400,7 +400,7 @@ export async function deleteLabReport(id: number): Promise<{ success: boolean; e
  * Log print or dispatch of lab report
  */
 export async function logLabReportAction(id: number, channel: 'PRINT' | 'WHATSAPP'): Promise<void> {
-  await requireAuth(`/labs/${id}`);
+  await requirePermission('lab:view', `/labs/${id}`);
   const role = await getCurrentUserRole();
   await logAuditEvent({
     action: channel === 'PRINT' ? 'LAB_REPORT_PRINTED' : 'LAB_REPORT_DISPATCHED',

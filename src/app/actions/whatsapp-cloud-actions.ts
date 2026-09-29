@@ -2,7 +2,7 @@
 
 import { db } from '@/db';
 import { clinicSettings } from '@/db/schema';
-import { requireAuth } from '@/lib/auth';
+import { requirePermission } from '@/lib/auth';
 import { logAuditEvent } from '@/lib/audit';
 
 export interface WhatsAppCloudDispatchResult {
@@ -22,7 +22,7 @@ export async function dispatchWhatsAppCloudMessageAction(params: {
   prescriptionId?: number;
   patientName?: string;
 }): Promise<WhatsAppCloudDispatchResult> {
-  await requireAuth('/prescription');
+  await requirePermission('prescription:view', '/prescription');
 
   const settings = await db.query.clinicSettings.findFirst();
 

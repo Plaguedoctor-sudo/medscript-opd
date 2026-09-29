@@ -4,7 +4,7 @@ import { db, sqlite } from "@/db";
 import { ipdAdmissions, ipdRounds, labReports, patients, emarRecords, clinicalConsents, ipdDeposits, ipdFluidBalance } from "@/db/schema";
 import { eq, desc, or, like, and } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
-import { requireAuth, getCurrentUserRole, getCurrentUser, isDoctor, isNurse } from "@/lib/auth";
+import { requirePermission, getCurrentUserRole, getCurrentUser, isDoctor, isNurse } from "@/lib/auth";
 import { logAuditEvent } from "@/lib/audit";
 import { generateConsentDigitalSeal } from "@/lib/consent-security";
 import { sanitizeClinicalText } from "@/lib/phi-sanitizer";
@@ -81,7 +81,7 @@ export async function getIpdAdmissions(options: IpdFilterOptions = {}): Promise<
   admissions: IpdAdmissionWithPatient[];
   stats: IpdSummaryStats;
 }> {
-  await requireAuth('/ipd');
+  await requirePermission('ipd:view', '/ipd');
 
   const conditions = [];
 
@@ -180,7 +180,7 @@ export async function getIpdAdmissionById(id: number): Promise<{
   fluidBalanceList: FluidBalanceRecord[];
   settings: ClinicSettings | null;
 }> {
-  await requireAuth(`/ipd/${id}`);
+  await requirePermission('ipd:view', `/ipd/${id}`);
 
   const row = await db
     .select({
@@ -326,7 +326,7 @@ export async function createIpdAdmission(input: CreateIpdAdmissionInput): Promis
   admissionNo?: string;
   error?: string;
 }> {
-  await requireAuth('/ipd');
+  await requirePermission('ipd:view', '/ipd');
   const role = await getCurrentUserRole();
 
   if (!input.patientId || typeof input.patientId !== 'number' || input.patientId <= 0) {
@@ -407,7 +407,7 @@ export async function dischargeIpdPatient(
     dischargeAdvice?: string;
   }
 ): Promise<{ success: boolean; error?: string }> {
-  await requireAuth(`/ipd/${admissionId}`);
+  await requirePermission('ipd:view', `/ipd/${admissionId}`);
   const role = await getCurrentUserRole();
 
   if (!isDoctor(role)) {
@@ -456,7 +456,7 @@ export async function addIpdRound(
     vitals?: IpdVitals;
   }
 ): Promise<{ success: boolean; roundId?: number; error?: string }> {
-  await requireAuth(`/ipd/${admissionId}`);
+  await requirePermission('ipd:view', `/ipd/${admissionId}`);
   const userRole = await getCurrentUserRole();
   const settings = await db.query.clinicSettings.findFirst();
 
@@ -500,7 +500,7 @@ export async function addIpdRound(
  * Delete a clinical round note
  */
 export async function deleteIpdRound(roundId: number): Promise<{ success: boolean; error?: string }> {
-  await requireAuth('/ipd');
+  await requirePermission('ipd:view', '/ipd');
   const role = await getCurrentUserRole();
 
   if (role !== 'admin_doctor' && role !== 'doctor') {
@@ -537,7 +537,7 @@ export async function addEmarRecordAction(data: {
   scheduledTime: number;
   notes?: string;
 }): Promise<{ success: boolean; id?: number; error?: string }> {
-  await requireAuth('/ipd');
+  await requirePermission('ipd:view', '/ipd');
   const role = await getCurrentUserRole();
   const user = await getCurrentUser();
 
@@ -584,7 +584,7 @@ export async function updateEmarDoseStatusAction(
   admissionId: number,
   notes?: string
 ): Promise<{ success: boolean; error?: string }> {
-  await requireAuth('/ipd');
+  await requirePermission('ipd:view', '/ipd');
   const role = await getCurrentUserRole();
   const user = await getCurrentUser();
 
@@ -635,7 +635,7 @@ export async function deleteEmarRecordAction(
   id: number,
   admissionId: number
 ): Promise<{ success: boolean; error?: string }> {
-  await requireAuth('/ipd');
+  await requirePermission('ipd:view', '/ipd');
   const role = await getCurrentUserRole();
 
   if (!isDoctor(role) && !isNurse(role)) {
@@ -676,7 +676,7 @@ export async function createClinicalConsentAction(data: {
   witnessName?: string;
   doctorSignature?: string;
 }): Promise<{ success: boolean; id?: number; error?: string }> {
-  await requireAuth('/ipd');
+  await requirePermission('ipd:view', '/ipd');
   const role = await getCurrentUserRole();
   const user = await getCurrentUser();
 
@@ -762,7 +762,7 @@ export async function addIpdDepositAction(data: {
   type: 'ADVANCE' | 'TOP_UP' | 'REFUND';
   notes?: string;
 }): Promise<{ success: boolean; receiptNo?: string; error?: string }> {
-  await requireAuth('/ipd');
+  await requirePermission('ipd:view', '/ipd');
   const role = await getCurrentUserRole();
   const user = await getCurrentUser();
 
@@ -824,7 +824,7 @@ export async function addFluidBalanceAction(data: {
   appearance?: string;
   notes?: string;
 }): Promise<{ success: boolean; id?: number; error?: string }> {
-  await requireAuth(`/ipd/${data.admissionId}`);
+  await requirePermission('ipd:view', `/ipd/${data.admissionId}`);
   const role = await getCurrentUserRole();
   const user = await getCurrentUser();
 
@@ -882,7 +882,7 @@ export async function deleteFluidBalanceAction(
   id: number,
   admissionId: number
 ): Promise<{ success: boolean; error?: string }> {
-  await requireAuth(`/ipd/${admissionId}`);
+  await requirePermission('ipd:view', `/ipd/${admissionId}`);
   const role = await getCurrentUserRole();
 
   if (!isDoctor(role) && !isNurse(role)) {

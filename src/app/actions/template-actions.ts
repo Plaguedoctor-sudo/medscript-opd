@@ -3,13 +3,13 @@
 import { db, sqlite } from '@/db';
 import { prescriptionTemplates } from '@/db/schema';
 import { eq, desc } from 'drizzle-orm';
-import { requireAuth, isDoctor, getCurrentUser } from '@/lib/auth';
+import { requirePermission, isDoctor, getCurrentUser } from '@/lib/auth';
 import { logAuditEvent } from '@/lib/audit';
 import { PrescriptionTemplate, Medication } from '@/types';
 import { revalidatePath } from 'next/cache';
 
 export async function getPrescriptionTemplatesAction(): Promise<PrescriptionTemplate[]> {
-  await requireAuth();
+  await requirePermission('template:manage');
   const rows = await db
     .select()
     .from(prescriptionTemplates)
@@ -28,7 +28,7 @@ export async function createPrescriptionTemplateAction(params: {
   advice?: string;
   labTests?: string;
 }): Promise<{ success: boolean; id?: number; error?: string }> {
-  await requireAuth();
+  await requirePermission('template:manage');
   const user = await getCurrentUser();
   const doctorAuthorized = !user || isDoctor(user.role);
   if (!doctorAuthorized) {
@@ -81,7 +81,7 @@ export async function createPrescriptionTemplateAction(params: {
 }
 
 export async function deletePrescriptionTemplateAction(id: number): Promise<{ success: boolean; error?: string }> {
-  await requireAuth();
+  await requirePermission('template:manage');
   const user = await getCurrentUser();
   const doctorAuthorized = !user || isDoctor(user.role);
   if (!doctorAuthorized) {
