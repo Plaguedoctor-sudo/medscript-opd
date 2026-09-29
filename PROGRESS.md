@@ -9,7 +9,7 @@
 
 ## Current State
 
-**Version:** `1.1.1` | **Branch:** `main` | **Last commit:** `d8d9269`
+**Version:** `1.1.1` | **Branch:** `main` | **Last commit:** `0fddbc1`
 **Build:** ✅ 0 errors | **Tests:** ✅ 14/14 passing
 
 ```
@@ -185,7 +185,6 @@ Next.js 16.3.4 (Turbopack) · SQLite (Drizzle ORM) · Offline-First PWA
   - `src/app/labs/[id]/page.tsx` — needs `lab:view`
   - `src/app/billing/[id]/page.tsx` — needs `billing:view`
   - `src/app/appointments/page.tsx` — needs `appointment:view`
-  - `src/app/patients/page.tsx` — needs `patient:view`
   - `src/app/page.tsx` (dashboard) — keep `requireAuth` (open to all authenticated)
 - [ ] **Prescription actions RBAC** — `src/app/prescription/new/actions.ts` still uses `requireAuth`
 - [ ] **IPD discharge actions RBAC** — `src/app/actions/ipd-discharge-actions.ts` still uses `requireAuth`
@@ -199,6 +198,8 @@ Next.js 16.3.4 (Turbopack) · SQLite (Drizzle ORM) · Offline-First PWA
 ## 🗓 Session Log
 
 | Date | What was done |
+|---|---|
+| 2026-09-29 | **Receptionist patient registration** — scoped `/patients` page to `requirePermission('patient:view')`; gated Labs/Reports/Billing nav links with `canDo()`; bulk import uses `requirePermission('patient:register')`; receptionist dashboard now shows workspace panel (Register Patient, OPD Queue, Billing hero cards) instead of prescriptions table; register page back button → `/`; success state adds "Back to Dashboard". Build ✅ Tests ✅ 14/14. Committed: `0fddbc1` |
 |---|---|
 | 2026-09-29 | **RBAC wiring** — fixed `requirePermission` import bugs in `ipd/actions.ts`, `labs/actions.ts`; removed dead `requireAuth` imports from `appointments`, `billing`, `inventory`; fixed stray `requireAuth(` call in `whatsapp-cloud-actions.ts`. Build ✅ Tests ✅ 14/14. Committed: `d8d9269` |
 | 2026-09-29 | **RBAC implementation** — 30+ permissions, `canDo()`, `requirePermission()`, role-contextual dashboard, `/patients/register` page, IPD action button gating, page guards for billing/labs/reports/settings/inventory/ipd. Committed: `ced525b` |
