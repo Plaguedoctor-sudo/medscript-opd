@@ -19,6 +19,13 @@ export async function getPatientDocumentsAction(patientId: number): Promise<Pati
   return rows as PatientDocument[];
 }
 
+import {
+  ALLOWED_DOCUMENT_MIME_TYPES,
+  ALLOWED_DOCUMENT_EXTENSIONS,
+  sanitizeDocumentFileName,
+  verifyDocumentMagicBytes,
+} from '@/lib/document-security';
+
 export async function uploadPatientDocumentAction(params: {
   patientId: number;
   prescriptionId?: number | null;
@@ -38,7 +45,7 @@ export async function uploadPatientDocumentAction(params: {
     return { success: false, error: 'Patient ID, title, and document file are required.' };
   }
 
-  // Insider Threat Safeguard: Limit document payload to 5MB (Base64 length ~7MB) to prevent disk exhaustion and DoS
+  // Insider Threat Safeguard 1: Limit document payload to 5MB (Base64 length ~7MB) to prevent disk exhaustion and DoS
   const MAX_BASE64_LENGTH = 7 * 1024 * 1024;
   if (params.fileData.length > MAX_BASE64_LENGTH || (params.fileSizeKb && params.fileSizeKb > 5120)) {
     return {
@@ -47,7 +54,7 @@ export async function uploadPatientDocumentAction(params: {
     };
   }
 
-  // Insider Threat Safeguard: Limit maximum number of documents per patient record (50) to prevent SQLite storage bloat
+  // Insider Threat Safeguard 2: Limit maximum number of documents per patient record (50) to prevent SQLite storage bloat
   const docCount = sqlite
     .prepare('SELECT COUNT(*) as count FROM patient_documents WHERE patient_id = ?')
     .get(params.patientId) as { count: number } | undefined;
@@ -55,6 +62,58 @@ export async function uploadPatientDocumentAction(params: {
     return {
       success: false,
       error: 'Maximum document limit (50 documents) reached for this patient record. Please archive or delete older documents before adding new ones.',
+    };
+  }
+
+  // Insider Threat Safeguard 3: Strict Data URL & MIME validation (Defends against SVG XSS, HTML, Executables)
+  const dataUrlMatch = params.fileData.match(/^data:([a-zA-Z0-9_\-\/]+);base64,([A-Za-z0-9+/=]+)$/);
+  if (!dataUrlMatch) {
+    return {
+      success: false,
+      error: 'Invalid file payload: must be a well-formed base64 Data URL.',
+    };
+  }
+
+  const detectedMime = dataUrlMatch[1].toLowerCase();
+  const rawBase64 = dataUrlMatch[2];
+
+  if (!ALLOWED_DOCUMENT_MIME_TYPES.has(detectedMime)) {
+    await logAuditEvent({
+      action: 'SECURITY_ALERT_TRIGGERED',
+      actorRole: user?.role?.toUpperCase() || 'STAFF',
+      details: `Blocked upload of prohibited MIME type '${detectedMime}' by ${uploadedBy} for Patient ID #${params.patientId}`,
+      status: 'FAILURE',
+    });
+    return {
+      success: false,
+      error: `Prohibited file type '${detectedMime}'. Only clinical PDF documents and medical images (JPG, PNG, WebP) are allowed.`,
+    };
+  }
+
+  // Insider Threat Safeguard 4: File extension matching
+  const safeFileName = sanitizeDocumentFileName(params.fileName);
+  if (params.fileName) {
+    const extMatch = params.fileName.match(/\.([a-zA-Z0-9]+)$/);
+    const ext = extMatch ? extMatch[1].toLowerCase() : '';
+    if (!ALLOWED_DOCUMENT_EXTENSIONS.has(ext)) {
+      return {
+        success: false,
+        error: `Prohibited file extension '.${ext}'. Allowed extensions are .pdf, .jpg, .jpeg, .png, .webp.`,
+      };
+    }
+  }
+
+  // Insider Threat Safeguard 5: Magic binary bytes verification to block file masquerading / stealth payloads
+  if (!verifyDocumentMagicBytes(rawBase64, detectedMime)) {
+    await logAuditEvent({
+      action: 'SECURITY_ALERT_TRIGGERED',
+      actorRole: user?.role?.toUpperCase() || 'STAFF',
+      details: `Blocked disguised file payload masquerading as '${detectedMime}' for Patient ID #${params.patientId}`,
+      status: 'FAILURE',
+    });
+    return {
+      success: false,
+      error: 'Security rejection: Binary header signature does not match the declared file format.',
     };
   }
 
@@ -71,9 +130,9 @@ export async function uploadPatientDocumentAction(params: {
         params.title.trim(),
         params.documentType,
         params.fileData,
-        params.fileName || null,
+        safeFileName,
         params.fileSizeKb || 0,
-        params.mimeType || null,
+        detectedMime,
         params.notes?.trim() || null,
         uploadedBy,
         Date.now()
@@ -82,7 +141,7 @@ export async function uploadPatientDocumentAction(params: {
     await logAuditEvent({
       action: 'PATIENT_DOCUMENT_UPLOADED',
       actorRole: user?.role?.toUpperCase() || 'DOCTOR',
-      details: `Uploaded ${params.documentType}: "${params.title}" (${params.fileName || 'file'}) for Patient ID #${params.patientId}`,
+      details: `Uploaded ${params.documentType}: "${params.title}" (${safeFileName}) for Patient ID #${params.patientId}`,
       status: 'SUCCESS',
     });
 

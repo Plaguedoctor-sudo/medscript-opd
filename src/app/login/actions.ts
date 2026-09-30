@@ -33,6 +33,7 @@ import {
   createSessionToken,
   SESSION_COOKIE_NAME,
   getSecurityConfig,
+  getCurrentUser,
   getCurrentUserRole,
   UserRole,
   isDoctor,
@@ -63,6 +64,7 @@ export interface LoginResult {
   redirectUrl?: string;
   role?: UserRole;
   requiresMfa?: boolean;
+  isDefaultPassword?: boolean;
 }
 
 export async function loginWithPin(
@@ -763,6 +765,7 @@ export async function loginWithCredentials(
       qualifications?: string | null;
       reg_number?: string | null;
       is_active: number;
+      password_updated_at?: number | null;
     } | undefined;
 
   if (!user) {
@@ -826,6 +829,21 @@ export async function loginWithCredentials(
   resetPinRateLimit(clientIp);
   sqlite.prepare('UPDATE staff_users SET last_login_at = ? WHERE id = ?').run(Date.now(), user.id);
 
+  // Detect un-rotated default seed password
+  const isDefaultPassword =
+    !user.password_updated_at ||
+    ['admin123', 'doctor123', 'nurse123', 'reception123', 'lab123'].includes(cleanPassword);
+
+  if (isDefaultPassword) {
+    await logAuditEvent({
+      action: 'SECURITY_ALERT_TRIGGERED',
+      actorRole: user.role.toUpperCase(),
+      details: `Staff member '${user.name}' authenticated using un-rotated default password. Prompting password rotation.`,
+      status: 'WARNING',
+      ipAddress: clientIp,
+    });
+  }
+
   // 5. Create and set cryptographic session token
   const sessionToken = createSessionToken(user.role, user.id);
   const cookieStore = await cookies();
@@ -857,6 +875,7 @@ export async function loginWithCredentials(
     qualifications: user.qualifications,
     regNumber: user.reg_number,
     isActive: Boolean(user.is_active),
+    passwordUpdatedAt: user.password_updated_at || null,
   };
 
   return {
@@ -864,6 +883,7 @@ export async function loginWithCredentials(
     redirectUrl: targetRedirect || '/',
     role: user.role,
     user: safeUser,
+    isDefaultPassword,
   };
 }
 
@@ -899,7 +919,7 @@ export async function getStaffUsers(): Promise<SafeStaffUser[]> {
   try {
     const rows = sqlite
       .prepare(
-        "SELECT id, login_id as loginId, name, role, sub_role as subRole, department, phone, email, qualifications, reg_number as regNumber, is_active as isActive, last_login_at as lastLoginAt, created_at as createdAt FROM staff_users ORDER BY role = 'admin_doctor' DESC, id ASC"
+        "SELECT id, login_id as loginId, name, role, sub_role as subRole, department, phone, email, qualifications, reg_number as regNumber, is_active as isActive, password_updated_at as passwordUpdatedAt, last_login_at as lastLoginAt, created_at as createdAt FROM staff_users ORDER BY role = 'admin_doctor' DESC, id ASC"
       )
       .all() as {
         id: number;
@@ -913,6 +933,7 @@ export async function getStaffUsers(): Promise<SafeStaffUser[]> {
         qualifications?: string | null;
         regNumber?: string | null;
         isActive: number;
+        passwordUpdatedAt?: number | null;
         lastLoginAt?: number | null;
         createdAt?: number | null;
       }[];
@@ -920,6 +941,7 @@ export async function getStaffUsers(): Promise<SafeStaffUser[]> {
     return rows.map((r) => ({
       ...r,
       isActive: Boolean(r.isActive),
+      passwordUpdatedAt: r.passwordUpdatedAt || null,
       lastLoginAt: r.lastLoginAt ? new Date(r.lastLoginAt) : null,
       createdAt: r.createdAt ? new Date(r.createdAt) : null,
     }));
@@ -950,8 +972,21 @@ export async function createStaffUser(
     return { success: false, error: 'Staff member name is required.' };
   }
 
-  if (!input.password || input.password.length < 4) {
-    return { success: false, error: 'Password must be at least 4 characters long.' };
+  if (!input.password) {
+    return { success: false, error: 'Password is required.' };
+  }
+
+  const policy = validateCredentialPolicy(input.password, { minLength: 8, requireComplexity: true });
+  if (!policy.valid) {
+    return {
+      success: false,
+      error: policy.reason || 'Password must be at least 8 characters long and contain both letters and numbers.',
+    };
+  }
+
+  const forbiddenDefaults = ['admin123', 'doctor123', 'nurse123', 'reception123', 'lab123', 'password123'];
+  if (forbiddenDefaults.includes(input.password.toLowerCase())) {
+    return { success: false, error: 'Cannot use a factory default or common demo password.' };
   }
 
   const existing = sqlite.prepare('SELECT id FROM staff_users WHERE LOWER(login_id) = ?').get(cleanLoginId);
@@ -1013,8 +1048,22 @@ export async function updateStaffUser(
 
   try {
     const now = Date.now();
-    if (input.newPassword && input.newPassword.trim().length >= 4) {
-      const newHash = hashPin(input.newPassword.trim());
+    if (input.newPassword && input.newPassword.trim().length > 0) {
+      const trimmedPwd = input.newPassword.trim();
+      const policy = validateCredentialPolicy(trimmedPwd, { minLength: 8, requireComplexity: true });
+      if (!policy.valid) {
+        return {
+          success: false,
+          error: policy.reason || 'Password must be at least 8 characters long and contain both letters and numbers.',
+        };
+      }
+
+      const forbiddenDefaults = ['admin123', 'doctor123', 'nurse123', 'reception123', 'lab123', 'password123'];
+      if (forbiddenDefaults.includes(trimmedPwd.toLowerCase())) {
+        return { success: false, error: 'Cannot use a factory default or common demo password.' };
+      }
+
+      const newHash = hashPin(trimmedPwd);
       sqlite
         .prepare(`
           UPDATE staff_users
@@ -1067,6 +1116,114 @@ export async function updateStaffUser(
   } catch (err: unknown) {
     return { success: false, error: err instanceof Error ? err.message : 'Failed to update staff member.' };
   }
+}
+
+/**
+ * Allows the currently authenticated staff member or doctor to update their own password.
+ * Revokes any stale sessions and enforces credential complexity requirements.
+ */
+export async function changeOwnPasswordAction(
+  currentPassword: string,
+  newPassword: string,
+  confirmPassword: string
+): Promise<{ success: boolean; error?: string }> {
+  const user = await getCurrentUser();
+  if (!user) {
+    return { success: false, error: 'Authentication required. Please log in first.' };
+  }
+
+  const cleanCurrent = currentPassword.trim();
+  const cleanNew = newPassword.trim();
+  const cleanConfirm = confirmPassword.trim();
+
+  if (!cleanCurrent || !cleanNew || !cleanConfirm) {
+    return { success: false, error: 'Current password, new password, and confirmation are required.' };
+  }
+
+  if (cleanNew !== cleanConfirm) {
+    return { success: false, error: 'New password and confirmation do not match.' };
+  }
+
+  // Retrieve user record including current password_hash
+  const dbUser = sqlite
+    .prepare('SELECT id, password_hash, name, role, login_id FROM staff_users WHERE id = ?')
+    .get(user.id) as {
+      id: number;
+      password_hash: string;
+      name: string;
+      role: UserRole;
+      login_id: string;
+    } | undefined;
+
+  if (!dbUser) {
+    return { success: false, error: 'Staff account not found.' };
+  }
+
+  // Verify current password
+  if (!verifyPinHash(cleanCurrent, dbUser.password_hash)) {
+    const clientIp = await getClientIp();
+    await logAuditEvent({
+      action: 'SECURITY_ALERT_TRIGGERED',
+      actorRole: user.role.toUpperCase(),
+      details: `Failed password change attempt: incorrect current password for '${user.name}' (${user.loginId})`,
+      status: 'FAILURE',
+      ipAddress: clientIp,
+    });
+    return { success: false, error: 'Current password does not match.' };
+  }
+
+  // Check complexity and length policy
+  const policy = validateCredentialPolicy(cleanNew, { minLength: 8, requireComplexity: true });
+  if (!policy.valid) {
+    return { success: false, error: policy.reason || 'New password does not meet security criteria.' };
+  }
+
+  // Block default seed passwords
+  const forbidden = [
+    'admin123',
+    'doctor123',
+    'nurse123',
+    'reception123',
+    'lab123',
+    'password123',
+    `${dbUser.login_id}123`,
+  ];
+  if (forbidden.includes(cleanNew.toLowerCase())) {
+    return {
+      success: false,
+      error: 'Cannot use a known default or trivial password. Please choose a strong unique passphrase.',
+    };
+  }
+
+  const now = Date.now();
+  const newHash = hashPin(cleanNew);
+
+  sqlite
+    .prepare('UPDATE staff_users SET password_hash = ?, password_updated_at = ? WHERE id = ?')
+    .run(newHash, now, user.id);
+
+  // Update session cookie with the new timestamp so current user is not logged out
+  const newToken = createSessionToken(dbUser.role, user.id);
+  const cookieStore = await cookies();
+  cookieStore.set(SESSION_COOKIE_NAME, newToken, {
+    httpOnly: true,
+    secure: await isSecureConnection(),
+    sameSite: 'lax',
+    path: '/',
+    maxAge: 24 * 60 * 60,
+  });
+
+  const clientIp = await getClientIp();
+  await logAuditEvent({
+    action: 'PASSWORD_ROTATED',
+    actorRole: user.role.toUpperCase(),
+    details: `Staff member '${user.name}' successfully changed their password. Default credentials revoked.`,
+    status: 'SUCCESS',
+    ipAddress: clientIp,
+  });
+
+  revalidatePath('/');
+  return { success: true };
 }
 
 /**

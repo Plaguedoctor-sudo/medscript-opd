@@ -268,6 +268,7 @@ export interface StaffUser {
   qualifications?: string | null;
   regNumber?: string | null;
   isActive: boolean;
+  passwordUpdatedAt?: number | null;
   lastLoginAt?: Date | null;
   createdAt?: Date | null;
 }

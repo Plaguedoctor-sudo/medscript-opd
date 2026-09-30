@@ -383,7 +383,7 @@ export async function getCurrentUser(): Promise<SafeStaffUser | null> {
       try {
         const defaultAdmin = sqlite
           .prepare(
-            'SELECT id, login_id as loginId, name, role, sub_role as subRole, department, phone, email, qualifications, reg_number as regNumber, is_active as isActive, created_at as createdAt FROM staff_users WHERE role = ? LIMIT 1'
+            'SELECT id, login_id as loginId, name, role, sub_role as subRole, department, phone, email, qualifications, reg_number as regNumber, is_active as isActive, password_updated_at as passwordUpdatedAt, created_at as createdAt FROM staff_users WHERE role = ? LIMIT 1'
           )
           .get('admin_doctor') as SafeStaffUser | undefined;
         return defaultAdmin || {
@@ -415,7 +415,7 @@ export async function getCurrentUser(): Promise<SafeStaffUser | null> {
     try {
       const user = sqlite
         .prepare(
-          'SELECT id, login_id as loginId, name, role, sub_role as subRole, department, phone, email, qualifications, reg_number as regNumber, is_active as isActive, created_at as createdAt FROM staff_users WHERE id = ?'
+          'SELECT id, login_id as loginId, name, role, sub_role as subRole, department, phone, email, qualifications, reg_number as regNumber, is_active as isActive, password_updated_at as passwordUpdatedAt, created_at as createdAt FROM staff_users WHERE id = ?'
         )
         .get(parsed.userId) as SafeStaffUser | undefined;
       if (user && Boolean(user.isActive)) {
@@ -431,7 +431,7 @@ export async function getCurrentUser(): Promise<SafeStaffUser | null> {
   try {
     const userByRole = sqlite
       .prepare(
-        'SELECT id, login_id as loginId, name, role, sub_role as subRole, department, phone, email, qualifications, reg_number as regNumber, is_active as isActive, created_at as createdAt FROM staff_users WHERE role = ? AND is_active = 1 LIMIT 1'
+        'SELECT id, login_id as loginId, name, role, sub_role as subRole, department, phone, email, qualifications, reg_number as regNumber, is_active as isActive, password_updated_at as passwordUpdatedAt, created_at as createdAt FROM staff_users WHERE role = ? AND is_active = 1 LIMIT 1'
       )
       .get(parsed.role) as SafeStaffUser | undefined;
     if (userByRole) return userByRole;

@@ -326,7 +326,7 @@ export function StaffManagementSection({
                         type="password"
                         value={newPassword}
                         onChange={(e) => setNewPassword(e.target.value)}
-                        placeholder="Min 4 characters"
+                        placeholder="Min 8 chars, letters & numbers"
                         required
                         className="h-8 text-xs font-mono"
                       />
@@ -440,6 +440,14 @@ export function StaffManagementSection({
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-bold text-xs text-slate-900">{staff.name}</span>
                     <UserRoleBadge role={staff.role} securityEnabled={true} />
+                    {!staff.passwordUpdatedAt && (
+                      <span
+                        className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300 flex items-center gap-1"
+                        title="Staff account is still configured with an un-rotated factory default password"
+                      >
+                        ⚠️ Default Password
+                      </span>
+                    )}
                     {!staff.isActive && (
                       <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700 border border-red-200">
                         Deactivated
@@ -559,10 +567,10 @@ export function StaffManagementSection({
                       type="password"
                       value={editNewPassword}
                       onChange={(e) => setEditNewPassword(e.target.value)}
-                      placeholder="Leave blank to keep existing password"
+                      placeholder="Leave blank to keep current, or enter new (min 8 chars)"
                       className="h-8 text-xs font-mono bg-white"
                     />
-                    <p className="text-[10px] text-amber-700">Only fill this if you want to assign a new password to this staff member.</p>
+                    <p className="text-[10px] text-amber-700">Enter a new secure password (min 8 characters, letters & numbers) or leave empty.</p>
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">

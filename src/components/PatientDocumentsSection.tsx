@@ -79,18 +79,30 @@ export function PatientDocumentsSection({ patientId, userRole = 'doctor' }: Pati
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 10 * 1024 * 1024) {
+    const allowedMimes = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
+    if (file.type && !allowedMimes.includes(file.type)) {
       toast.show({
-        title: 'File Too Large',
-        description: 'Maximum file upload size is 10 MB.',
+        title: 'Prohibited File Type',
+        description: 'Only clinical PDF documents and medical images (JPG, PNG, WebP) are allowed.',
         type: 'error',
       });
+      e.target.value = '';
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.show({
+        title: 'File Too Large',
+        description: 'Maximum file upload size is 5 MB.',
+        type: 'error',
+      });
+      e.target.value = '';
       return;
     }
 
     setFileName(file.name);
     setFileSizeKb(Math.round(file.size / 1024));
-    setMimeType(file.type);
+    setMimeType(file.type || 'application/octet-stream');
     if (!title) setTitle(file.name.replace(/\.[^/.]+$/, ''));
 
     const reader = new FileReader();
@@ -299,11 +311,11 @@ export function PatientDocumentsSection({ patientId, userRole = 'doctor' }: Pati
               </div>
 
               <div className="space-y-1">
-                <Label className="text-xs font-bold text-slate-700">Select File (Image / PDF up to 10MB) *</Label>
+                <Label className="text-xs font-bold text-slate-700">Select File (Image / PDF up to 5MB) *</Label>
                 <Input
                   required
                   type="file"
-                  accept="image/*,application/pdf"
+                  accept=".pdf,.png,.jpg,.jpeg,.webp,application/pdf,image/png,image/jpeg,image/webp"
                   onChange={handleFileChange}
                   className="bg-white file:mr-3 file:py-1 file:px-2.5 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700"
                 />
@@ -367,6 +379,7 @@ export function PatientDocumentsSection({ patientId, userRole = 'doctor' }: Pati
                 <iframe
                   src={previewDoc.fileData}
                   title={previewDoc.title}
+                  sandbox="allow-scripts"
                   className="w-full h-[70vh] rounded border border-slate-300"
                 />
               )}

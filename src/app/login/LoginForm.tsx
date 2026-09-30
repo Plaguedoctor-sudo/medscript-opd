@@ -31,15 +31,6 @@ interface LoginFormProps {
   initialStaffUsers?: SafeStaffUser[];
 }
 
-// Preset demo passwords for 1-click testing of seeded profiles
-const DEMO_PASSWORDS: Record<string, string> = {
-  admin: 'admin123',
-  doctor: 'doctor123',
-  nurse: 'nurse123',
-  receptionist: 'reception123',
-  labtech: 'lab123',
-};
-
 export function LoginForm({ doctorName, clinicName, initialStaffUsers = [] }: LoginFormProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -81,11 +72,7 @@ export function LoginForm({ doctorName, clinicName, initialStaffUsers = [] }: Lo
     setError(null);
     setSelectedLoginId(staff.loginId);
     setLoginId(staff.loginId);
-    if (DEMO_PASSWORDS[staff.loginId]) {
-      setPassword(DEMO_PASSWORDS[staff.loginId]);
-    } else {
-      setPassword('');
-    }
+    setPassword('');
   };
 
   const handleCredentialSubmit = (e: React.FormEvent) => {
@@ -304,7 +291,7 @@ export function LoginForm({ doctorName, clinicName, initialStaffUsers = [] }: Lo
                     <Sparkles className="w-4 h-4 text-purple-600" /> Select Staff Role & Persona
                   </h3>
                   <p className="text-xs text-slate-500">
-                    Click any staff member to pre-fill their login ID & credentials for quick access.
+                    Click any staff member to select your account profile, then enter your confidential password.
                   </p>
                 </div>
               </div>
