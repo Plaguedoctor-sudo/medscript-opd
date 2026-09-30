@@ -79,29 +79,22 @@ const handle = app.getRequestHandler();
 app
   .prepare()
   .then(() => {
-    // Internal HTTPS Server
+    // Internal HTTPS Server (serves TLS encrypted clients)
     const httpsServer = https.createServer(httpsOptions, (req, res) => {
       handle(req, res);
     });
 
-    // Internal HTTP Redirect Server (upgrades plain HTTP requests)
-    const redirectServer = http.createServer((req, res) => {
-      const reqHost = req.headers.host || `localhost:${port}`;
-      const targetUrl = `https://${reqHost}${req.url}`;
-      res.writeHead(307, {
-        Location: targetUrl,
-        'Content-Type': 'text/plain',
-        Connection: 'close',
-      });
-      res.end(`Redirecting to secure connection: ${targetUrl}\n`);
+    // Internal HTTP Server (serves plain HTTP clients directly with zero SSL warnings)
+    const httpServer = http.createServer((req, res) => {
+      handle(req, res);
     });
 
     // Bind internal listeners to random loopback ports
     httpsServer.listen(0, '127.0.0.1', () => {
       const httpsPort = httpsServer.address().port;
 
-      redirectServer.listen(0, '127.0.0.1', () => {
-        const httpPort = redirectServer.address().port;
+      httpServer.listen(0, '127.0.0.1', () => {
+        const httpPort = httpServer.address().port;
 
         // Front-Facing TCP Multiplexer Gateway on configured port
         const gateway = net.createServer((socket) => {
@@ -152,7 +145,7 @@ app
           console.log('\n[HTTPS] Shutting down MedScript OPD servers...');
           gateway.close();
           httpsServer.close();
-          redirectServer.close();
+          httpServer.close();
           process.exit(0);
         };
 
