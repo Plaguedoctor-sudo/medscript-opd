@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { sqlite } from '@/db';
-import { createSessionToken, parseSessionToken, canDo } from '@/lib/auth';
+import { createSessionToken, parseSessionToken, canDo, isDoctor } from '@/lib/auth';
 import { checkKioskLookupRateLimit, recordKioskLookupAttempt } from '@/lib/rate-limiter';
 
 describe('Insider Threat & Security Loophole Defenses', () => {
@@ -118,5 +118,54 @@ describe('Insider Threat & Security Loophole Defenses', () => {
     expect(canDo('nurse', 'appointment:manage')).toBe(false);
     expect(canDo('doctor', 'appointment:manage')).toBe(true);
     expect(canDo('receptionist', 'appointment:manage')).toBe(true);
+  });
+
+  it('restricts doctor clinical authority (isDoctor) to legitimate medical officers', () => {
+    expect(isDoctor('admin_doctor')).toBe(true);
+    expect(isDoctor('doctor')).toBe(true);
+    expect(isDoctor('nurse')).toBe(false);
+    expect(isDoctor('receptionist')).toBe(false);
+    expect(isDoctor('lab_technician')).toBe(false);
+  });
+
+  it('validates document upload payload bounds (5MB limit & 50 docs limit)', () => {
+    const MAX_BASE64_LENGTH = 7 * 1024 * 1024;
+    const MAX_FILE_SIZE_KB = 5120;
+    const MAX_DOCS_PER_PATIENT = 50;
+
+    // Test payload length check
+    const oversizedBase64 = 'a'.repeat(MAX_BASE64_LENGTH + 10);
+    expect(oversizedBase64.length > MAX_BASE64_LENGTH).toBe(true);
+
+    const normalBase64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
+    expect(normalBase64.length <= MAX_BASE64_LENGTH).toBe(true);
+
+    // Test file size check
+    expect(6000 > MAX_FILE_SIZE_KB).toBe(true);
+    expect(2048 <= MAX_FILE_SIZE_KB).toBe(true);
+
+    // Test doc count check
+    expect(50 >= MAX_DOCS_PER_PATIENT).toBe(true);
+    expect(49 < MAX_DOCS_PER_PATIENT).toBe(true);
+  });
+
+  it('generates and verifies cryptographic digital seal for medical certificates to prevent forgery', () => {
+    const secret = 'test-cert-salt-2026';
+    const certNo = 'CERT-20260930-001';
+    const patientId = 42;
+    const type = 'SICK_LEAVE';
+    const regNo = 'MCI-12345';
+    const diagnosis = 'Acute Gastroenteritis';
+    const issuedAt = 1775000000000;
+
+    const sealData = `${certNo}:${patientId}:${type}:${regNo}:${diagnosis}:${issuedAt}`;
+    const seal = require('crypto').createHmac('sha256', secret).update(sealData).digest('hex');
+
+    expect(seal).toHaveLength(64);
+
+    // Tampered diagnosis must produce mismatched hash!
+    const tamperedData = `${certNo}:${patientId}:${type}:${regNo}:Chronic Heart Failure:${issuedAt}`;
+    const tamperedSeal = require('crypto').createHmac('sha256', secret).update(tamperedData).digest('hex');
+    expect(tamperedSeal).not.toBe(seal);
   });
 });

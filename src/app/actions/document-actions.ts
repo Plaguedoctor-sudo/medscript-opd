@@ -38,6 +38,26 @@ export async function uploadPatientDocumentAction(params: {
     return { success: false, error: 'Patient ID, title, and document file are required.' };
   }
 
+  // Insider Threat Safeguard: Limit document payload to 5MB (Base64 length ~7MB) to prevent disk exhaustion and DoS
+  const MAX_BASE64_LENGTH = 7 * 1024 * 1024;
+  if (params.fileData.length > MAX_BASE64_LENGTH || (params.fileSizeKb && params.fileSizeKb > 5120)) {
+    return {
+      success: false,
+      error: 'File size exceeds the 5MB maximum limit. Please compress or optimize the document before uploading.',
+    };
+  }
+
+  // Insider Threat Safeguard: Limit maximum number of documents per patient record (50) to prevent SQLite storage bloat
+  const docCount = sqlite
+    .prepare('SELECT COUNT(*) as count FROM patient_documents WHERE patient_id = ?')
+    .get(params.patientId) as { count: number } | undefined;
+  if (docCount && docCount.count >= 50) {
+    return {
+      success: false,
+      error: 'Maximum document limit (50 documents) reached for this patient record. Please archive or delete older documents before adding new ones.',
+    };
+  }
+
   try {
     const res = sqlite
       .prepare(`

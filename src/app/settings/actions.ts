@@ -22,7 +22,7 @@ export async function getSettings(): Promise<SafeClinicSettings | null> {
 }
 
 export async function saveSettings(formData: FormData): Promise<SafeClinicSettings> {
-  await requireRole(['doctor'], '/settings');
+  const role = await requireRole(['doctor', 'admin_doctor'], '/settings');
   const existing = await getSettings();
 
   const removeLogo = formData.get("removeLogo") === "true";
@@ -72,6 +72,31 @@ export async function saveSettings(formData: FormData): Promise<SafeClinicSettin
     throw new Error("Doctor name is required.");
   }
 
+  // Insider Threat Safeguard: Non-admin staff cannot alter hospital financial credentials (UPI ID, GST), legal clinic identity, or cloud integration tokens
+  if (role !== 'admin_doctor' && existing) {
+    const attemptedUpi = upiId || null;
+    const attemptedGst = gstNumber || null;
+    const attemptedClinic = clinicName || existing.clinicName;
+    const attemptedReg = regNumber || existing.regNumber;
+    const attemptedPhoneId = whatsappPhoneNumberId || null;
+    const attemptedEndpoint = cloudSyncEndpoint || null;
+
+    if (
+      attemptedUpi !== (existing.upiId || null) ||
+      attemptedGst !== (existing.gstNumber || null) ||
+      attemptedClinic !== existing.clinicName ||
+      attemptedReg !== existing.regNumber ||
+      attemptedPhoneId !== (existing.whatsappPhoneNumberId || null) ||
+      attemptedEndpoint !== (existing.cloudSyncEndpoint || null) ||
+      Boolean(whatsappCloudToken) ||
+      Boolean(cloudSyncApiKey)
+    ) {
+      throw new Error(
+        "Unauthorized: Only an administrative doctor (admin_doctor) can modify clinic registration, legal name, financial UPI / GST details, or cloud API credentials."
+      );
+    }
+  }
+
   const data: Record<string, unknown> = {
     doctorName,
     qualifications: qualifications || existing?.qualifications || "MBBS",
@@ -94,6 +119,19 @@ export async function saveSettings(formData: FormData): Promise<SafeClinicSettin
   }
   if (cloudSyncApiKey !== undefined && cloudSyncApiKey !== "") {
     data.cloudSyncApiKey = cloudSyncApiKey;
+  }
+
+  if (role !== 'admin_doctor' && existing) {
+    // Lock back to existing authoritative values to prevent tampering
+    data.clinicName = existing.clinicName;
+    data.regNumber = existing.regNumber;
+    data.upiId = existing.upiId || null;
+    data.gstNumber = existing.gstNumber || null;
+    data.whatsappPhoneNumberId = existing.whatsappPhoneNumberId || null;
+    data.cloudSyncProvider = existing.cloudSyncProvider || "disabled";
+    data.cloudSyncEndpoint = existing.cloudSyncEndpoint || null;
+    delete data.whatsappCloudToken;
+    delete data.cloudSyncApiKey;
   }
 
   if (existing) {
@@ -120,7 +158,7 @@ export async function saveSettings(formData: FormData): Promise<SafeClinicSettin
 }
 
 export async function seedDemoData(): Promise<void> {
-  await requireRole(['doctor'], '/settings');
+  await requireRole(['admin_doctor'], '/settings');
   const clinicData = {
     doctorName: "Dr. Rajesh Sharma",
     qualifications: "MBBS, MD (General Medicine)",
@@ -432,7 +470,7 @@ export async function saveGoogleDriveConfigAction(data: {
   encryptionKey?: string;
   autoBackupInterval?: 'DAILY' | 'TWICE_DAILY' | 'MANUAL';
 }): Promise<{ success: boolean; error?: string }> {
-  const role = await requireRole(['doctor', 'admin_doctor'], '/settings');
+  const role = await requireRole(['admin_doctor'], '/settings');
 
   try {
     const cleanEmail = (data.clientEmail || "").trim();
@@ -503,7 +541,7 @@ export async function testGoogleDriveAction(data: {
   privateKey?: string;
   folderId?: string;
 }): Promise<{ success: boolean; message: string }> {
-  await requireRole(['doctor', 'admin_doctor'], '/settings');
+  await requireRole(['admin_doctor'], '/settings');
 
   let keyToUse = data.privateKey?.trim();
   if (!keyToUse) {
@@ -525,7 +563,7 @@ export async function testGoogleDriveAction(data: {
 }
 
 export async function triggerGoogleDriveBackupNowAction(): Promise<GoogleDriveBackupResult> {
-  const role = await requireRole(['doctor', 'admin_doctor'], '/settings');
+  const role = await requireRole(['admin_doctor'], '/settings');
   const result = await backupDatabaseToGoogleDrive({ actorRole: role.toUpperCase() });
   revalidatePath("/settings");
   return result;

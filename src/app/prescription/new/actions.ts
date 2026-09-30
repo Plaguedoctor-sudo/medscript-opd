@@ -12,7 +12,7 @@ import { patients, prescriptions, clinicSettings } from "@/db/schema";
 import { revalidatePath } from "next/cache";
 import { or, like, eq } from "drizzle-orm";
 import { Medication, Patient } from "@/types";
-import { requireAuth, requireRole, requirePermission, getCurrentUser } from "@/lib/auth";
+import { requireAuth, requireRole, requirePermission, getCurrentUser, isDoctor } from "@/lib/auth";
 import { logAuditEvent } from "@/lib/audit";
 import {
   generatePrescriptionSignature,
@@ -380,7 +380,32 @@ export async function updatePatient(
     abhaAddress?: string | null;
   }
 ) {
-  await requirePermission('patient:edit_demographics', `/patient/${id}`);
+  const role = await requirePermission('patient:edit_demographics', `/patient/${id}`);
+
+  const existing = await db.query.patients.findFirst({
+    where: eq(patients.id, id),
+  });
+  if (!existing) {
+    throw new Error("Patient not found.");
+  }
+
+  // Clinical safety guard: Non-doctor staff (nurse/receptionist) cannot remove or alter existing allergies without doctor authorization
+  if (data.allergies !== undefined && data.allergies !== null) {
+    const cleanNewAllergies = data.allergies.trim();
+    const existingAllergies = (existing.allergies || '').trim();
+    if (existingAllergies && cleanNewAllergies !== existingAllergies && !isDoctor(role)) {
+      throw new Error("Unauthorized: Modifying or removing established patient drug allergies requires doctor authorization.");
+    }
+  }
+
+  // Clinical safety guard: Non-doctor staff cannot alter an already verified blood group
+  if (data.bloodGroup !== undefined && data.bloodGroup !== null) {
+    const cleanNewBlood = data.bloodGroup.trim();
+    const existingBlood = (existing.bloodGroup || '').trim();
+    if (existingBlood && cleanNewBlood !== existingBlood && !isDoctor(role)) {
+      throw new Error("Unauthorized: Altering a verified blood group requires doctor authorization.");
+    }
+  }
 
   const rawName = sanitizeString(data.name, 100);
   const rawAge = parseInt(String(data.age), 10);
@@ -406,6 +431,7 @@ export async function updatePatient(
 
   await logAuditEvent({
     action: 'PATIENT_UPDATED',
+    actorRole: role.toUpperCase(),
     details: `Patient #${id} profile modified: ${rawName}`,
     status: 'SUCCESS',
   });
@@ -420,7 +446,8 @@ export async function updatePatient(
 }
 
 export async function deletePatient(id: number) {
-  const role = await requireRole(['doctor', 'admin_doctor']);
+  const role = await requireRole(['admin_doctor']);
+  const currentUser = await getCurrentUser();
 
   const patient = await db.query.patients.findFirst({
     where: eq(patients.id, id),
