@@ -3,7 +3,7 @@
 import { db, sqlite } from '@/db';
 import { medicalCertificates, patients, clinicSettings } from '@/db/schema';
 import { eq, desc } from 'drizzle-orm';
-import { requirePermission, isDoctor, getCurrentUser } from '@/lib/auth';
+import { requirePermission, isDoctor, getCurrentUser, getSessionSecret } from '@/lib/auth';
 import { logAuditEvent } from '@/lib/audit';
 import { MedicalCertificate, MedicalCertificateType } from '@/types';
 import { revalidatePath } from 'next/cache';
@@ -64,7 +64,7 @@ export async function issueMedicalCertificateAction(params: {
     const issuedAt = Date.now();
     const sealData = `${certificateNo}:${params.patientId}:${params.type}:${doctorRegNo}:${params.diagnosis || ''}:${issuedAt}`;
     const digitalSealHash = crypto
-      .createHmac('sha256', settings?.sessionSecret || 'medscript-cert-salt-2026')
+      .createHmac('sha256', getSessionSecret())
       .update(sealData)
       .digest('hex');
 

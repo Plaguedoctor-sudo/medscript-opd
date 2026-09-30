@@ -230,7 +230,7 @@ export async function loginWithPin(
     secure: await isSecureConnection(),
     sameSite: 'lax',
     path: '/',
-    maxAge: 24 * 60 * 60, // 24 hours
+    maxAge: 12 * 60 * 60, // 12 hours clinical shift window
   });
 
   const destination = targetRedirect && targetRedirect.startsWith('/') && !targetRedirect.startsWith('//')
@@ -473,7 +473,7 @@ export async function updateSecuritySettings(
       secure: await isSecureConnection(),
       sameSite: 'lax',
       path: '/',
-      maxAge: 24 * 60 * 60,
+      maxAge: 12 * 60 * 60,
     });
   }
 
@@ -852,7 +852,7 @@ export async function loginWithCredentials(
     secure: await isSecureConnection(),
     sameSite: 'lax',
     path: '/',
-    maxAge: 24 * 60 * 60, // 24 hours
+    maxAge: 12 * 60 * 60, // 12 hours max shift
   });
 
   await logAuditEvent({
@@ -1210,7 +1210,7 @@ export async function changeOwnPasswordAction(
     secure: await isSecureConnection(),
     sameSite: 'lax',
     path: '/',
-    maxAge: 24 * 60 * 60,
+    maxAge: 12 * 60 * 60,
   });
 
   const clientIp = await getClientIp();

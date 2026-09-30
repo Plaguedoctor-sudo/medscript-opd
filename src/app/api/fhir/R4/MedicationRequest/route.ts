@@ -6,7 +6,40 @@ import { eq, desc } from 'drizzle-orm';
 import { prescriptionToFhirBundle, FhirBundle, FhirMedicationRequest } from '@/lib/fhir/fhir-converter';
 import { logAuditEvent } from '@/lib/audit';
 
+import { getClientIp, checkFhirQueryRateLimit, recordFhirQueryAttempt } from '@/lib/rate-limiter';
+
 export async function GET(request: Request) {
+  const clientIp = await getClientIp();
+  const rateLimitStatus = checkFhirQueryRateLimit(clientIp);
+  if (!rateLimitStatus.allowed) {
+    await logAuditEvent({
+      action: 'SECURITY_ALERT_TRIGGERED',
+      actorRole: 'ANONYMOUS',
+      details: `FHIR MedicationRequest rate limit exceeded from IP ${clientIp}. Access throttled.`,
+      status: 'FAILURE',
+      ipAddress: clientIp,
+    });
+    return NextResponse.json(
+      {
+        resourceType: 'OperationOutcome',
+        issue: [
+          {
+            severity: 'error',
+            code: 'throttled',
+            diagnostics: `Rate limit exceeded: Too many queries. Retry in ${rateLimitStatus.retryAfterSeconds} seconds.`,
+          },
+        ],
+      },
+      {
+        status: 429,
+        headers: {
+          'Retry-After': String(rateLimitStatus.retryAfterSeconds || 60),
+        },
+      }
+    );
+  }
+  recordFhirQueryAttempt(clientIp);
+
   const authed = await isAuthenticated();
   const role = await getCurrentUserRole();
 

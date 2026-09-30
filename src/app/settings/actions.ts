@@ -115,10 +115,10 @@ export async function saveSettings(formData: FormData): Promise<SafeClinicSettin
     data.logoUrl = logoUrl;
   }
   if (whatsappCloudToken !== undefined && whatsappCloudToken !== "") {
-    data.whatsappCloudToken = whatsappCloudToken;
+    data.whatsappCloudToken = encryptPhi(whatsappCloudToken);
   }
   if (cloudSyncApiKey !== undefined && cloudSyncApiKey !== "") {
-    data.cloudSyncApiKey = cloudSyncApiKey;
+    data.cloudSyncApiKey = encryptPhi(cloudSyncApiKey);
   }
 
   if (role !== 'admin_doctor' && existing) {

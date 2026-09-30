@@ -121,3 +121,49 @@ describe('Staff Credential Hardening & Password Rotation Policy', () => {
     sqlite.prepare('DELETE FROM staff_users WHERE id = ?').run(userId);
   });
 });
+
+describe('FHIR R4 Bulk Query Rate Limiting & API Security', () => {
+  const testIp = '10.133.236.88';
+
+  beforeEach(() => {
+    sqlite.prepare('DELETE FROM rate_limits WHERE key = ?').run(`fhir_${testIp}`);
+  });
+
+  afterEach(() => {
+    sqlite.prepare('DELETE FROM rate_limits WHERE key = ?').run(`fhir_${testIp}`);
+  });
+
+  it('allows queries within the 30 req/min threshold', async () => {
+    const { checkFhirQueryRateLimit, recordFhirQueryAttempt } = await import('@/lib/rate-limiter');
+    for (let i = 0; i < 30; i++) {
+      expect(checkFhirQueryRateLimit(testIp).allowed).toBe(true);
+      recordFhirQueryAttempt(testIp);
+    }
+  });
+
+  it('throttles excessive requests beyond the threshold to prevent mass demographic scraping', async () => {
+    const { checkFhirQueryRateLimit, recordFhirQueryAttempt } = await import('@/lib/rate-limiter');
+    for (let i = 0; i < 30; i++) {
+      recordFhirQueryAttempt(testIp);
+    }
+
+    const blocked = checkFhirQueryRateLimit(testIp);
+    expect(blocked.allowed).toBe(false);
+    expect(blocked.retryAfterSeconds).toBeGreaterThan(0);
+  });
+});
+
+describe('Third-Party Token Encryption at Rest', () => {
+  it('encrypts Meta WhatsApp Cloud API token into AES-256-GCM format', async () => {
+    const { encryptPhi, decryptPhi } = await import('@/lib/crypto-storage');
+    const rawToken = 'EAABwb7Qp8e0BAOD...sensitive_meta_token';
+    const encrypted = encryptPhi(rawToken);
+
+    expect(encrypted.startsWith('enc:v1:')).toBe(true);
+    expect(encrypted).not.toContain(rawToken);
+
+    const decrypted = decryptPhi(encrypted);
+    expect(decrypted).toBe(rawToken);
+  });
+});
+

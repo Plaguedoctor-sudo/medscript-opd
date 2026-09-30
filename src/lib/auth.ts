@@ -4,7 +4,7 @@
  * Unauthorized reproduction, reverse engineering, or redistribution is strictly prohibited.
  * See LICENSE at project root for full terms.
  */
-import { cookies } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import { db, sqlite } from '@/db';
 import { clinicSettings } from '@/db/schema';
 import { eq } from 'drizzle-orm';
@@ -14,7 +14,7 @@ import crypto from 'crypto';
 import { SafeStaffUser } from '@/types';
 
 export const SESSION_COOKIE_NAME = 'medscript_session';
-const SESSION_DURATION_MS = 24 * 60 * 60 * 1000; // 24 hours
+const SESSION_DURATION_MS = 12 * 60 * 60 * 1000; // 12 hours max shift lifetime
 
 export type UserRole = 'admin_doctor' | 'doctor' | 'nurse' | 'receptionist' | 'lab_technician';
 
@@ -440,30 +440,55 @@ export async function getCurrentUser(): Promise<SafeStaffUser | null> {
   return null;
 }
 
-export async function getCurrentUserRole(): Promise<UserRole> {
-  const { securityEnabled } = await getSecurityConfig();
-  if (!securityEnabled) return 'admin_doctor'; // If security disabled, sovereign local doctor has full authority
+async function isLocalHostRequest(): Promise<boolean> {
+  try {
+    const headerList = await headers();
+    const host = headerList.get('host') || '';
+    if (host.startsWith('localhost') || host.startsWith('127.0.0.1') || host.startsWith('[::1]')) {
+      return true;
+    }
+    const realIp = headerList.get('x-real-ip');
+    if (realIp && (realIp === '127.0.0.1' || realIp === '::1' || realIp === '::ffff:127.0.0.1')) {
+      return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
 
+export async function getCurrentUserRole(): Promise<UserRole> {
   const cookieStore = await cookies();
   const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
   const parsed = parseSessionToken(token);
-  return parsed.valid ? parsed.role : 'receptionist';
+  if (parsed.valid) {
+    return parsed.role;
+  }
+
+  const { securityEnabled } = await getSecurityConfig();
+  // Defense-in-depth: Defaulting to admin_doctor when security is disabled is ONLY permitted on the host loopback PC.
+  // Anonymous network traffic over LAN receives guest/receptionist role with zero administrative access.
+  if (!securityEnabled && (await isLocalHostRequest())) {
+    return 'admin_doctor';
+  }
+
+  return 'receptionist';
 }
 
 export async function requireAuth(redirectPath = '/'): Promise<void> {
-  const { securityEnabled } = await getSecurityConfig();
-
-  if (!securityEnabled) {
-    return; // PIN protection is turned off
-  }
-
   const cookieStore = await cookies();
   const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
-
-  if (!verifySessionToken(token)) {
-    const destination = redirectPath ? `/login?redirect=${encodeURIComponent(redirectPath)}` : '/login';
-    redirect(destination);
+  if (verifySessionToken(token)) {
+    return;
   }
+
+  const { securityEnabled } = await getSecurityConfig();
+  if (!securityEnabled && (await isLocalHostRequest())) {
+    return; // Local desktop session only
+  }
+
+  const destination = redirectPath ? `/login?redirect=${encodeURIComponent(redirectPath)}` : '/login';
+  redirect(destination);
 }
 
 /**
@@ -493,12 +518,18 @@ export async function requireRole(allowedRoles: UserRole[] = ['doctor', 'admin_d
 }
 
 export async function isAuthenticated(): Promise<boolean> {
-  const { securityEnabled } = await getSecurityConfig();
-  if (!securityEnabled) return true;
-
   const cookieStore = await cookies();
   const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
-  return verifySessionToken(token);
+  if (verifySessionToken(token)) return true;
+
+  const { securityEnabled } = await getSecurityConfig();
+  // Convenience bypass is strictly isolated to the physical desktop loopback session.
+  // Remote LAN traffic (phones, tablets, adjacent terminals) must ALWAYS authenticate.
+  if (!securityEnabled && (await isLocalHostRequest())) {
+    return true;
+  }
+
+  return false;
 }
 
 // Role Authority Helpers

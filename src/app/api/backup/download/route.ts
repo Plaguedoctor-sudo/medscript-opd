@@ -1,11 +1,13 @@
 import { NextResponse } from 'next/server';
-import { isAuthenticated, getCurrentUserRole, getSessionSecret } from '@/lib/auth';
+import { cookies } from 'next/headers';
+import { isAuthenticated, getCurrentUserRole, getSessionSecret, SESSION_COOKIE_NAME, parseSessionToken } from '@/lib/auth';
 import { sqlite } from '@/db';
 import { logAuditEvent } from '@/lib/audit';
 import { generateDecoyDatabaseBuffer } from '@/lib/decoy-engine';
 import { encryptBufferAesGcm } from '@/lib/crypto-storage';
 import fs from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 
 export async function GET(request?: Request) {
   const authed = await isAuthenticated();
@@ -70,14 +72,20 @@ export async function GET(request?: Request) {
     });
   }
 
-  if (!authed || role !== 'admin_doctor') {
+  // Strict Zero-Trust Rule: An explicit verified session token belonging to admin_doctor is MANDATORY.
+  // Anonymous requests or downgraded permissions are completely prohibited from downloading raw database archives.
+  const cookieStore = await cookies();
+  const sessionCookie = cookieStore.get(SESSION_COOKIE_NAME)?.value;
+  const parsed = parseSessionToken(sessionCookie);
+
+  if (!parsed.valid || parsed.role !== 'admin_doctor') {
     await logAuditEvent({
-      action: 'BACKUP_SNAPSHOT_DOWNLOADED',
-      actorRole: role ? role.toUpperCase() : 'RECEPTIONIST',
-      details: 'Unauthorized raw database download attempt blocked (Admin Doctor / CMO role required)',
+      action: 'SECURITY_ALERT_TRIGGERED',
+      actorRole: role ? role.toUpperCase() : 'ANONYMOUS',
+      details: 'Unauthorized raw database download attempt blocked: valid Admin Doctor cryptographic session required',
       status: 'FAILURE',
     });
-    return new NextResponse('Forbidden: Only the Chief Medical Officer (Admin Doctor) has authority to export raw clinical database archives.', {
+    return new NextResponse('Forbidden: Only the Chief Medical Officer (Admin Doctor) with an active verified session has authority to export raw clinical database archives.', {
       status: 403,
     });
   }
@@ -99,8 +107,9 @@ export async function GET(request?: Request) {
 
     const fileBuffer = fs.readFileSync(tempBackupPath);
 
-    // Clean up temporary snapshot file
+    // Clean up temporary snapshot file with NIST SP 800-88 cryptographic shred
     try {
+      fs.writeFileSync(tempBackupPath, crypto.randomBytes(fileBuffer.length));
       fs.unlinkSync(tempBackupPath);
     } catch {
       // Ignore cleanup error

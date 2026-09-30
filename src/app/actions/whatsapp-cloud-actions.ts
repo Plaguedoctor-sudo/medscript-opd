@@ -4,6 +4,7 @@ import { db } from '@/db';
 import { clinicSettings } from '@/db/schema';
 import { requirePermission } from '@/lib/auth';
 import { logAuditEvent } from '@/lib/audit';
+import { decryptPhi } from '@/lib/crypto-storage';
 
 export interface WhatsAppCloudDispatchResult {
   success: boolean;
@@ -40,10 +41,11 @@ export async function dispatchWhatsAppCloudMessageAction(params: {
   try {
     const url = `https://graph.facebook.com/v18.0/${settings.whatsappPhoneNumberId}/messages`;
 
+    const decryptedToken = decryptPhi(settings.whatsappCloudToken);
     const res = await fetch(url, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${settings.whatsappCloudToken}`,
+        'Authorization': `Bearer ${decryptedToken}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
