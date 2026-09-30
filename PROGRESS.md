@@ -9,8 +9,8 @@
 
 ## Current State
 
-**Version:** `1.1.2` | **Branch:** `main`
-**Build:** ✅ 0 errors | **Tests:** ✅ 27/27 passing across 5 test suites
+**Version:** `1.1.3` | **Branch:** `main`
+**Build:** ✅ 0 errors | **Tests:** ✅ 41/41 passing across 6 test suites
 
 ```
 Next.js 16.3.4 (Turbopack) · SQLite (Drizzle ORM) · Military-Grade Zero-Trust · Offline-First PWA
@@ -43,6 +43,7 @@ Next.js 16.3.4 (Turbopack) · SQLite (Drizzle ORM) · Military-Grade Zero-Trust 
 - [x] **Inpatient Clinical Services & Procedures** — oxygen therapy, suctioning, drainage care with nurse and doctor attribution (`IpdNursingServicesSection`)
 - [x] **Discharge workflow** — discharge summary, advice, referral (`IpdDischargeModal`)
 - [x] **IPD deposits** — advance, top-up, refund receipts
+- [x] **IPD billing integration & discharge settlement** — auto-generate final invoice from bed tariffs, procedures, nursing care, doctor visits & advance deposits (`IpdBillingSection`, `billing-actions.ts`)
 - [x] **Clinical consents** — digital consent with tamper-evident seal
 
 ### Labs
@@ -155,7 +156,7 @@ Next.js 16.3.4 (Turbopack) · SQLite (Drizzle ORM) · Military-Grade Zero-Trust 
 - [ ] **Prescription auto-save / draft** — recover unsaved consultations
 
 ### IPD
-- [ ] **IPD billing integration** — auto-generate invoice from IPD stay (bed charges, procedures)
+- [x] **IPD billing integration** — auto-generate invoice from IPD stay (bed charges, procedures, rounds, nursing care & advance deposits)
 - [ ] **Bed/ward management UI** — visual bed occupancy map
 - [ ] **Diet chart / nutritionist notes** — IPD dietary orders
 - [ ] **Physiotherapy notes** — IPD rehab records
@@ -209,6 +210,8 @@ Next.js 16.3.4 (Turbopack) · SQLite (Drizzle ORM) · Military-Grade Zero-Trust 
 ## 🗓 Session Log
 
 | Date | What was done |
+|---|---|
+| 2026-09-30 | **IPD Billing Integration & Inpatient Settlement** — (1) Core calculation engine (`src/lib/ipd-billing.ts`) for length of stay, ward tariffs, daily nursing care, doctor round charges, procedures, and lab fees; (2) Inpatient advance deposits reconciliation (ADVANCE + TOP_UP - REFUND) with net payable/refund tracking; (3) Server actions (`ipd/billing-actions.ts`) for breakdown calculation and official IPD final invoice generation; (4) Interactive case sheet UI (`IpdBillingSection.tsx`) with real-time financial ledger, deposit receipts badges, and final bill generation modal; (5) Two-way `/billing` linking with `admissionId` pre-population and IPD admission badges on printable invoices (`InvoiceView.tsx`); (6) Unit test suite (`ipd-billing.test.ts`) with 14 tests covering tariffs, stay length, and edge cases. Build ✅ Tests ✅ 41/41 passing across 6 test suites. |
 |---|---|
 | 2026-09-30 | **Enterprise Infrastructure & RBAC Hardening** — (1) Localhost HTTP-to-HTTPS upgrade with dual-protocol TCP multiplexer in `server.js`; (2) 2-tier Clinic PKI (`MedScript-Clinic-Root-CA.crt` & server cert with SAN for localhost, mDNS, and LAN IPs); (3) Clinic mDNS hostname broadcast (`nitin-ThinkCentre-M920q.local`); (4) Automated daily & 6-hourly SQLite backup service (`medscript-backup.timer`); (5) PWA Service Worker verified over HTTPS; (6) Complete Page-Level RBAC migration across Patient, Prescription, IPD, Labs, Billing, and Appointments. Build ✅ Tests ✅ 27/27 passing across 5 test suites. |
 |---|---|

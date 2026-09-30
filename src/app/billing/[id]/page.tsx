@@ -96,6 +96,7 @@ export default async function InvoicePage({
           patient={invoiceData.patient}
           settings={invoiceData.settings}
           prescriptionDetails={invoiceData.prescriptionDetails}
+          admissionDetails={invoiceData.admissionDetails}
         />
       </main>
     </div>

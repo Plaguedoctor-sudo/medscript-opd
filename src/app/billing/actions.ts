@@ -1,7 +1,7 @@
 'use server';
 
 import { db } from '@/db';
-import { invoices, patients, clinicSettings, prescriptions } from '@/db/schema';
+import { invoices, patients, clinicSettings, prescriptions, ipdAdmissions } from '@/db/schema';
 import { desc, eq, like, or, and, gte, lte, sql } from 'drizzle-orm';
 import { InvoiceItem, Invoice, InvoiceWithPatient, Patient, SafeClinicSettings } from '@/types';
 import { requirePermission, getCurrentUserRole, isDoctor, isReceptionist } from '@/lib/auth';
@@ -21,7 +21,7 @@ export interface BillingSummary {
 /**
  * Generate sequential invoice number: INV-YYYYMMDD-0001
  */
-async function generateInvoiceNo(): Promise<string> {
+export async function generateInvoiceNo(): Promise<string> {
   const now = new Date();
   const yyyy = now.getFullYear();
   const mm = String(now.getMonth() + 1).padStart(2, '0');
@@ -156,6 +156,7 @@ export async function getBillingSummary(params?: {
 export async function createInvoiceAction(data: {
   patientId: number;
   prescriptionId?: number | null;
+  admissionId?: number | null;
   items: InvoiceItem[];
   discount?: number;
   tax?: number;
@@ -218,6 +219,7 @@ export async function createInvoiceAction(data: {
         invoiceNo,
         patientId: data.patientId,
         prescriptionId: data.prescriptionId || null,
+        admissionId: data.admissionId || null,
         items: JSON.stringify(sanitizedItems),
         subtotal,
         discount,
@@ -256,6 +258,17 @@ export async function getInvoiceDetails(id: number): Promise<{
   patient: Patient;
   settings: SafeClinicSettings | null;
   prescriptionDetails?: { diagnosis: string | null; createdAt: Date | null } | null;
+  admissionDetails?: {
+    id: number;
+    admissionNo: string;
+    ward: string;
+    bedNo: string;
+    roomType?: string | null;
+    attendingDoctor?: string | null;
+    admittingDiagnosis?: string | null;
+    admissionDate: Date;
+    dischargeDate?: Date | null;
+  } | null;
 } | null> {
   await requirePermission('billing:view', '/billing');
 
@@ -309,12 +322,33 @@ export async function getInvoiceDetails(id: number): Promise<{
     }
   }
 
+  let admissionDetails = null;
+  if (inv.admissionId) {
+    const adm = await db.query.ipdAdmissions.findFirst({
+      where: eq(ipdAdmissions.id, inv.admissionId),
+    });
+    if (adm) {
+      admissionDetails = {
+        id: adm.id,
+        admissionNo: adm.admissionNo,
+        ward: adm.ward,
+        bedNo: adm.bedNo,
+        roomType: adm.roomType,
+        attendingDoctor: adm.attendingDoctor,
+        admittingDiagnosis: adm.admittingDiagnosis,
+        admissionDate: adm.admissionDate,
+        dischargeDate: adm.dischargeDate,
+      };
+    }
+  }
+
   return {
     invoice: {
       id: inv.id,
       invoiceNo: inv.invoiceNo,
       patientId: inv.patientId,
       prescriptionId: inv.prescriptionId,
+      admissionId: inv.admissionId,
       items: inv.items,
       subtotal: inv.subtotal,
       discount: inv.discount || 0,
@@ -339,6 +373,7 @@ export async function getInvoiceDetails(id: number): Promise<{
     },
     settings,
     prescriptionDetails,
+    admissionDetails,
   };
 }
 

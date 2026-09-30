@@ -9,6 +9,10 @@ import { Button } from "@/components/ui/button";
 import { UserProfileMenu } from "@/components/UserProfileMenu";
 import { PrivacyShield } from "@/components/PrivacyShield";
 import { SecurityAlertBell } from "@/components/SecurityAlertBell";
+import { db } from "@/db";
+import { invoices } from "@/db/schema";
+import { eq, desc } from "drizzle-orm";
+import { Invoice } from "@/types";
 
 export const dynamic = "force-dynamic";
 
@@ -22,13 +26,16 @@ export default async function IpdAdmissionPage({
   const admissionId = parseInt(id, 10);
   if (isNaN(admissionId)) notFound();
 
-  const [{ securityEnabled }, currentUser, data, existingDischarge, nursingNotes] = await Promise.all([
+  const [{ securityEnabled }, currentUser, data, existingDischarge, nursingNotes, existingInvoices] = await Promise.all([
     getSecurityConfig(),
     getCurrentUser(),
     getIpdAdmissionById(admissionId),
     getIpdDischargeRecord(admissionId),
     getIpdNursingNotes(admissionId),
+    db.select().from(invoices).where(eq(invoices.admissionId, admissionId)).orderBy(desc(invoices.id)).limit(1),
   ]);
+
+  const existingInvoice = (existingInvoices.length > 0 ? existingInvoices[0] : null) as Invoice | null;
 
   if (!data.admission) notFound();
 
@@ -105,6 +112,7 @@ export default async function IpdAdmissionPage({
           nursingNotes={nursingNotes}
           handovers={data.handoversList || []}
           clinicalServices={data.clinicalServicesList || []}
+          existingInvoice={existingInvoice}
         />
       </main>
     </div>

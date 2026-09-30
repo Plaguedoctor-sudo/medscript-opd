@@ -19,7 +19,7 @@ export const revalidate = 0;
 export default async function BillingPage({
   searchParams,
 }: {
-  searchParams: Promise<{ patientId?: string; prescriptionId?: string; q?: string; status?: string }>;
+  searchParams: Promise<{ patientId?: string; prescriptionId?: string; admissionId?: string; q?: string; status?: string }>;
 }) {
   await requirePermission('billing:view', '/billing');
   const [{ securityEnabled }, role, currentUser, resolvedParams, securityAlertsData] = await Promise.all([
@@ -32,6 +32,7 @@ export default async function BillingPage({
 
   const patientIdNum = resolvedParams?.patientId ? parseInt(resolvedParams.patientId, 10) : null;
   const prescriptionIdNum = resolvedParams?.prescriptionId ? parseInt(resolvedParams.prescriptionId, 10) : null;
+  const admissionIdNum = resolvedParams?.admissionId ? parseInt(resolvedParams.admissionId, 10) : null;
 
   let initialPatientData = null;
   if (patientIdNum) {
@@ -40,6 +41,21 @@ export default async function BillingPage({
     });
     if (p) {
       initialPatientData = p;
+    }
+  }
+
+  let initialIpdBreakdown = null;
+  if (admissionIdNum) {
+    const { getIpdBillingSummaryAction } = await import('@/app/ipd/billing-actions');
+    const ipdRes = await getIpdBillingSummaryAction(admissionIdNum);
+    if (ipdRes.success && ipdRes.breakdown) {
+      initialIpdBreakdown = ipdRes.breakdown;
+      if (!initialPatientData && ipdRes.breakdown.patientId) {
+        const p = await db.query.patients.findFirst({
+          where: eq(patients.id, ipdRes.breakdown.patientId),
+        });
+        if (p) initialPatientData = p;
+      }
     }
   }
 
@@ -129,6 +145,8 @@ export default async function BillingPage({
           userRole={role}
           initialPatientId={patientIdNum}
           initialPrescriptionId={prescriptionIdNum}
+          initialAdmissionId={admissionIdNum}
+          initialIpdBreakdown={initialIpdBreakdown}
           initialPatientData={initialPatientData}
         />
       </main>

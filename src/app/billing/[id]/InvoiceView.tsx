@@ -19,6 +19,7 @@ import {
   Mail,
   ShieldCheck,
   QrCode,
+  Bed,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/toast';
@@ -31,9 +32,20 @@ interface InvoiceViewProps {
   patient: Patient;
   settings: SafeClinicSettings | ClinicSettings | null;
   prescriptionDetails?: { diagnosis: string | null; createdAt: Date | null } | null;
+  admissionDetails?: {
+    id: number;
+    admissionNo: string;
+    ward: string;
+    bedNo: string;
+    roomType?: string | null;
+    attendingDoctor?: string | null;
+    admittingDiagnosis?: string | null;
+    admissionDate: Date;
+    dischargeDate?: Date | null;
+  } | null;
 }
 
-export function InvoiceView({ invoice, patient, settings, prescriptionDetails }: InvoiceViewProps) {
+export function InvoiceView({ invoice, patient, settings, prescriptionDetails, admissionDetails }: InvoiceViewProps) {
   const router = useRouter();
   const [copied, setCopied] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -119,6 +131,14 @@ Thank you for visiting ${settings?.clinicName || 'our clinic'}.`;
             </Button>
           )}
 
+          {invoice.admissionId && (
+            <Link href={`/ipd/${invoice.admissionId}`}>
+              <Button variant="outline" size="sm" className="gap-1.5 text-xs text-purple-700 border-purple-200 hover:bg-purple-50">
+                <Bed className="w-4 h-4 text-purple-600" /> View IPD Case Sheet
+              </Button>
+            </Link>
+          )}
+
           <Button variant="outline" size="sm" onClick={handleCopySummary} className="gap-1.5 text-xs text-slate-700">
             {copied ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
             {copied ? 'Copied' : 'Copy Text'}
@@ -164,8 +184,12 @@ Thank you for visiting ${settings?.clinicName || 'our clinic'}.`;
             </div>
 
             <div className="text-right">
-              <div className="inline-block px-3 py-1 bg-slate-900 text-white text-[11px] font-bold uppercase tracking-wider rounded">
-                OPD Cash Receipt
+              <div
+                className={`inline-block px-3 py-1 ${
+                  admissionDetails || invoice.admissionId ? 'bg-purple-900' : 'bg-slate-900'
+                } text-white text-[11px] font-bold uppercase tracking-wider rounded`}
+              >
+                {admissionDetails || invoice.admissionId ? 'Inpatient (IPD) Final Bill' : 'OPD Cash Receipt'}
               </div>
               <div className="text-xs font-mono font-bold text-slate-900 mt-2">
                 {invoice.invoiceNo}
@@ -199,7 +223,36 @@ Thank you for visiting ${settings?.clinicName || 'our clinic'}.`;
             <span className="font-mono text-slate-800">{patient.phone || 'N/A'}</span>
           </div>
 
-          {prescriptionDetails?.diagnosis && (
+          {admissionDetails && (
+            <div className="col-span-2 sm:col-span-4 border-t border-purple-200/80 pt-2.5 mt-1 bg-purple-50/70 p-3 rounded-lg text-purple-950 grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <div>
+                <span className="text-purple-600 block text-[10px] uppercase font-bold tracking-wider">Admission No</span>
+                <span className="font-mono font-bold text-purple-900">{admissionDetails.admissionNo}</span>
+              </div>
+              <div>
+                <span className="text-purple-600 block text-[10px] uppercase font-bold tracking-wider">Ward & Bed</span>
+                <span className="font-bold text-purple-900">{admissionDetails.ward} ({admissionDetails.bedNo})</span>
+              </div>
+              <div>
+                <span className="text-purple-600 block text-[10px] uppercase font-bold tracking-wider">Admission Date</span>
+                <span className="font-semibold text-slate-800">{formatDate(admissionDetails.admissionDate)}</span>
+              </div>
+              <div>
+                <span className="text-purple-600 block text-[10px] uppercase font-bold tracking-wider">Discharge Date</span>
+                <span className="font-semibold text-slate-800">
+                  {admissionDetails.dischargeDate ? formatDate(admissionDetails.dischargeDate) : 'Currently Admitted'}
+                </span>
+              </div>
+              {admissionDetails.admittingDiagnosis && (
+                <div className="col-span-2 sm:col-span-4 mt-0.5">
+                  <span className="text-purple-600 text-[10px] uppercase font-bold tracking-wider">Admitting Diagnosis: </span>
+                  <span className="font-semibold text-slate-900">{admissionDetails.admittingDiagnosis}</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {prescriptionDetails?.diagnosis && !admissionDetails && (
             <div className="col-span-2 sm:col-span-4 border-t border-slate-200/80 pt-2 mt-1 flex items-center gap-2">
               <span className="text-slate-500 text-[10px] uppercase font-bold tracking-wider">Clinical Diagnosis:</span>
               <span className="font-semibold text-slate-800">{prescriptionDetails.diagnosis}</span>

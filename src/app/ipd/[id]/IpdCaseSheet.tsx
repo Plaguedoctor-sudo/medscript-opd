@@ -59,7 +59,8 @@ import { IpdDischargeModal } from "@/components/ipd/IpdDischargeModal";
 import { IpdNursingNotesSection } from "@/components/ipd/IpdNursingNotesSection";
 import { IpdNursingServicesSection } from "@/components/ipd/IpdNursingServicesSection";
 import { IpdHandoverSection } from "@/components/ipd/IpdHandoverSection";
-import { IpdDischarge, IpdNursingNote, IpdHandover, IpdClinicalService } from "@/types";
+import { IpdBillingSection } from "@/components/ipd/IpdBillingSection";
+import { IpdDischarge, IpdNursingNote, IpdHandover, IpdClinicalService, Invoice } from "@/types";
 
 interface IpdCaseSheetProps {
   admission: IpdAdmissionWithPatient;
@@ -76,6 +77,7 @@ interface IpdCaseSheetProps {
   currentStaffName?: string;
   existingDischarge?: IpdDischarge | null;
   nursingNotes?: IpdNursingNote[];
+  existingInvoice?: Invoice | null;
 }
 
 export function IpdCaseSheet({
@@ -93,6 +95,7 @@ export function IpdCaseSheet({
   currentStaffName,
   existingDischarge,
   nursingNotes = [],
+  existingInvoice,
 }: IpdCaseSheetProps) {
   const router = useRouter();
 
@@ -534,11 +537,19 @@ export function IpdCaseSheet({
 
           {/* 1-Click Bill IPD Stay — doctors + receptionist */}
           {canViewBilling && (
-            <Link href={`/billing?patientId=${admission.patientId}`}>
-              <Button variant="outline" size="sm" className="gap-1.5 border-blue-200 text-blue-700 hover:bg-blue-50">
-                <Receipt className="w-4 h-4 text-blue-600" /> Bill Inpatient Stay
-              </Button>
-            </Link>
+            existingInvoice ? (
+              <Link href={`/billing/${existingInvoice.id}`}>
+                <Button variant="outline" size="sm" className="gap-1.5 border-emerald-300 text-emerald-700 hover:bg-emerald-50 font-semibold">
+                  <Receipt className="w-4 h-4 text-emerald-600" /> View Bill ({existingInvoice.invoiceNo})
+                </Button>
+              </Link>
+            ) : (
+              <Link href={`/billing?patientId=${admission.patientId}&admissionId=${admission.id}`}>
+                <Button variant="outline" size="sm" className="gap-1.5 border-blue-200 text-blue-700 hover:bg-blue-50 font-medium">
+                  <Receipt className="w-4 h-4 text-blue-600" /> Bill Inpatient Stay
+                </Button>
+              </Link>
+            )
           )}
 
           {/* Print Button */}
@@ -920,6 +931,18 @@ export function IpdCaseSheet({
           patientId={admission.patient.id}
           initialDeposits={deposits}
           userRole={userRole}
+        />
+
+        {/* SECTION 9: Inpatient Billing, Tariffs & Final Settlement */}
+        <IpdBillingSection
+          admission={admission}
+          rounds={rounds}
+          clinicalServices={clinicalServices}
+          labReportsList={labReportsList}
+          deposits={deposits}
+          userRole={userRole}
+          settings={settings}
+          existingInvoice={existingInvoice}
         />
 
         {/* SECTION 9: Shift-to-Shift Nursing Handover Notes */}

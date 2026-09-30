@@ -164,6 +164,7 @@ export const invoices = sqliteTable("invoices", {
     .notNull()
     .references(() => patients.id),
   prescriptionId: integer("prescription_id"),
+  admissionId: integer("admission_id").references(() => ipdAdmissions.id),
   items: text("items").notNull(), // JSON string: [{ id, description, quantity, unitPrice, total, category }]
   subtotal: real("subtotal").notNull().default(0),
   discount: real("discount").default(0),
@@ -181,6 +182,10 @@ export const invoicesRelations = relations(invoices, ({ one }) => ({
   patient: one(patients, {
     fields: [invoices.patientId],
     references: [patients.id],
+  }),
+  admission: one(ipdAdmissions, {
+    fields: [invoices.admissionId],
+    references: [ipdAdmissions.id],
   }),
 }));
 
@@ -232,6 +237,7 @@ export const ipdAdmissionsRelations = relations(ipdAdmissions, ({ one, many }) =
   fluidBalance: many(ipdFluidBalance),
   handovers: many(ipdHandovers),
   clinicalServices: many(ipdClinicalServices),
+  invoices: many(invoices),
 }));
 
 export const ipdRounds = sqliteTable("ipd_rounds", {

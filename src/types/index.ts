@@ -119,6 +119,7 @@ export interface Invoice {
   invoiceNo: string;
   patientId: number;
   prescriptionId?: number | null;
+  admissionId?: number | null;
   items: string; // JSON string of InvoiceItem[]
   subtotal: number;
   discount: number;
@@ -134,6 +135,34 @@ export interface Invoice {
 
 export interface InvoiceWithPatient extends Invoice {
   patient: Patient;
+}
+
+export interface IpdBillingBreakdown {
+  admissionId: number;
+  patientId: number;
+  admissionNo: string;
+  ward: string;
+  roomType: string;
+  bedNo: string;
+  admissionDate: Date;
+  dischargeDate: Date | null;
+  lengthOfStayDays: number;
+  bedTariffPerDay: number;
+  bedChargesTotal: number;
+  nursingCarePerDay: number;
+  nursingChargesTotal: number;
+  doctorRoundRate: number;
+  doctorRoundsCount: number;
+  doctorRoundsTotal: number;
+  clinicalServicesTotal: number;
+  labTestsTotal: number;
+  grossTotal: number;
+  totalDepositsPaid: number;
+  netPayable: number;
+  refundDue: number;
+  suggestedItems: InvoiceItem[];
+  deposits: IpdDeposit[];
+  existingInvoice?: Invoice | null;
 }
 
 export type IpdAdmissionStatus = 'ADMITTED' | 'DISCHARGED' | 'TRANSFERRED';

@@ -623,6 +623,12 @@ try {
 } catch {
   // Column already exists
 }
+try {
+  sqlite.exec('ALTER TABLE invoices ADD COLUMN admission_id INTEGER REFERENCES ipd_admissions(id);');
+  sqlite.exec('CREATE INDEX IF NOT EXISTS idx_invoices_admission ON invoices(admission_id);');
+} catch {
+  // Column already exists
+}
 
 // Enforce POSIX 0600 file permissions on database at rest
 try {

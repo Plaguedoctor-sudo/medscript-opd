@@ -19,6 +19,7 @@ import {
   Plus,
   X,
   Sparkles,
+  Bed,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,7 +27,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from '@/components/ui/toast';
 import { BillingSummary, createInvoiceAction, updateInvoiceStatusAction, deleteInvoiceAction, searchPatientsForBilling } from './actions';
-import { InvoiceItem, Patient, InvoiceItemCategory } from '@/types';
+import { InvoiceItem, Patient, InvoiceItemCategory, IpdBillingBreakdown } from '@/types';
 import { formatDate } from '@/lib/utils';
 
 let nextItemIdCounter = 0;
@@ -52,6 +53,8 @@ interface BillingDashboardProps {
   userRole: string;
   initialPatientId?: number | null;
   initialPrescriptionId?: number | null;
+  initialAdmissionId?: number | null;
+  initialIpdBreakdown?: IpdBillingBreakdown | null;
   initialPatientData?: Patient | null;
 }
 
@@ -60,6 +63,8 @@ export function BillingDashboard({
   userRole,
   initialPatientId,
   initialPrescriptionId,
+  initialAdmissionId,
+  initialIpdBreakdown,
   initialPatientData,
 }: BillingDashboardProps) {
   const router = useRouter();
@@ -70,7 +75,7 @@ export function BillingDashboard({
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'PAID' | 'PENDING' | 'REFUNDED'>('ALL');
 
   // New Invoice Modal state
-  const [isCreateOpen, setIsCreateOpen] = useState(Boolean(initialPatientId));
+  const [isCreateOpen, setIsCreateOpen] = useState(Boolean(initialPatientId || initialAdmissionId));
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(initialPatientData || null);
   const [patientSearchTerm, setPatientSearchTerm] = useState(
     initialPatientData ? `${initialPatientData.name} (${initialPatientData.regNo || ''})` : ''
@@ -79,21 +84,34 @@ export function BillingDashboard({
   const [isSearchingPatient, setIsSearchingPatient] = useState(false);
 
   const [prescriptionId, setPrescriptionId] = useState<number | null>(initialPrescriptionId || null);
-  const [items, setItems] = useState<InvoiceItem[]>([
-    {
-      id: '1',
-      description: 'OPD Consultation Fee',
-      category: 'Consultation',
-      quantity: 1,
-      unitPrice: 300,
-      total: 300,
-    },
-  ]);
+  const [admissionId, setAdmissionId] = useState<number | null>(initialAdmissionId || null);
+  const [items, setItems] = useState<InvoiceItem[]>(() => {
+    if (initialIpdBreakdown?.suggestedItems && initialIpdBreakdown.suggestedItems.length > 0) {
+      return initialIpdBreakdown.suggestedItems;
+    }
+    return [
+      {
+        id: '1',
+        description: 'OPD Consultation Fee',
+        category: 'Consultation',
+        quantity: 1,
+        unitPrice: 300,
+        total: 300,
+      },
+    ];
+  });
   const [discount, setDiscount] = useState<number>(0);
   const [tax, setTax] = useState<number>(0);
   const [paymentMethod, setPaymentMethod] = useState<'Cash' | 'UPI' | 'Card' | 'Due'>('Cash');
-  const [paymentStatus, setPaymentStatus] = useState<'PAID' | 'PENDING'>('PAID');
-  const [notes, setNotes] = useState('');
+  const [paymentStatus, setPaymentStatus] = useState<'PAID' | 'PENDING'>(
+    initialIpdBreakdown && initialIpdBreakdown.netPayable === 0 ? 'PAID' : 'PAID'
+  );
+  const [notes, setNotes] = useState<string>(() => {
+    if (initialIpdBreakdown) {
+      return `IPD Final Inpatient Bill — Admission #${initialIpdBreakdown.admissionNo} (${initialIpdBreakdown.ward}, Bed ${initialIpdBreakdown.bedNo}). Length of stay: ${initialIpdBreakdown.lengthOfStayDays} day(s).`;
+    }
+    return '';
+  });
 
   // Patient search handler
   const handleSearchPatient = async (term: string) => {
@@ -184,6 +202,7 @@ export function BillingDashboard({
       const res = await createInvoiceAction({
         patientId: selectedPatient.id,
         prescriptionId: prescriptionId || null,
+        admissionId: admissionId || null,
         items,
         discount: Number(discount) || 0,
         tax: taxNum,
@@ -525,8 +544,14 @@ export function BillingDashboard({
                   <Receipt className="w-5 h-5" />
                 </div>
                 <div>
-                  <h2 className="text-base font-bold">Generate OPD Bill / Receipt</h2>
-                  <p className="text-xs text-slate-400">Itemized billing for consultation, procedures, & medications</p>
+                  <h2 className="text-base font-bold">
+                    {initialIpdBreakdown ? 'Generate Inpatient (IPD) Final Bill' : 'Generate OPD Bill / Receipt'}
+                  </h2>
+                  <p className="text-xs text-slate-400">
+                    {initialIpdBreakdown
+                      ? `Final settlement for Admission #${initialIpdBreakdown.admissionNo} (${initialIpdBreakdown.ward})`
+                      : 'Itemized billing for consultation, procedures, & medications'}
+                  </p>
                 </div>
               </div>
               <button
@@ -539,6 +564,22 @@ export function BillingDashboard({
 
             {/* Modal Body */}
             <div className="p-6 overflow-y-auto space-y-5">
+              {initialIpdBreakdown && (
+                <div className="bg-purple-50 border border-purple-200 rounded-xl p-3 text-xs text-purple-950 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <Bed className="w-4 h-4 text-purple-700 shrink-0" />
+                    <span>
+                      <strong>IPD Stay Reconciled:</strong> {initialIpdBreakdown.lengthOfStayDays} day(s) in {initialIpdBreakdown.ward} (Bed {initialIpdBreakdown.bedNo})
+                    </span>
+                  </div>
+                  {initialIpdBreakdown.totalDepositsPaid > 0 && (
+                    <span className="bg-purple-200 text-purple-900 font-bold px-2.5 py-0.5 rounded text-[11px]">
+                      Advance Paid: ₹{initialIpdBreakdown.totalDepositsPaid.toLocaleString()}
+                    </span>
+                  )}
+                </div>
+              )}
+
               {/* Patient Selection Card */}
               <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
                 <label className="text-xs font-bold text-slate-700 block mb-1.5 flex items-center gap-1.5">
