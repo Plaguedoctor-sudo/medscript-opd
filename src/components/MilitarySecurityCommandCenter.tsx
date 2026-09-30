@@ -25,10 +25,11 @@ import {
   Terminal,
   Activity,
 } from 'lucide-react';
-import { DefconThreatStatus, QuarantinedIpRecord, FleetIntegrityReport, DefconLevel } from '@/types';
+import { DefconThreatStatus, QuarantinedIpRecord, FleetIntegrityReport, DefconLevel, ThreatHuntingReport } from '@/types';
 import {
   setDefconLevelAction,
   runFleetIntegritySweepAction,
+  runThreatHuntingScanAction,
   pardonQuarantinedIpAction,
   quarantineIpManualAction,
   runSecurityDrillAction,
@@ -73,7 +74,31 @@ export function MilitarySecurityCommandCenter({
   const [defcon, setDefcon] = useState<DefconThreatStatus>(initialDefcon);
   const [quarantinedIps, setQuarantinedIps] = useState<QuarantinedIpRecord[]>(initialQuarantinedIps);
   const [integrityReport, setIntegrityReport] = useState<FleetIntegrityReport | null>(null);
+  const [threatReport, setThreatReport] = useState<ThreatHuntingReport | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  // Run Deep Threat Hunting Scan (MITRE ATT&CK Post-Breach Analysis)
+  const handleRunThreatHunting = () => {
+    startTransition(async () => {
+      try {
+        const report = await runThreatHuntingScanAction();
+        setThreatReport(report);
+        if (report.cleanStatus) {
+          toast.success(
+            'Threat Hunting Sweep: CLEAN',
+            'Zero IOCs, log discontinuities, or suspicious activities detected.'
+          );
+        } else {
+          toast.warning(
+            `Threat Hunting Sweep: ${report.totalFindings} Findings`,
+            `Detected ${report.criticalCount} critical and ${report.warningCount} warning indicators.`
+          );
+        }
+      } catch (err: any) {
+        toast.error('Threat Hunting Scan Failed', err.message);
+      }
+    });
+  };
 
   // Manual DEFCON change state
   const [targetDefcon, setTargetDefcon] = useState<DefconLevel>(defcon.level);
@@ -545,7 +570,127 @@ export function MilitarySecurityCommandCenter({
         </Card>
       </div>
 
-      {/* 4. MISSION RESILIENCE & PENETRATION ATTACK DRILLS */}
+      {/* 4. ACTIVE THREAT HUNTING & POST-BREACH IOC SCANNER (MITRE ATT&CK / FFRDC) */}
+      <Card className="border border-slate-200 shadow-xs">
+        <CardHeader className="pb-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-200 flex items-center justify-center">
+                <Search className="w-4 h-4 text-indigo-700" />
+              </div>
+              <div>
+                <CardTitle className="text-base font-bold text-slate-900">
+                  Active Threat Hunting & Post-Breach IOC Scanner
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  MITRE ATT&CK® & FFRDC deep forensic inspection: detects audit ledger gaps, session anomalies, unsealed clinical records, and exfiltration patterns
+                </CardDescription>
+              </div>
+            </div>
+
+            <Button
+              variant="default"
+              size="sm"
+              onClick={handleRunThreatHunting}
+              disabled={isPending}
+              className="bg-indigo-700 hover:bg-indigo-800 text-white font-bold text-xs shrink-0"
+            >
+              <RotateCw className={`w-3.5 h-3.5 mr-1.5 ${isPending ? 'animate-spin' : ''}`} />
+              Run Deep Threat Hunt
+            </Button>
+          </div>
+        </CardHeader>
+
+        <CardContent>
+          {threatReport ? (
+            <div className="space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-2 p-3 rounded-lg bg-slate-50 border border-slate-200 text-xs">
+                <div className="flex items-center gap-3">
+                  <span className="font-semibold text-slate-700">Scan Completed:</span>
+                  <span className="text-slate-500 font-mono text-[11px]">
+                    {new Date(threatReport.scannedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge variant={threatReport.cleanStatus ? 'default' : threatReport.criticalCount > 0 ? 'destructive' : 'secondary'}>
+                    {threatReport.cleanStatus ? '0 IOCs Detected (CLEAN)' : `${threatReport.totalFindings} Finding(s)`}
+                  </Badge>
+                  {threatReport.criticalCount > 0 && (
+                    <Badge variant="destructive">{threatReport.criticalCount} Critical</Badge>
+                  )}
+                  {threatReport.warningCount > 0 && (
+                    <Badge variant="secondary">{threatReport.warningCount} Warning</Badge>
+                  )}
+                </div>
+              </div>
+
+              {threatReport.cleanStatus ? (
+                <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 flex items-start gap-3">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+                  <div>
+                    <h5 className="font-bold text-sm text-emerald-950">Zero Indicators of Compromise (IOCs) Detected</h5>
+                    <p className="text-xs text-emerald-800 mt-0.5">
+                      All audit log sequential records are contiguous (no anti-forensic gaps), all active staff sessions originate from valid subnet bindings, and clinical diagnostic seals are intact.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-2.5">
+                  {threatReport.findings.map((finding) => (
+                    <div
+                      key={finding.id}
+                      className={`p-3.5 rounded-xl border text-xs space-y-1.5 ${
+                        finding.severity === 'CRITICAL'
+                          ? 'bg-rose-50/70 border-rose-200 text-rose-950'
+                          : finding.severity === 'WARNING'
+                          ? 'bg-amber-50/70 border-amber-200 text-amber-950'
+                          : 'bg-slate-50 border-slate-200 text-slate-900'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 font-bold text-xs">
+                          {finding.severity === 'CRITICAL' ? (
+                            <XCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                          ) : (
+                            <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                          )}
+                          <span>{finding.title}</span>
+                        </div>
+                        <Badge
+                          variant={finding.severity === 'CRITICAL' ? 'destructive' : 'secondary'}
+                          className="text-[10px] uppercase font-bold"
+                        >
+                          {finding.severity}
+                        </Badge>
+                      </div>
+                      <p className="text-[11px] leading-relaxed text-slate-700 pl-6">
+                        {finding.description}
+                      </p>
+                      {finding.evidence && (
+                        <div className="pl-6 text-[10px] font-mono text-slate-600 bg-white/60 p-1.5 rounded-md border border-slate-200/60">
+                          <span className="font-semibold text-slate-800">Evidence:</span> {finding.evidence}
+                        </div>
+                      )}
+                      <div className="pl-6 text-[11px] text-slate-600 font-medium">
+                        <span className="font-semibold text-slate-800">Mitigation:</span> {finding.mitigation}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="text-center py-6 text-slate-500 space-y-2">
+              <Search className="w-8 h-8 text-slate-300 mx-auto" />
+              <p className="text-xs">
+                No active threat hunt executed in this session. Click &quot;Run Deep Threat Hunt&quot; to inspect audit continuity, session hopping, unsealed records, and slow exfiltration vectors.
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* 5. MISSION RESILIENCE & PENETRATION ATTACK DRILLS */}
       {isAdmin && (
         <Card className="border border-slate-200 shadow-xs">
           <CardHeader className="pb-3">

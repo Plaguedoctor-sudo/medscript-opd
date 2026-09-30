@@ -500,3 +500,179 @@ export async function runMilitarySecurityDrill(
 
   return { success: false, message: 'Unknown drill type', quarantined: false };
 }
+
+// ============================================================================
+// 5. ACTIVE THREAT HUNTING & POST-BREACH IOC SCANNER (MITRE D3FEND™)
+// ============================================================================
+
+import { ThreatHuntingFinding, ThreatHuntingReport } from '@/types';
+
+/**
+ * Executes a deep threat hunting sweep across system state, audit logs,
+ * authentication patterns, and clinical artifacts to detect hidden IOCs
+ * and anti-forensic tampering (MITRE ATT&CK Post-Breach Analysis).
+ */
+export async function runThreatHuntingScan(): Promise<ThreatHuntingReport> {
+  const findings: ThreatHuntingFinding[] = [];
+  const scannedAt = new Date().toISOString();
+
+  try {
+    // 1. Audit Log Continuity & Monotonic Sequence Check (MITRE T1070.002)
+    const auditRows = sqlite
+      .prepare('SELECT id FROM audit_logs ORDER BY id ASC')
+      .all() as Array<{ id: number }>;
+
+    let auditGapsCount = 0;
+    const gapSamples: string[] = [];
+
+    for (let i = 1; i < auditRows.length; i++) {
+      const prevId = auditRows[i - 1].id;
+      const currId = auditRows[i].id;
+      if (currId !== prevId + 1) {
+        auditGapsCount += currId - prevId - 1;
+        if (gapSamples.length < 3) {
+          gapSamples.push(`Missing IDs between #${prevId} and #${currId}`);
+        }
+      }
+    }
+
+    if (auditGapsCount > 0) {
+      findings.push({
+        id: 'IOC-AUDIT-GAP',
+        category: 'AUDIT_GAP',
+        severity: 'CRITICAL',
+        title: 'Anti-Forensic Log Excision Detected (MITRE T1070.002)',
+        description: `Discontinuity in audit ledger: approximately ${auditGapsCount} missing sequential record IDs detected. Indicates manual row deletion or database truncation.`,
+        evidence: gapSamples.join('; '),
+        mitigation: 'Verify SQLite WORM engine triggers are active and audit trail hash chain integrity.',
+      });
+    }
+
+    // 2. Cross-Subnet & Multi-IP Session Hopping Check (MITRE T1550.004)
+    const twoHoursAgo = Date.now() - 2 * 60 * 60 * 1000;
+    const recentAudit = sqlite
+      .prepare(
+        "SELECT actor_role, ip_address, timestamp FROM audit_logs WHERE timestamp >= ? AND ip_address IS NOT NULL AND actor_role != 'SYSTEM' ORDER BY timestamp DESC LIMIT 200"
+      )
+      .all(twoHoursAgo) as Array<{ actor_role: string; ip_address: string; timestamp: number | string }>;
+
+    const roleIpsMap = new Map<string, Set<string>>();
+    for (const entry of recentAudit) {
+      const cleanIp = (entry.ip_address || '').trim().replace(/^::ffff:/, '');
+      if (cleanIp && cleanIp !== '127.0.0.1' && cleanIp !== '::1') {
+        if (!roleIpsMap.has(entry.actor_role)) {
+          roleIpsMap.set(entry.actor_role, new Set());
+        }
+        roleIpsMap.get(entry.actor_role)!.add(cleanIp);
+      }
+    }
+
+    for (const [role, ips] of roleIpsMap.entries()) {
+      if (ips.size >= 2) {
+        findings.push({
+          id: `IOC-SESSION-${role}`,
+          category: 'SESSION_ANOMALY',
+          severity: 'WARNING',
+          title: `Concurrent Multi-IP Access by ${role} (MITRE T1550.004)`,
+          description: `Actor role "${role}" has initiated sessions from ${ips.size} distinct IP addresses within the past 2 hours. Potential credential sharing or LAN session cookie replay.`,
+          evidence: `Observed IPs: ${Array.from(ips).join(', ')}`,
+          mitigation: 'Execute targeted session revocation for this account or verify IP bindings.',
+        });
+      }
+    }
+
+    // 3. Unsealed Clinical Artifacts Check (Integrity Gap)
+    const unsealedRx = (sqlite
+      .prepare("SELECT COUNT(*) as count FROM prescriptions WHERE signature_hash IS NULL OR signature_hash = ''")
+      .get() as { count: number })?.count || 0;
+
+    const unsealedLabs = (sqlite
+      .prepare("SELECT COUNT(*) as count FROM lab_reports WHERE digital_seal_hash IS NULL OR digital_seal_hash = ''")
+      .get() as { count: number })?.count || 0;
+
+    const unsealedEmar = (sqlite
+      .prepare("SELECT COUNT(*) as count FROM emar_records WHERE digital_seal_hash IS NULL OR digital_seal_hash = ''")
+      .get() as { count: number })?.count || 0;
+
+    const unsealedHandovers = (sqlite
+      .prepare("SELECT COUNT(*) as count FROM ipd_handovers WHERE digital_seal_hash IS NULL OR digital_seal_hash = ''")
+      .get() as { count: number })?.count || 0;
+
+    const totalUnsealed = unsealedRx + unsealedLabs + unsealedEmar + unsealedHandovers;
+    if (totalUnsealed > 0) {
+      findings.push({
+        id: 'IOC-UNSEALED-ARTIFACTS',
+        category: 'UNSEALED_RECORD',
+        severity: totalUnsealed > 10 ? 'WARNING' : 'INFO',
+        title: 'Unsealed Clinical Records Detected',
+        description: `Found ${totalUnsealed} clinical record(s) lacking cryptographic digital seal signatures (Rx: ${unsealedRx}, Labs: ${unsealedLabs}, eMAR: ${unsealedEmar}, Handovers: ${unsealedHandovers}).`,
+        evidence: `Unsealed counts: Prescriptions=${unsealedRx}, Labs=${unsealedLabs}, eMAR=${unsealedEmar}, Handovers=${unsealedHandovers}`,
+        mitigation: 'Run Fleet Cryptographic Sweep to seal and verify all legacy records.',
+      });
+    }
+
+    // 4. Off-Hours Administrative Mutations (MITRE T1078.004)
+    const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    const adminEvents = sqlite
+      .prepare(
+        "SELECT id, action, details, timestamp, ip_address FROM audit_logs WHERE timestamp >= ? AND action IN ('STAFF_USER_CREATED', 'STAFF_USER_UPDATED', 'STAFF_PASSWORD_RESET', 'SETTINGS_SAVED', 'SYSTEM_CONFIG_UPDATED') ORDER BY timestamp DESC LIMIT 50"
+      )
+      .all(sevenDaysAgo) as Array<{ id: number; action: string; details: string | null; timestamp: number | string; ip_address: string | null }>;
+
+    const offHoursAdmin: string[] = [];
+    for (const ev of adminEvents) {
+      const d = new Date(ev.timestamp);
+      const hour = d.getHours();
+      if (hour >= 22 || hour < 6) {
+        offHoursAdmin.push(`[${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}] ${ev.action}: ${ev.details || ''}`);
+      }
+    }
+
+    if (offHoursAdmin.length > 0) {
+      findings.push({
+        id: 'IOC-OFFHOURS-ADMIN',
+        category: 'OFF_HOURS_ACTIVITY',
+        severity: 'INFO',
+        title: 'Off-Hours Administrative Activity Detected',
+        description: `${offHoursAdmin.length} administrative configuration or credential changes occurred outside clinical hours (10:00 PM - 06:00 AM) within the last 7 days.`,
+        evidence: offHoursAdmin.slice(0, 3).join('; '),
+        mitigation: 'Verify that late-night administrator modifications were authorized by hospital leadership.',
+      });
+    }
+
+    // 5. Cumulative Data Export Volume Check (MITRE T1005 / T1030)
+    const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
+    const exportEvents = (sqlite
+      .prepare(
+        "SELECT COUNT(*) as count FROM audit_logs WHERE timestamp >= ? AND action IN ('DATA_EXPORT_PATIENTS', 'DATA_EXPORT_CONSULTATIONS', 'BACKUP_SNAPSHOT_DOWNLOADED')"
+      )
+      .get(oneDayAgo) as { count: number })?.count || 0;
+
+    if (exportEvents >= 3) {
+      findings.push({
+        id: 'IOC-HIGH-EXPORT-RATE',
+        category: 'RATE_LIMIT_SPIKE',
+        severity: exportEvents >= 5 ? 'WARNING' : 'INFO',
+        title: 'Elevated Daily Patient Data Export Volume',
+        description: `${exportEvents} mass data export requests registered in the last 24 hours. Verify that these downloads correspond to legitimate clinical or statutory reporting requirements.`,
+        evidence: `${exportEvents} export events in 24h window`,
+        mitigation: 'Review audit logs for DATA_EXPORT_* and verify exporting user credentials.',
+      });
+    }
+  } catch (err: unknown) {
+    console.error('Threat hunting scan error:', err);
+  }
+
+  const criticalCount = findings.filter((f) => f.severity === 'CRITICAL').length;
+  const warningCount = findings.filter((f) => f.severity === 'WARNING').length;
+
+  return {
+    scannedAt,
+    totalFindings: findings.length,
+    criticalCount,
+    warningCount,
+    cleanStatus: findings.length === 0,
+    findings,
+  };
+}
+

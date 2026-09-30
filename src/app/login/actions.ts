@@ -1304,3 +1304,24 @@ export async function deleteStaffUser(id: number): Promise<{ success: boolean; e
     return { success: false, error: err instanceof Error ? err.message : 'Failed to delete staff member.' };
   }
 }
+
+/**
+ * Targeted session revocation for a compromised staff account (MITRE T1078.004)
+ */
+export async function revokeStaffSessionAction(userId: number): Promise<{ success: boolean; error?: string }> {
+  const currentRole = await getCurrentUserRole();
+  if (currentRole !== 'admin_doctor') {
+    return { success: false, error: 'Unauthorized: Only an Admin Doctor can revoke staff sessions.' };
+  }
+  const { revokeStaffSessions } = await import('@/lib/auth');
+  revokeStaffSessions(userId);
+  await logAuditEvent({
+    action: 'SECURITY_ALERT_TRIGGERED',
+    actorRole: 'ADMIN_DOCTOR',
+    details: `Targeted session revocation executed for staff user id=${userId}`,
+    status: 'WARNING',
+  });
+  revalidatePath('/settings');
+  return { success: true };
+}
+

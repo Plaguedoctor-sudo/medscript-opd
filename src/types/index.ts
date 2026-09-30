@@ -615,3 +615,22 @@ export interface FleetIntegrityReport {
   sections: FleetIntegrityItem[];
 }
 
+export interface ThreatHuntingFinding {
+  id: string;
+  category: 'AUDIT_GAP' | 'SESSION_ANOMALY' | 'UNSEALED_RECORD' | 'OFF_HOURS_ACTIVITY' | 'RATE_LIMIT_SPIKE';
+  severity: 'CRITICAL' | 'WARNING' | 'INFO';
+  title: string;
+  description: string;
+  evidence: string;
+  mitigation: string;
+}
+
+export interface ThreatHuntingReport {
+  scannedAt: string;
+  totalFindings: number;
+  criticalCount: number;
+  warningCount: number;
+  cleanStatus: boolean;
+  findings: ThreatHuntingFinding[];
+}
+

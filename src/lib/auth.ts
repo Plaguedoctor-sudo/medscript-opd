@@ -140,14 +140,39 @@ export function verifyPinHash(inputPin: string, storedHash: string): boolean {
   return false;
 }
 
+export function computeSubnetFingerprint(ip?: string | null): string {
+  if (!ip) return 'any';
+  const clean = ip.trim().replace(/^::ffff:/, '');
+  if (clean === '127.0.0.1' || clean === '::1' || clean === 'localhost') return 'loopback';
+  let prefix = clean;
+  if (clean.includes('.')) {
+    // IPv4 /24 subnet
+    prefix = clean.split('.').slice(0, 3).join('.');
+  } else if (clean.includes(':')) {
+    // IPv6 /48 prefix
+    prefix = clean.split(':').slice(0, 3).join(':');
+  }
+  return crypto.createHash('sha256').update(`subnet:${prefix}`).digest('hex').slice(0, 12);
+}
+
 /**
- * Creates a cryptographically signed session token encoding the user role and user ID
- * Format: `${timestamp}.${role}.${userId}.${signature}`
+ * Creates a cryptographically signed session token encoding the user role, user ID, and optional client subnet
+ * Format: `${timestamp}.${role}.${userId}.${signature}` or `${timestamp}.${role}.${userId}.${subnet}.${signature}`
  */
-export function createSessionToken(role: UserRole = 'doctor', userId?: number): string {
+export function createSessionToken(role: UserRole = 'doctor', userId?: number, clientIp?: string): string {
   const secret = getSessionSecret();
   const timestamp = Date.now().toString();
   const uId = userId ? userId.toString() : '0';
+  const subnet = clientIp ? computeSubnetFingerprint(clientIp) : '';
+
+  if (subnet && subnet !== 'any') {
+    const signature = crypto
+      .createHmac('sha256', secret)
+      .update(`session:${timestamp}:${role}:${uId}:${subnet}`)
+      .digest('hex');
+    return `${timestamp}.${role}.${uId}.${subnet}.${signature}`;
+  }
+
   const signature = crypto
     .createHmac('sha256', secret)
     .update(`session:${timestamp}:${role}:${uId}`)
@@ -167,6 +192,18 @@ export function revokeAllSessions(): void {
   }
 }
 
+/**
+ * Revokes all sessions belonging specifically to a single staff user (MITRE T1078.004 blast radius containment)
+ */
+export function revokeStaffSessions(userId: number): void {
+  try {
+    const now = Date.now();
+    sqlite.prepare('UPDATE staff_users SET sessions_revoked_before = ? WHERE id = ?').run(now, userId);
+  } catch (err) {
+    console.error('Failed to update staff_users.sessions_revoked_before:', err);
+  }
+}
+
 export interface ParsedSessionToken {
   valid: boolean;
   role: UserRole;
@@ -176,10 +213,73 @@ export interface ParsedSessionToken {
 /**
  * Parses and verifies the authenticity and revocation status of a session token
  */
-export function parseSessionToken(token: string | undefined | null): ParsedSessionToken {
+export function parseSessionToken(token: string | undefined | null, clientIp?: string): ParsedSessionToken {
   if (!token || typeof token !== 'string') return { valid: false, role: 'receptionist' };
   const parts = token.split('.');
   const secret = getSessionSecret();
+
+  // Subnet-Bound Format (MITRE T1550.004): timestamp.role.userId.subnet.signature
+  if (parts.length === 5) {
+    const [timestampStr, roleStr, userIdStr, subnetStr, signature] = parts;
+    const role: UserRole = isValidUserRole(roleStr) ? roleStr : 'doctor';
+    const expectedSignature = crypto
+      .createHmac('sha256', secret)
+      .update(`session:${timestampStr}:${roleStr}:${userIdStr}:${subnetStr}`)
+      .digest('hex');
+
+    if (!safeCompare(signature, expectedSignature)) {
+      return { valid: false, role: 'receptionist' };
+    }
+
+    const timestamp = parseInt(timestampStr, 10);
+    const userId = parseInt(userIdStr, 10);
+    if (isNaN(timestamp)) return { valid: false, role: 'receptionist' };
+
+    const age = Date.now() - timestamp;
+    if (age < 0 || age > SESSION_DURATION_MS) return { valid: false, role: 'receptionist' };
+
+    // Verify subnet match if clientIp is provided
+    if (clientIp) {
+      const currentSubnet = computeSubnetFingerprint(clientIp);
+      if (subnetStr !== 'loopback' && currentSubnet !== 'loopback' && subnetStr !== currentSubnet) {
+        return { valid: false, role: 'receptionist' };
+      }
+    }
+
+    // Check server-side global revocation timestamp
+    try {
+      const row = sqlite
+        .prepare('SELECT session_revoked_before FROM clinic_settings WHERE id = 1')
+        .get() as { session_revoked_before?: number | null } | undefined;
+      if (row && row.session_revoked_before && timestamp < row.session_revoked_before) {
+        return { valid: false, role: 'receptionist' };
+      }
+    } catch {}
+
+    // Verify staff account is active, credentials not revoked, and per-user session not revoked
+    let effectiveRole: UserRole = role;
+    if (!isNaN(userId) && userId > 0) {
+      try {
+        const staff = sqlite
+          .prepare('SELECT role, is_active, password_updated_at, sessions_revoked_before FROM staff_users WHERE id = ?')
+          .get(userId) as { role?: string; is_active?: number; password_updated_at?: number | null; sessions_revoked_before?: number | null } | undefined;
+        if (!staff || !Boolean(staff.is_active)) {
+          return { valid: false, role: 'receptionist' };
+        }
+        if (staff.password_updated_at && timestamp < staff.password_updated_at) {
+          return { valid: false, role: 'receptionist' };
+        }
+        if (staff.sessions_revoked_before && timestamp < staff.sessions_revoked_before) {
+          return { valid: false, role: 'receptionist' };
+        }
+        if (staff.role && isValidUserRole(staff.role)) {
+          effectiveRole = staff.role as UserRole;
+        }
+      } catch {}
+    }
+
+    return { valid: true, role: effectiveRole, userId: isNaN(userId) || userId === 0 ? undefined : userId };
+  }
 
   // Modern Format: timestamp.role.userId.signature
   if (parts.length === 4) {
@@ -218,14 +318,18 @@ export function parseSessionToken(token: string | undefined | null): ParsedSessi
     if (!isNaN(userId) && userId > 0) {
       try {
         const staff = sqlite
-          .prepare('SELECT role, is_active, password_updated_at FROM staff_users WHERE id = ?')
-          .get(userId) as { role?: string; is_active?: number; password_updated_at?: number | null } | undefined;
+          .prepare('SELECT role, is_active, password_updated_at, sessions_revoked_before FROM staff_users WHERE id = ?')
+          .get(userId) as { role?: string; is_active?: number; password_updated_at?: number | null; sessions_revoked_before?: number | null } | undefined;
         if (!staff || !Boolean(staff.is_active)) {
           // Deactivated or deleted staff member: reject session immediately
           return { valid: false, role: 'receptionist' };
         }
         if (staff.password_updated_at && timestamp < staff.password_updated_at) {
           // Password or privileges updated after this token was issued: reject session
+          return { valid: false, role: 'receptionist' };
+        }
+        if (staff.sessions_revoked_before && timestamp < staff.sessions_revoked_before) {
+          // Target user sessions revoked (MITRE T1078.004)
           return { valid: false, role: 'receptionist' };
         }
         if (staff.role && isValidUserRole(staff.role)) {

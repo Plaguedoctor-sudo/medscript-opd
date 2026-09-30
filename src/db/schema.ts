@@ -314,6 +314,7 @@ export const staffUsers = sqliteTable("staff_users", {
   isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
   lastLoginAt: integer("last_login_at", { mode: "timestamp" }),
   passwordUpdatedAt: integer("password_updated_at", { mode: "timestamp" }),
+  sessionsRevokedBefore: integer("sessions_revoked_before", { mode: "timestamp" }),
   createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
 });
 

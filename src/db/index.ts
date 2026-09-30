@@ -639,6 +639,31 @@ try {
 } catch {
   // Column already exists
 }
+try {
+  sqlite.exec('ALTER TABLE staff_users ADD COLUMN sessions_revoked_before INTEGER;');
+} catch {
+  // Column already exists
+}
+
+// MITRE T1070: Engine-Level WORM (Write-Once-Read-Many) Immutability Triggers
+try {
+  sqlite.exec(`
+    CREATE TRIGGER IF NOT EXISTS prevent_audit_log_delete
+    BEFORE DELETE ON audit_logs
+    BEGIN
+      SELECT RAISE(FAIL, 'MITRE T1070: Audit logs are cryptographically immutable and cannot be deleted.');
+    END;
+  `);
+  sqlite.exec(`
+    CREATE TRIGGER IF NOT EXISTS prevent_audit_log_update
+    BEFORE UPDATE ON audit_logs
+    BEGIN
+      SELECT RAISE(FAIL, 'MITRE T1070: Audit logs cannot be altered retroactively.');
+    END;
+  `);
+} catch (e) {
+  // Triggers already exist or error
+}
 
 // Enforce POSIX 0600 file permissions on database at rest
 try {

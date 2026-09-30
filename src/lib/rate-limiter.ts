@@ -379,3 +379,71 @@ export function recordFhirQueryAttempt(ip: string): void {
     // Ignore
   }
 }
+
+/**
+ * Rate limiter for Android APK package downloads (MITRE T1499 / DoS protection)
+ * Max 10 downloads per 10 minutes per IP
+ */
+const APK_MAX_DOWNLOADS = 10;
+const APK_WINDOW_MS = 10 * 60 * 1000;
+
+export function checkApkDownloadRateLimit(ip: string): { allowed: boolean; retryAfterSeconds: number } {
+  try {
+    const key = `apk_${ip.trim()}`;
+    const now = Date.now();
+    const entry = sqlite
+      .prepare('SELECT attempts, first_attempt, locked_until FROM rate_limits WHERE key = ?')
+      .get(key) as RateLimitRow | undefined;
+
+    if (!entry) return { allowed: true, retryAfterSeconds: 0 };
+
+    if (entry.locked_until > now) {
+      return { allowed: false, retryAfterSeconds: Math.ceil((entry.locked_until - now) / 1000) };
+    }
+
+    if (now - entry.first_attempt > APK_WINDOW_MS) {
+      sqlite.prepare('DELETE FROM rate_limits WHERE key = ?').run(key);
+      return { allowed: true, retryAfterSeconds: 0 };
+    }
+
+    if (entry.attempts >= APK_MAX_DOWNLOADS) {
+      const lockUntil = now + APK_WINDOW_MS;
+      sqlite.prepare('UPDATE rate_limits SET locked_until = ? WHERE key = ?').run(lockUntil, key);
+      return { allowed: false, retryAfterSeconds: Math.ceil(APK_WINDOW_MS / 1000) };
+    }
+
+    return { allowed: true, retryAfterSeconds: 0 };
+  } catch {
+    return { allowed: true, retryAfterSeconds: 0 };
+  }
+}
+
+export function recordApkDownloadAttempt(ip: string): void {
+  const key = `apk_${ip.trim()}`;
+  const now = Date.now();
+  try {
+    const entry = sqlite
+      .prepare('SELECT attempts, first_attempt FROM rate_limits WHERE key = ?')
+      .get(key) as RateLimitRow | undefined;
+
+    if (!entry || now - entry.first_attempt > APK_WINDOW_MS) {
+      sqlite
+        .prepare(`
+          INSERT INTO rate_limits (key, attempts, first_attempt, locked_until)
+          VALUES (?, 1, ?, 0)
+          ON CONFLICT(key) DO UPDATE SET
+            attempts = 1,
+            first_attempt = excluded.first_attempt,
+            locked_until = 0
+        `)
+        .run(key, now);
+    } else {
+      sqlite
+        .prepare('UPDATE rate_limits SET attempts = attempts + 1 WHERE key = ?')
+        .run(key);
+    }
+  } catch {
+    // Ignore
+  }
+}
+

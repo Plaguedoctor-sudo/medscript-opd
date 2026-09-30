@@ -8,9 +8,10 @@ import {
   quarantineIp,
   pardonQuarantinedIp,
   runMilitarySecurityDrill,
+  runThreatHuntingScan,
 } from '@/lib/military-sentinel';
 import { runMilitaryFleetIntegritySweep } from '@/lib/military-crypto';
-import { DefconLevel, DefconThreatStatus, QuarantinedIpRecord, FleetIntegrityReport } from '@/types';
+import { DefconLevel, DefconThreatStatus, QuarantinedIpRecord, FleetIntegrityReport, ThreatHuntingReport } from '@/types';
 import { revalidatePath } from 'next/cache';
 
 export async function getMilitarySecurityDataAction(): Promise<{
@@ -39,6 +40,13 @@ export async function setDefconLevelAction(
 export async function runFleetIntegritySweepAction(): Promise<FleetIntegrityReport> {
   await requireRole(['doctor', 'admin_doctor'], '/settings');
   const report = await runMilitaryFleetIntegritySweep();
+  revalidatePath('/settings');
+  return report;
+}
+
+export async function runThreatHuntingScanAction(): Promise<ThreatHuntingReport> {
+  await requireRole(['doctor', 'admin_doctor'], '/settings');
+  const report = await runThreatHuntingScan();
   revalidatePath('/settings');
   return report;
 }
@@ -73,3 +81,4 @@ export async function runSecurityDrillAction(
   revalidatePath('/settings');
   return result;
 }
+

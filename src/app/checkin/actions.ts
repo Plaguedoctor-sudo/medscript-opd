@@ -30,8 +30,20 @@ export interface SelfCheckinResult {
   error?: string;
 }
 
+function maskPatientName(name: string): string {
+  if (!name) return 'Patient';
+  const parts = name.trim().split(/\s+/);
+  return parts
+    .map((p) => {
+      if (p.length <= 2) return p;
+      return `${p[0]}${'*'.repeat(Math.min(p.length - 2, 4))}${p[p.length - 1]}`;
+    })
+    .join(' ');
+}
+
 /**
- * Look up returning patient by 10-digit phone number
+ * Look up returning patient by 10-digit phone number.
+ * Demographics are masked to prevent unauthenticated demographic harvesting (MITRE T1087 / CWE-359).
  */
 export async function lookupReturningPatientAction(rawPhone: string): Promise<{
   found: boolean;
@@ -74,7 +86,19 @@ export async function lookupReturningPatientAction(rawPhone: string): Promise<{
       .get(`%${last10}`) as any;
 
     if (row) {
-      return { found: true, patient: row };
+      return {
+        found: true,
+        patient: {
+          id: row.id,
+          name: maskPatientName(row.name),
+          age: row.age,
+          gender: row.gender,
+          phone: row.phone,
+          regNo: row.regNo,
+          allergies: null, // Redacted for pre-checkin public kiosk display to prevent PHI exposure
+          bloodGroup: null, // Redacted for pre-checkin public kiosk display
+        },
+      };
     }
     return { found: false };
   } catch (err) {

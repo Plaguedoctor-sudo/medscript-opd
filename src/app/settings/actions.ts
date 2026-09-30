@@ -479,6 +479,29 @@ export async function saveGoogleDriveConfigAction(data: {
     const cleanEncryptionKey = (data.encryptionKey || "").trim();
     const interval = data.autoBackupInterval || "DAILY";
 
+    // Pre-Ransomware Safeguard (MITRE T1490: Inhibit System Recovery)
+    const existingBackupRow = sqlite
+      .prepare('SELECT gdrive_backup_enabled FROM clinic_settings WHERE id = 1')
+      .get() as { gdrive_backup_enabled?: number } | undefined;
+    const wasEnabled = Boolean(existingBackupRow?.gdrive_backup_enabled);
+
+    if (wasEnabled && !data.enabled) {
+      const { createSecurityAlert } = await import('@/lib/security-engine');
+      await createSecurityAlert({
+        severity: 'CRITICAL',
+        category: 'ACCESS_VIOLATION',
+        title: 'Ransomware Vector Warning: Disaster Recovery Backups Disabled',
+        description: `Automated Google Drive cloud disaster recovery backups were deactivated by ${role.toUpperCase()}. In ransomware playbooks (MITRE T1490), backup termination precedes payload detonation. Verify immediately.`,
+        metadata: { disabledBy: role, targetEmail: cleanEmail },
+      });
+      await logAuditEvent({
+        action: 'SECURITY_ALERT_TRIGGERED',
+        actorRole: role.toUpperCase(),
+        details: 'CRITICAL: Cloud disaster recovery backup was disabled. Potential pre-ransomware staging event.',
+        status: 'WARNING',
+      });
+    }
+
     // Encrypt sensitive cloud private keys & passphrases at rest using AES-256-GCM (WSTG-CRYP-04)
     const storedPrivateKey = cleanPrivateKey ? encryptPhi(cleanPrivateKey) : undefined;
     const storedEncryptionKey = cleanEncryptionKey ? encryptPhi(cleanEncryptionKey) : undefined;

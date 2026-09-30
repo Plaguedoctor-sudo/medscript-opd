@@ -256,6 +256,36 @@ export async function evaluateAuditAnomaly({
           enableDeception: true,
         });
       }
+
+      // Check 5c: Persistent cumulative exports (MITRE T1005 / T1030 slow-and-low evasion: 4+ exports in 24h)
+      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const dailyExports = await db
+        .select({ id: auditLogs.id, action: auditLogs.action })
+        .from(auditLogs)
+        .where(gte(auditLogs.timestamp, twentyFourHoursAgo));
+
+      const dailyBulkCount = dailyExports.filter((e) =>
+        exportActions.includes(e.action)
+      ).length;
+
+      if (dailyBulkCount >= 4 && bulkCount < 2) {
+        await createSecurityAlert({
+          severity: 'CRITICAL',
+          category: 'UNUSUAL_TRANSFER',
+          title: 'Persistent Cumulative Data Export Spree (Slow-and-Low Exfiltration Detected)',
+          description: `Cumulative total of ${dailyBulkCount} bulk clinic exports requested within 24 hours by ${actorRole} from IP ${safeIp}. High probability of slow-and-low automated scraping.`,
+          ipAddress: safeIp,
+          metadata: { dailyBulkCount, recentActions: dailyExports.map((e) => e.action) },
+        });
+
+        if (dailyBulkCount >= 6) {
+          await containBreach({
+            reason: `Cumulative bulk data export threshold exceeded (${dailyBulkCount} exports in 24h) - Potential slow exfiltration`,
+            ipAddress: safeIp,
+            enableDeception: true,
+          });
+        }
+      }
     }
 
     // ------------------------------------------------------------------------
