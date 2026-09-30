@@ -46,32 +46,41 @@ export function MobileNavigation({
   // Check standalone mode and capture install prompt on Android
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const isApp =
-        window.matchMedia('(display-mode: standalone)').matches ||
-        (window.navigator as any).standalone === true;
-      setIsStandalone(isApp);
+      const timer = setTimeout(() => {
+        const isApp =
+          window.matchMedia('(display-mode: standalone)').matches ||
+          (window.navigator as any).standalone === true;
+        setIsStandalone(isApp);
+      }, 0);
 
       const handleBeforeInstall = (e: Event) => {
         e.preventDefault();
         setDeferredPrompt(e);
       };
 
-      window.addEventListener('beforeinstallprompt', handleBeforeInstall);
-      window.addEventListener('appinstalled', () => {
+      const handleAppInstalled = () => {
         setInstallSuccess(true);
         setIsStandalone(true);
         setDeferredPrompt(null);
-      });
+      };
+
+      window.addEventListener('beforeinstallprompt', handleBeforeInstall);
+      window.addEventListener('appinstalled', handleAppInstalled);
 
       return () => {
+        clearTimeout(timer);
         window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
+        window.removeEventListener('appinstalled', handleAppInstalled);
       };
     }
   }, []);
 
   // Close drawer on route change
   useEffect(() => {
-    setDrawerOpen(false);
+    const timer = setTimeout(() => {
+      setDrawerOpen(false);
+    }, 0);
+    return () => clearTimeout(timer);
   }, [pathname]);
 
   const handleInstallClick = async () => {

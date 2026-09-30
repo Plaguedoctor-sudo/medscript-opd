@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { WifiOff, Wifi } from 'lucide-react';
 
 export function PwaRegister() {
-  const [isOffline, setIsOffline] = useState(false);
+  const [isOffline, setIsOffline] = useState(() => (typeof navigator !== 'undefined' ? !navigator.onLine : false));
   const [showReconnected, setShowReconnected] = useState(false);
 
   useEffect(() => {
@@ -43,7 +43,6 @@ export function PwaRegister() {
     };
 
     if (typeof window !== 'undefined') {
-      setIsOffline(!navigator.onLine);
       window.addEventListener('offline', handleOffline);
       window.addEventListener('online', handleOnline);
 

@@ -59,9 +59,29 @@ export default function IdspSurveillancePage() {
   };
 
   useEffect(() => {
+    let active = true;
     if (year && week) {
-      loadData(year, week);
+      getIdspSurveillanceData(year, week)
+        .then((data) => {
+          if (active) {
+            setReport(data);
+            setLoading(false);
+          }
+        })
+        .catch((err: unknown) => {
+          if (active) {
+            toast.show({
+              title: 'Error loading surveillance data',
+              description: err instanceof Error ? err.message : 'Please try again',
+              type: 'error',
+            });
+            setLoading(false);
+          }
+        });
     }
+    return () => {
+      active = false;
+    };
   }, [year, week]);
 
   const handleDownloadCsv = async () => {

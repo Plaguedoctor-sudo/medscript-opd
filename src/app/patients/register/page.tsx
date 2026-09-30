@@ -159,7 +159,7 @@ export default function RegisterPatientPage() {
                 New Patient Demographics
               </CardTitle>
               <p className="text-sm text-slate-500">
-                Fill in the patient's basic information. Fields marked with * are required.
+                Fill in the patient&apos;s basic information. Fields marked with * are required.
               </p>
             </CardHeader>
             <CardContent>
