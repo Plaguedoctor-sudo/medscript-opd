@@ -54,9 +54,16 @@ next-env.d.ts
 
 # packaging & distribution
 /dist/
+/release/
 /.release-stage/
 /.flatpak-builder/
 /build-dir/
 start-hidden.vbs
+
+# android build artifacts
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
 
 
