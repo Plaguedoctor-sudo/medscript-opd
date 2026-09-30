@@ -1,11 +1,32 @@
 'use server';
 
-import { cookies } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import { db, sqlite } from '@/db';
 import { clinicSettings } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
+
+async function isSecureConnection(): Promise<boolean> {
+  try {
+    const headerList = await headers();
+    const proto = headerList.get('x-forwarded-proto');
+    if (proto) {
+      return proto.toLowerCase() === 'https';
+    }
+    const referer = headerList.get('referer');
+    if (referer && referer.startsWith('https://')) {
+      return true;
+    }
+    const origin = headerList.get('origin');
+    if (origin && origin.startsWith('https://')) {
+      return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
 import {
   hashPin,
   verifyPinHash,
@@ -204,7 +225,7 @@ export async function loginWithPin(
 
   cookieStore.set(SESSION_COOKIE_NAME, token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    secure: await isSecureConnection(),
     sameSite: 'lax',
     path: '/',
     maxAge: 24 * 60 * 60, // 24 hours
@@ -312,7 +333,7 @@ export async function breakGlassEmergencyAction(
   const cookieStore = await cookies();
   cookieStore.set(SESSION_COOKIE_NAME, token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    secure: await isSecureConnection(),
     sameSite: 'lax',
     path: '/',
     maxAge: 30 * 60, // 30-minute emergency access window
@@ -447,7 +468,7 @@ export async function updateSecuritySettings(
     const cookieStore = await cookies();
     cookieStore.set(SESSION_COOKIE_NAME, token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: await isSecureConnection(),
       sameSite: 'lax',
       path: '/',
       maxAge: 24 * 60 * 60,
@@ -810,7 +831,7 @@ export async function loginWithCredentials(
   const cookieStore = await cookies();
   cookieStore.set(SESSION_COOKIE_NAME, sessionToken, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    secure: await isSecureConnection(),
     sameSite: 'lax',
     path: '/',
     maxAge: 24 * 60 * 60, // 24 hours

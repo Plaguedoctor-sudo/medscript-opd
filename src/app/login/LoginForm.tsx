@@ -101,8 +101,7 @@ export function LoginForm({ doctorName, clinicName, initialStaffUsers = [] }: Lo
       if (!res.success) {
         setError(res.error || 'Authentication failed. Please check your credentials.');
       } else {
-        router.push(res.redirectUrl || '/');
-        router.refresh();
+        window.location.href = res.redirectUrl || '/';
       }
     });
   };
@@ -124,8 +123,7 @@ export function LoginForm({ doctorName, clinicName, initialStaffUsers = [] }: Lo
         setError(res.error || 'Authentication failed');
         if (!requiresMfa) setPin('');
       } else {
-        router.push(res.redirectUrl || '/');
-        router.refresh();
+        window.location.href = res.redirectUrl || '/';
       }
     });
   };

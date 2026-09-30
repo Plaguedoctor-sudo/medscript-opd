@@ -81,11 +81,13 @@ app
   .then(() => {
     // Internal HTTPS Server (serves TLS encrypted clients)
     const httpsServer = https.createServer(httpsOptions, (req, res) => {
+      req.headers['x-forwarded-proto'] = 'https';
       handle(req, res);
     });
 
     // Internal HTTP Server (serves plain HTTP clients directly with zero SSL warnings)
     const httpServer = http.createServer((req, res) => {
+      req.headers['x-forwarded-proto'] = 'http';
       handle(req, res);
     });
 
