@@ -943,8 +943,8 @@ export async function createStaffUser(
     const now = Date.now();
     const result = sqlite
       .prepare(`
-        INSERT INTO staff_users (login_id, password_hash, name, role, sub_role, department, phone, email, qualifications, reg_number, is_active, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
+        INSERT INTO staff_users (login_id, password_hash, name, role, sub_role, department, phone, email, qualifications, reg_number, is_active, password_updated_at, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
       `)
       .run(
         cleanLoginId,
@@ -957,6 +957,7 @@ export async function createStaffUser(
         input.email?.trim() || null,
         input.qualifications?.trim() || null,
         input.regNumber?.trim() || null,
+        now,
         now
       );
 
@@ -990,12 +991,13 @@ export async function updateStaffUser(
   }
 
   try {
+    const now = Date.now();
     if (input.newPassword && input.newPassword.trim().length >= 4) {
       const newHash = hashPin(input.newPassword.trim());
       sqlite
         .prepare(`
           UPDATE staff_users
-          SET name = ?, role = ?, sub_role = ?, department = ?, phone = ?, email = ?, qualifications = ?, reg_number = ?, password_hash = ?
+          SET name = ?, role = ?, sub_role = ?, department = ?, phone = ?, email = ?, qualifications = ?, reg_number = ?, password_hash = ?, password_updated_at = ?
           WHERE id = ?
         `)
         .run(
@@ -1008,13 +1010,14 @@ export async function updateStaffUser(
           input.qualifications?.trim() || null,
           input.regNumber?.trim() || null,
           newHash,
+          now,
           id
         );
     } else {
       sqlite
         .prepare(`
           UPDATE staff_users
-          SET name = ?, role = ?, sub_role = ?, department = ?, phone = ?, email = ?, qualifications = ?, reg_number = ?
+          SET name = ?, role = ?, sub_role = ?, department = ?, phone = ?, email = ?, qualifications = ?, reg_number = ?, password_updated_at = ?
           WHERE id = ?
         `)
         .run(
@@ -1026,6 +1029,7 @@ export async function updateStaffUser(
           input.email?.trim() || null,
           input.qualifications?.trim() || null,
           input.regNumber?.trim() || null,
+          now,
           id
         );
     }
@@ -1069,7 +1073,8 @@ export async function toggleStaffUserStatus(
   }
 
   try {
-    sqlite.prepare('UPDATE staff_users SET is_active = ? WHERE id = ?').run(isActive ? 1 : 0, id);
+    const now = Date.now();
+    sqlite.prepare('UPDATE staff_users SET is_active = ?, password_updated_at = ? WHERE id = ?').run(isActive ? 1 : 0, now, id);
     await logAuditEvent({
       action: 'STAFF_USER_UPDATED',
       actorRole: 'ADMIN_DOCTOR',

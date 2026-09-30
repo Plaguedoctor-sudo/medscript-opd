@@ -629,6 +629,16 @@ try {
 } catch {
   // Column already exists
 }
+try {
+  sqlite.exec('ALTER TABLE staff_users ADD COLUMN password_updated_at INTEGER;');
+} catch {
+  // Column already exists
+}
+try {
+  sqlite.exec('ALTER TABLE medical_certificates ADD COLUMN digital_seal_hash TEXT;');
+} catch {
+  // Column already exists
+}
 
 // Enforce POSIX 0600 file permissions on database at rest
 try {

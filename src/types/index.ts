@@ -481,6 +481,7 @@ export interface MedicalCertificate {
   referralHospital?: string | null;
   referralSpecialist?: string | null;
   remarks?: string | null;
+  digitalSealHash?: string | null;
   issuedAt?: Date | null;
 }
 

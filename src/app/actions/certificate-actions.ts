@@ -7,6 +7,7 @@ import { requirePermission, isDoctor, getCurrentUser } from '@/lib/auth';
 import { logAuditEvent } from '@/lib/audit';
 import { MedicalCertificate, MedicalCertificateType } from '@/types';
 import { revalidatePath } from 'next/cache';
+import crypto from 'crypto';
 
 export async function getMedicalCertificatesAction(patientId: number): Promise<MedicalCertificate[]> {
   await requirePermission('certificate:issue');
@@ -60,12 +61,19 @@ export async function issueMedicalCertificateAction(params: {
   const certificateNo = `CERT-${yyyymmdd}-${String(seq).padStart(3, '0')}`;
 
   try {
+    const issuedAt = Date.now();
+    const sealData = `${certificateNo}:${params.patientId}:${params.type}:${doctorRegNo}:${params.diagnosis || ''}:${issuedAt}`;
+    const digitalSealHash = crypto
+      .createHmac('sha256', settings?.sessionSecret || 'medscript-cert-salt-2026')
+      .update(sealData)
+      .digest('hex');
+
     const res = sqlite
       .prepare(`
         INSERT INTO medical_certificates (
           certificate_no, patient_id, doctor_id, doctor_name, doctor_reg_no, type,
-          diagnosis, start_date, end_date, rest_days, referral_hospital, referral_specialist, remarks, issued_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          diagnosis, start_date, end_date, rest_days, referral_hospital, referral_specialist, remarks, digital_seal_hash, issued_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `)
       .run(
         certificateNo,
@@ -81,13 +89,14 @@ export async function issueMedicalCertificateAction(params: {
         params.referralHospital?.trim() || null,
         params.referralSpecialist?.trim() || null,
         params.remarks?.trim() || null,
-        Date.now()
+        digitalSealHash,
+        issuedAt
       );
 
     await logAuditEvent({
       action: 'MEDICAL_CERTIFICATE_ISSUED',
-      actorRole: 'DOCTOR',
-      details: `Issued ${params.type} certificate #${certificateNo} for ${patient.name}`,
+      actorRole: user?.role?.toUpperCase() || 'DOCTOR',
+      details: `Issued ${params.type} certificate #${certificateNo} for ${patient.name} by ${doctorName} (Seal: ${digitalSealHash.slice(0, 16)}...)`,
       status: 'SUCCESS',
     });
 

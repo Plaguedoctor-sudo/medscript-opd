@@ -170,8 +170,14 @@ export async function exportAuditLogsCsvAction(): Promise<{ success: boolean; cs
 export async function restoreLocalDatabaseSnapshotAction(filename: string): Promise<{ success: boolean; message: string }> {
   const authed = await isAuthenticated();
   const role = await getCurrentUserRole();
-  if (!authed || !isDoctor(role)) {
-    return { success: false, message: 'Forbidden: Only authorized Doctor accounts can restore databases.' };
+  if (!authed || role !== 'admin_doctor') {
+    await logAuditEvent({
+      action: 'SYSTEM_CONFIG_UPDATED',
+      actorRole: role ? role.toUpperCase() : 'RECEPTIONIST',
+      details: `Unauthorized database restoration attempt blocked for file: ${path.basename(filename || '')}`,
+      status: 'FAILURE',
+    });
+    return { success: false, message: 'Forbidden: Only the Chief Medical Officer (Admin Doctor) has authority to restore databases.' };
   }
 
   // Path validation against path traversal

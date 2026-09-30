@@ -4,7 +4,7 @@ import { db } from '@/db';
 import { invoices, patients, clinicSettings, prescriptions, ipdAdmissions } from '@/db/schema';
 import { desc, eq, like, or, and, gte, lte, sql } from 'drizzle-orm';
 import { InvoiceItem, Invoice, InvoiceWithPatient, Patient, SafeClinicSettings } from '@/types';
-import { requirePermission, getCurrentUserRole, isDoctor, isReceptionist } from '@/lib/auth';
+import { requirePermission, getCurrentUserRole, getCurrentUser, isDoctor, isReceptionist } from '@/lib/auth';
 import { logAuditEvent } from '@/lib/audit';
 import { revalidatePath } from 'next/cache';
 
@@ -436,8 +436,9 @@ export async function deleteInvoiceAction(id: number): Promise<{ success: boolea
     await requirePermission('billing:view', '/billing');
     const role = await getCurrentUserRole();
 
-    if (!isDoctor(role)) {
-      return { success: false, error: 'Doctor authorization required to delete invoices' };
+    const user = await getCurrentUser();
+    if (role !== 'admin_doctor') {
+      return { success: false, error: 'Unauthorized: Billing invoices can only be deleted by the Chief Medical Officer (Admin Doctor).' };
     }
 
     const inv = await db.query.invoices.findFirst({
@@ -449,9 +450,9 @@ export async function deleteInvoiceAction(id: number): Promise<{ success: boolea
 
     await logAuditEvent({
       action: 'INVOICE_DELETED',
-      actorRole: 'DOCTOR',
-      details: `Deleted OPD Invoice ${inv.invoiceNo} (Amount: ₹${inv.totalAmount})`,
-      status: 'SUCCESS',
+      actorRole: 'ADMIN_DOCTOR',
+      details: `Deleted OPD Invoice ${inv.invoiceNo} (Amount: ₹${inv.totalAmount}) by ${user?.name || 'Admin Doctor'}`,
+      status: 'WARNING',
     });
 
     revalidatePath('/billing');

@@ -9,8 +9,8 @@
 
 ## Current State
 
-**Version:** `1.1.3` | **Branch:** `main`
-**Build:** ✅ 0 errors | **Tests:** ✅ 54/54 passing across 7 test suites
+**Version:** `1.1.4` | **Branch:** `main`
+**Build:** ✅ 0 errors | **Tests:** ✅ 63/63 passing across 8 test suites
 
 ```
 Next.js 16.3.4 (Turbopack) · SQLite (Drizzle ORM) · Military-Grade Zero-Trust · Offline-First PWA · Android Native APK
@@ -224,6 +224,8 @@ Next.js 16.3.4 (Turbopack) · SQLite (Drizzle ORM) · Military-Grade Zero-Trust 
 ## 🗓 Session Log
 
 | Date | What was done |
+|---|---|
+| 2026-09-30 | **Zero-Trust Security Hardening & Anti-Compromise Loophole Remediation** — (1) Live Staff User Session Lifecycle: Instant session revocation when staff account is deactivated or deleted; removed dangerous fall-through in `getCurrentUser()`; added `password_updated_at` column to invalidate tokens on credential reset; authoritative role queried live from database to prevent demotion bypass; (2) FHIR R4 Endpoint RBAC Protection: Enforced `canDo(role, 'patient:view')` on `/api/fhir/R4/Patient` and `canDo(role, 'prescription:view')` on `/api/fhir/R4/Bundle/[id]` and `/api/fhir/R4/MedicationRequest`; (3) Database Restoration Lockdown: Restoring active database strictly guarded by `admin_doctor` in `restoreLocalDatabaseSnapshotAction`; (4) Inventory Protection: Adding pharmacy stock and setting prices strictly requires `inventory:manage`; manual stock write-offs (`ADJUSTMENT`/`EXPIRED`) strictly requires doctor role; (5) Destructive Action Safeguards: Deleting medical records (`deletePatientDocumentAction`), prescriptions (`deletePrescription`), billing invoices (`deleteInvoiceAction`), and diagnostic reports (`deleteLabReport`) strictly restricted to authorized doctors or CMO (`admin_doctor`); (6) Waiting Room Kiosk Anti-Scraping: Enforced IP rate limiting (10 queries/min) in `lookupReturningPatientAction` to prevent automated enumeration of patient registry; (7) Tamper-Evident Medical Certificates: Added HMAC-SHA256 digital seal hash (`digital_seal_hash`) on `medical_certificates`; (8) Unit test suite: `insider-security-loopholes.test.ts` with 9 tests covering token lifecycle, role demotion, kiosk rate limiting, and RBAC isolation. Build ✅ Tests ✅ 63/63 passing across 8 test suites. |
 |---|---|
 | 2026-09-30 | **IPD Billing Integration & Inpatient Settlement** — (1) Core calculation engine (`src/lib/ipd-billing.ts`) for length of stay, ward tariffs, daily nursing care, doctor round charges, procedures, and lab fees; (2) Inpatient advance deposits reconciliation (ADVANCE + TOP_UP - REFUND) with net payable/refund tracking; (3) Server actions (`ipd/billing-actions.ts`) for breakdown calculation and official IPD final invoice generation; (4) Interactive case sheet UI (`IpdBillingSection.tsx`) with real-time financial ledger, deposit receipts badges, and final bill generation modal; (5) Two-way `/billing` linking with `admissionId` pre-population and IPD admission badges on printable invoices (`InvoiceView.tsx`); (6) Unit test suite (`ipd-billing.test.ts`) with 14 tests covering tariffs, stay length, and edge cases. Build ✅ Tests ✅ 41/41 passing across 6 test suites. |
 |---|---|

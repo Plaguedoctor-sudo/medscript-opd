@@ -317,7 +317,8 @@ export async function updatePrescription(id: number, formData: PrescriptionFormD
 }
 
 export async function deletePrescription(id: number) {
-  await requireRole(['doctor']);
+  await requireRole(['admin_doctor']);
+  const currentUser = await getCurrentUser();
 
   const [existing] = await db.select().from(prescriptions).where(eq(prescriptions.id, id));
   if (!existing) {
@@ -328,8 +329,8 @@ export async function deletePrescription(id: number) {
 
   await logAuditEvent({
     action: 'PRESCRIPTION_DELETED',
-    actorRole: 'DOCTOR',
-    details: `Prescription #${id} permanently deleted (Patient ID: ${existing.patientId})`,
+    actorRole: 'ADMIN_DOCTOR',
+    details: `Prescription #${id} permanently deleted (Patient ID: ${existing.patientId}) by ${currentUser?.name || 'Admin Doctor'}`,
     status: 'WARNING',
   });
 

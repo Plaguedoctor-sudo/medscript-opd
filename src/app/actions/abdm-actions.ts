@@ -1,6 +1,6 @@
 'use server';
 
-import { isAuthenticated, getCurrentUserRole } from '@/lib/auth';
+import { requirePermission } from '@/lib/auth';
 import { db } from '@/db';
 import { patients, prescriptions, clinicSettings } from '@/db/schema';
 import { eq } from 'drizzle-orm';
@@ -19,10 +19,7 @@ import { logAuditEvent } from '@/lib/audit';
 export async function verifyPatientAbhaAction(
   abhaIdentifier: string
 ): Promise<{ success: boolean; data?: AbhaVerificationResponse; error?: string }> {
-  const authed = await isAuthenticated();
-  if (!authed) {
-    return { success: false, error: 'Authentication required.' };
-  }
+  const role = await requirePermission('patient:view');
 
   const validation = validateAbhaFormat(abhaIdentifier);
   if (!validation.valid) {
@@ -53,10 +50,7 @@ export async function linkPatientCareContextAction(
   encounterType: 'OPD' | 'IPD',
   referenceId: number | string
 ) {
-  const authed = await isAuthenticated();
-  if (!authed) {
-    return { success: false, error: 'Authentication required.' };
-  }
+  const role = await requirePermission('patient:view');
 
   const patient = await db.query.patients.findFirst({
     where: eq(patients.id, patientId),
@@ -70,7 +64,7 @@ export async function linkPatientCareContextAction(
 
   await logAuditEvent({
     action: encounterType === 'OPD' ? 'PRESCRIPTION_CREATED' : 'IPD_ADMISSION_CREATED',
-    actorRole: 'DOCTOR',
+    actorRole: role.toUpperCase(),
     details: `ABDM Care Context ${linkage.careContext.referenceNumber} generated for ${patient.name}`,
     status: 'SUCCESS',
   });
@@ -85,10 +79,7 @@ export async function linkPatientCareContextAction(
  * Server action to export a certified ABDM FHIR R4 Document Bundle.
  */
 export async function exportAbdmBundleAction(prescriptionId: number) {
-  const authed = await isAuthenticated();
-  if (!authed) {
-    return { success: false, error: 'Authentication required.' };
-  }
+  const role = await requirePermission('prescription:view');
 
   const rx = await db.query.prescriptions.findFirst({
     where: eq(prescriptions.id, prescriptionId),

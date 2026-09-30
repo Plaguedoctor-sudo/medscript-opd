@@ -3,7 +3,7 @@
 import { db, sqlite } from '@/db';
 import { patientDocuments } from '@/db/schema';
 import { eq, desc } from 'drizzle-orm';
-import { requirePermission, getCurrentUser } from '@/lib/auth';
+import { requirePermission, getCurrentUser, getCurrentUserRole, isDoctor } from '@/lib/auth';
 import { logAuditEvent } from '@/lib/audit';
 import { PatientDocument, PatientDocumentType } from '@/types';
 import { revalidatePath } from 'next/cache';
@@ -79,12 +79,19 @@ export async function deletePatientDocumentAction(
   patientId: number
 ): Promise<{ success: boolean; error?: string }> {
   await requirePermission('document:upload');
+  const role = await getCurrentUserRole();
+  const user = await getCurrentUser();
+
+  if (!isDoctor(role)) {
+    return { success: false, error: 'Unauthorized: Doctor or CMO authorization required to delete patient medical records.' };
+  }
+
   try {
     await db.delete(patientDocuments).where(eq(patientDocuments.id, documentId));
     await logAuditEvent({
       action: 'PATIENT_DOCUMENT_DELETED',
-      actorRole: 'DOCTOR',
-      details: `Deleted Document #${documentId} for Patient ID #${patientId}`,
+      actorRole: role.toUpperCase(),
+      details: `Deleted Document #${documentId} for Patient ID #${patientId} by ${user?.name || role}`,
       status: 'WARNING',
     });
     revalidatePath(`/patient/${patientId}`);

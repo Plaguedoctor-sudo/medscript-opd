@@ -313,6 +313,7 @@ export const staffUsers = sqliteTable("staff_users", {
   regNumber: text("reg_number"), // License / Council Reg No.
   isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
   lastLoginAt: integer("last_login_at", { mode: "timestamp" }),
+  passwordUpdatedAt: integer("password_updated_at", { mode: "timestamp" }),
   createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
 });
 
@@ -560,6 +561,7 @@ export const medicalCertificates = sqliteTable("medical_certificates", {
   referralHospital: text("referral_hospital"),
   referralSpecialist: text("referral_specialist"),
   remarks: text("remarks"),
+  digitalSealHash: text("digital_seal_hash"),
   issuedAt: integer("issued_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
 });
 

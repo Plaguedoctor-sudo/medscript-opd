@@ -213,7 +213,30 @@ export function parseSessionToken(token: string | undefined | null): ParsedSessi
       // Ignore if column not present yet
     }
 
-    return { valid: true, role, userId: isNaN(userId) || userId === 0 ? undefined : userId };
+    // Verify staff account is still active and credentials have not been revoked
+    let effectiveRole: UserRole = role;
+    if (!isNaN(userId) && userId > 0) {
+      try {
+        const staff = sqlite
+          .prepare('SELECT role, is_active, password_updated_at FROM staff_users WHERE id = ?')
+          .get(userId) as { role?: string; is_active?: number; password_updated_at?: number | null } | undefined;
+        if (!staff || !Boolean(staff.is_active)) {
+          // Deactivated or deleted staff member: reject session immediately
+          return { valid: false, role: 'receptionist' };
+        }
+        if (staff.password_updated_at && timestamp < staff.password_updated_at) {
+          // Password or privileges updated after this token was issued: reject session
+          return { valid: false, role: 'receptionist' };
+        }
+        if (staff.role && isValidUserRole(staff.role)) {
+          effectiveRole = staff.role as UserRole;
+        }
+      } catch {
+        // Fall back to token values if table schema doesn't match
+      }
+    }
+
+    return { valid: true, role: effectiveRole, userId: isNaN(userId) || userId === 0 ? undefined : userId };
   }
 
   // Format: timestamp.role.signature
@@ -398,12 +421,13 @@ export async function getCurrentUser(): Promise<SafeStaffUser | null> {
       if (user && Boolean(user.isActive)) {
         return user;
       }
+      return null;
     } catch {
-      // Fall through to role lookup
+      return null;
     }
   }
 
-  // Fallback: look up first active user by role
+  // Fallback ONLY for legacy tokens with no userId (e.g. Master PIN doctor session)
   try {
     const userByRole = sqlite
       .prepare(

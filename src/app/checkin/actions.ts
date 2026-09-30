@@ -5,6 +5,7 @@ import { patients, appointments, clinicSettings } from '@/db/schema';
 import { eq, like, desc, and } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { logAuditEvent } from '@/lib/audit';
+import { getClientIp, checkKioskLookupRateLimit, recordKioskLookupAttempt } from '@/lib/rate-limiter';
 
 export interface SelfCheckinInput {
   patientId?: number;
@@ -34,6 +35,7 @@ export interface SelfCheckinResult {
  */
 export async function lookupReturningPatientAction(rawPhone: string): Promise<{
   found: boolean;
+  error?: string;
   patient?: {
     id: number;
     name: string;
@@ -45,6 +47,16 @@ export async function lookupReturningPatientAction(rawPhone: string): Promise<{
     bloodGroup: string | null;
   };
 }> {
+  const clientIp = await getClientIp();
+  const rateLimit = checkKioskLookupRateLimit(clientIp);
+  if (!rateLimit.allowed) {
+    return {
+      found: false,
+      error: `Too many lookup attempts from this device. Please wait ${rateLimit.retryAfterSeconds} seconds or speak to the receptionist.`,
+    };
+  }
+  recordKioskLookupAttempt(clientIp);
+
   const clean = rawPhone.replace(/\D/g, '');
   if (clean.length < 10) return { found: false };
 

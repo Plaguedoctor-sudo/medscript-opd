@@ -401,8 +401,8 @@ export async function deleteLabReport(id: number): Promise<{ success: boolean; e
   await requirePermission('lab:manage', '/labs');
   const role = await getCurrentUserRole();
 
-  if (role !== 'admin_doctor' && role !== 'lab_technician') {
-    return { success: false, error: "Unauthorized: Only the Lab Technician or Admin Doctor can delete lab reports." };
+  if (role !== 'admin_doctor') {
+    return { success: false, error: "Unauthorized: Diagnostic lab reports can only be deleted by the Chief Medical Officer (Admin Doctor)." };
   }
 
   try {

@@ -153,13 +153,9 @@ export async function addPharmacyItem(data: {
   rackLocation?: string;
   supplierName?: string;
 }): Promise<{ success: boolean; id?: number; error?: string }> {
-  await requirePermission('inventory:view', '/inventory');
+  await requirePermission('inventory:manage', '/inventory');
   const role = await getCurrentUserRole();
   const user = await getCurrentUser();
-
-  if (!isDoctor(role) && !isReceptionist(role) && !isNurse(role)) {
-    return { success: false, error: 'Unauthorized: Staff authorization required to manage pharmacy inventory.' };
-  }
 
   const cleanMedName = (data.medicineName || '').trim();
   const cleanBatchNo = (data.batchNo || '').trim().toUpperCase();

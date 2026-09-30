@@ -260,3 +260,62 @@ export function recordBreakGlassAttempt(ip: string): void {
     // Ignore
   }
 }
+
+const KIOSK_LOOKUP_MAX_PER_MINUTE = 10;
+const KIOSK_LOOKUP_WINDOW_MS = 60 * 1000;
+
+export function checkKioskLookupRateLimit(ip: string): { allowed: boolean; retryAfterSeconds?: number } {
+  const key = `kiosk_${ip}`;
+  const now = Date.now();
+  try {
+    const entry = sqlite
+      .prepare('SELECT attempts, first_attempt FROM rate_limits WHERE key = ?')
+      .get(key) as { attempts: number; first_attempt: number } | undefined;
+
+    if (!entry) return { allowed: true };
+
+    if (now - entry.first_attempt > KIOSK_LOOKUP_WINDOW_MS) {
+      sqlite.prepare('DELETE FROM rate_limits WHERE key = ?').run(key);
+      return { allowed: true };
+    }
+
+    if (entry.attempts >= KIOSK_LOOKUP_MAX_PER_MINUTE) {
+      const retryAfterSeconds = Math.ceil((KIOSK_LOOKUP_WINDOW_MS - (now - entry.first_attempt)) / 1000);
+      return { allowed: false, retryAfterSeconds };
+    }
+
+    return { allowed: true };
+  } catch {
+    return { allowed: true };
+  }
+}
+
+export function recordKioskLookupAttempt(ip: string): void {
+  const key = `kiosk_${ip}`;
+  const now = Date.now();
+  try {
+    const entry = sqlite
+      .prepare('SELECT attempts, first_attempt FROM rate_limits WHERE key = ?')
+      .get(key) as { attempts: number; first_attempt: number } | undefined;
+
+    let attempts = 1;
+    let firstAttempt = now;
+
+    if (entry && now - entry.first_attempt <= KIOSK_LOOKUP_WINDOW_MS) {
+      attempts = entry.attempts + 1;
+      firstAttempt = entry.first_attempt;
+    }
+
+    sqlite
+      .prepare(`
+        INSERT INTO rate_limits (key, attempts, first_attempt, locked_until)
+        VALUES (?, ?, ?, 0)
+        ON CONFLICT(key) DO UPDATE SET
+          attempts = excluded.attempts,
+          first_attempt = excluded.first_attempt
+      `)
+      .run(key, attempts, firstAttempt);
+  } catch {
+    // Ignore
+  }
+}

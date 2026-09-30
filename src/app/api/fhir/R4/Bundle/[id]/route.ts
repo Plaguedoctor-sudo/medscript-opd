@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { isAuthenticated, getCurrentUserRole } from '@/lib/auth';
+import { isAuthenticated, getCurrentUserRole, canDo } from '@/lib/auth';
 import { db } from '@/db';
 import { prescriptions, patients, clinicSettings } from '@/db/schema';
 import { eq } from 'drizzle-orm';
@@ -26,6 +26,28 @@ export async function GET(
         ],
       },
       { status: 401 }
+    );
+  }
+
+  if (!canDo(role, 'prescription:view')) {
+    await logAuditEvent({
+      action: 'PRESCRIPTION_VIEWED',
+      actorRole: role.toUpperCase(),
+      details: 'Unauthorized FHIR Consultation Bundle access blocked (role lacks prescription:view)',
+      status: 'FAILURE',
+    });
+    return NextResponse.json(
+      {
+        resourceType: 'OperationOutcome',
+        issue: [
+          {
+            severity: 'error',
+            code: 'forbidden',
+            diagnostics: 'Forbidden: Insufficient privileges to view FHIR consultation bundles.',
+          },
+        ],
+      },
+      { status: 403 }
     );
   }
 

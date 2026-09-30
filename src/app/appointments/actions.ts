@@ -161,7 +161,7 @@ export async function createAppointment(data: {
   chiefComplaint?: string;
   notes?: string;
 }): Promise<{ success: boolean; tokenNo?: number; error?: string }> {
-  await requirePermission('appointment:view', '/appointments');
+  await requirePermission('appointment:manage', '/appointments');
   const role = await getCurrentUserRole();
 
   if (!data.patientId || typeof data.patientId !== 'number' || data.patientId <= 0) {
@@ -230,7 +230,7 @@ export async function updateAppointmentStatus(
   id: number,
   newStatus: AppointmentStatus
 ): Promise<{ success: boolean; error?: string }> {
-  await requirePermission('appointment:view', '/appointments');
+  await requirePermission('appointment:manage', '/appointments');
   const role = await getCurrentUserRole();
 
   const ALLOWED_STATUSES: AppointmentStatus[] = ['WAITING', 'IN_CONSULTATION', 'COMPLETED', 'CANCELLED', 'NO_SHOW'];
@@ -266,7 +266,7 @@ export async function callNextPatientAction(dateStr?: string): Promise<{
   calledPatient?: string;
   error?: string;
 }> {
-  await requirePermission('appointment:view', '/appointments');
+  await requirePermission('appointment:manage', '/appointments');
   const role = await getCurrentUserRole();
   const targetDate = dateStr && /^\d{4}-\d{2}-\d{2}$/.test(dateStr.trim())
     ? dateStr.trim()

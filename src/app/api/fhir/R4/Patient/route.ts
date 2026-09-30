@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { isAuthenticated, getCurrentUserRole } from '@/lib/auth';
+import { isAuthenticated, getCurrentUserRole, canDo } from '@/lib/auth';
 import { db } from '@/db';
 import { patients } from '@/db/schema';
 import { eq, like, or } from 'drizzle-orm';
@@ -23,6 +23,28 @@ export async function GET(request: Request) {
         ],
       },
       { status: 401 }
+    );
+  }
+
+  if (!canDo(role, 'patient:view')) {
+    await logAuditEvent({
+      action: 'PATIENT_VIEWED',
+      actorRole: role.toUpperCase(),
+      details: 'Unauthorized FHIR Patient resource query blocked (role lacks patient:view)',
+      status: 'FAILURE',
+    });
+    return NextResponse.json(
+      {
+        resourceType: 'OperationOutcome',
+        issue: [
+          {
+            severity: 'error',
+            code: 'forbidden',
+            diagnostics: 'Forbidden: Insufficient privileges to query FHIR patient demographics.',
+          },
+        ],
+      },
+      { status: 403 }
     );
   }
 
