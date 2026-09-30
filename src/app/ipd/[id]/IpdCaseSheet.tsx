@@ -60,6 +60,7 @@ import { IpdNursingNotesSection } from "@/components/ipd/IpdNursingNotesSection"
 import { IpdNursingServicesSection } from "@/components/ipd/IpdNursingServicesSection";
 import { IpdHandoverSection } from "@/components/ipd/IpdHandoverSection";
 import { IpdBillingSection } from "@/components/ipd/IpdBillingSection";
+import { PatientBedsideDeviceSection } from "@/components/ipd/PatientBedsideDeviceSection";
 import { IpdDischarge, IpdNursingNote, IpdHandover, IpdClinicalService, Invoice } from "@/types";
 
 interface IpdCaseSheetProps {
@@ -725,6 +726,14 @@ export function IpdCaseSheet({
             </div>
           )}
         </div>
+
+        {/* SECTION: Connected ICU / IPD Bedside Medical Devices & Telemetry */}
+        <PatientBedsideDeviceSection
+          admissionId={admission.id}
+          ward={admission.ward}
+          bedNo={admission.bedNo}
+          userRole={userRole}
+        />
 
         {/* SECTION 1: Daily Doctor Rounds & Clinical Progress Notes */}
         <div className="mb-8">

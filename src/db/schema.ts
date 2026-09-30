@@ -238,6 +238,8 @@ export const ipdAdmissionsRelations = relations(ipdAdmissions, ({ one, many }) =
   handovers: many(ipdHandovers),
   clinicalServices: many(ipdClinicalServices),
   invoices: many(invoices),
+  devices: many(medicalDevices),
+  deviceTelemetry: many(deviceTelemetryRecords),
 }));
 
 export const ipdRounds = sqliteTable("ipd_rounds", {
@@ -722,6 +724,107 @@ export const quarantinedIps = sqliteTable("quarantined_ips", {
   pardonedAt: integer("pardoned_at", { mode: "timestamp" }),
   pardonedBy: text("pardoned_by"),
 });
+
+// ==========================================
+// ICU & IPD MEDICAL DEVICE TELEMETRY ENGINE
+// ==========================================
+export const medicalDevices = sqliteTable("medical_devices", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  deviceId: text("device_id").notNull().unique(), // e.g. "DEV-ICU-MON-01"
+  name: text("name").notNull(), // e.g. "Mindray BeneVision N17 Bedside Monitor"
+  deviceType: text("device_type").notNull().default("patient_monitor"), // 'patient_monitor' | 'ventilator' | 'infusion_pump' | 'dialysis_crrt' | 'capnograph' | 'defibrillator_monitor'
+  model: text("model"),
+  serialNumber: text("serial_number"),
+  locationWard: text("location_ward").notNull().default("ICU"), // 'ICU' | 'HDU' | 'General Ward' | 'Emergency / Triage' | 'Post-Op Recovery'
+  assignedBed: text("assigned_bed"), // e.g. "ICU-01", "Bed-03"
+  currentAdmissionId: integer("current_admission_id").references(() => ipdAdmissions.id),
+  status: text("status").notNull().default("STANDBY"), // 'ONLINE' | 'STREAMING' | 'STANDBY' | 'ALARM' | 'MAINTENANCE' | 'OFFLINE'
+  ipAddress: text("ip_address"),
+  macAddress: text("mac_address"),
+  protocol: text("protocol").default("HL7_V2_ORU"), // 'HL7_V2_ORU' | 'IEEE_11073' | 'FHIR_OBSERVATION' | 'REST_JSON'
+  batteryPercent: integer("battery_percent").default(100),
+  lastTelemetryAt: integer("last_telemetry_at", { mode: "timestamp" }),
+  config: text("config"), // JSON string with alarm thresholds: { hrLow: 50, hrHigh: 120, spo2Low: 92, sysLow: 90, sysHigh: 160, rrLow: 10, rrHigh: 30, pipHigh: 35 }
+  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+});
+
+export const medicalDevicesRelations = relations(medicalDevices, ({ one, many }) => ({
+  admission: one(ipdAdmissions, {
+    fields: [medicalDevices.currentAdmissionId],
+    references: [ipdAdmissions.id],
+  }),
+  telemetryRecords: many(deviceTelemetryRecords),
+  alerts: many(deviceAlerts),
+}));
+
+export const deviceTelemetryRecords = sqliteTable("device_telemetry_records", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  deviceId: text("device_id").notNull(),
+  admissionId: integer("admission_id").references(() => ipdAdmissions.id),
+  patientId: integer("patient_id").references(() => patients.id),
+  // Vitals Parameters
+  heartRate: integer("heart_rate"), // bpm
+  pulseRate: integer("pulse_rate"), // bpm
+  spo2: integer("spo2"), // %
+  systolicBp: integer("systolic_bp"), // mmHg
+  diastolicBp: integer("diastolic_bp"), // mmHg
+  meanArterialPressure: integer("mean_arterial_pressure"), // MAP mmHg
+  respiratoryRate: integer("respiratory_rate"), // breaths/min
+  bodyTemperature: real("body_temperature"), // °C
+  etco2: integer("etco2"), // mmHg
+  // Ventilator Parameters
+  ventilatorMode: text("ventilator_mode"), // e.g. 'VCV', 'PCV', 'SIMV+PS', 'CPAP/PSV'
+  fio2: integer("fio2"), // FiO2 % (21 - 100)
+  peep: real("peep"), // cmH2O
+  tidalVolume: integer("tidal_volume"), // mL
+  peakInspiratoryPressure: real("peak_inspiratory_pressure"), // PIP cmH2O
+  minuteVentilation: real("minute_ventilation"), // L/min
+  // Infusion / Syringe Pump Parameters
+  infusionDrug: text("infusion_drug"), // e.g. 'Noradrenaline', 'Propofol', 'Fentanyl'
+  infusionRate: real("infusion_rate"), // mL/h
+  infusionDose: text("infusion_dose"), // e.g. '0.08 mcg/kg/min'
+  totalVolumeInfused: real("total_volume_infused"), // mL
+  infusionStatus: text("infusion_status"), // 'INFUSING' | 'KVO' | 'PAUSED' | 'OCCLUSION' | 'COMPLETE'
+  // Clinical Scoring & Alerts
+  news2Score: integer("news2_score"), // 0 - 20
+  alertLevel: text("alert_level").default("NORMAL"), // 'NORMAL' | 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
+  activeAlerts: text("active_alerts"), // JSON array of active alarm strings
+  rawPayload: text("raw_payload"), // Optional raw HL7 or JSON packet
+  recordedAt: integer("recorded_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+});
+
+export const deviceTelemetryRecordsRelations = relations(deviceTelemetryRecords, ({ one }) => ({
+  admission: one(ipdAdmissions, {
+    fields: [deviceTelemetryRecords.admissionId],
+    references: [ipdAdmissions.id],
+  }),
+  patient: one(patients, {
+    fields: [deviceTelemetryRecords.patientId],
+    references: [patients.id],
+  }),
+}));
+
+export const deviceAlerts = sqliteTable("device_alerts", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  deviceId: text("device_id").notNull(),
+  admissionId: integer("admission_id").references(() => ipdAdmissions.id),
+  severity: text("severity").notNull().default("WARNING"), // 'INFO' | 'WARNING' | 'CRITICAL' | 'LIFE_THREATENING'
+  category: text("category").notNull().default("VITALS"), // 'VITALS' | 'VENTILATOR' | 'INFUSION' | 'TECHNICAL' | 'LEADS_OFF'
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  isAcknowledged: integer("is_acknowledged", { mode: "boolean" }).notNull().default(false),
+  acknowledgedBy: text("acknowledged_by"),
+  acknowledgedAt: integer("acknowledged_at", { mode: "timestamp" }),
+  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+});
+
+export const deviceAlertsRelations = relations(deviceAlerts, ({ one }) => ({
+  admission: one(ipdAdmissions, {
+    fields: [deviceAlerts.admissionId],
+    references: [ipdAdmissions.id],
+  }),
+}));
+
 
 
 

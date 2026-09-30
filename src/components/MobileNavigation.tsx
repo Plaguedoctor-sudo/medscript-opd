@@ -22,6 +22,7 @@ import {
   Lock,
   ChevronRight,
   ShieldAlert,
+  Activity,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { canDo, ROLE_PERMISSIONS } from '@/lib/role-scope';
@@ -306,6 +307,19 @@ export function MobileNavigation({
                     <div className="flex items-center gap-3">
                       <Bed className="w-4 h-4 text-purple-600" />
                       <span>IPD Inpatient Census & Case Sheets</span>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-slate-400" />
+                  </Link>
+                )}
+
+                {showIpd && (
+                  <Link
+                    href="/ipd/monitoring"
+                    className="flex items-center justify-between p-2.5 rounded-lg text-slate-800 hover:bg-emerald-50 font-medium transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <Activity className="w-4 h-4 text-emerald-600" />
+                      <span>ICU &amp; IPD Device Telemetry</span>
                     </div>
                     <ChevronRight className="w-4 h-4 text-slate-400" />
                   </Link>

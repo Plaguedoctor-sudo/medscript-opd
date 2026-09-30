@@ -4,7 +4,7 @@ import { getIpdAdmissions } from "./actions";
 import { IpdDashboard } from "./IpdDashboard";
 import { getSecurityAlerts } from "@/lib/security-engine";
 import Link from "next/link";
-import { Bed, Users, BarChart3, Settings, Receipt, ChevronLeft, FlaskConical, CalendarCheck, Pill } from "lucide-react";
+import { Bed, Users, BarChart3, Settings, Receipt, ChevronLeft, FlaskConical, CalendarCheck, Pill, Activity } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { UserProfileMenu } from "@/components/UserProfileMenu";
 import { SecurityAlertBell } from "@/components/SecurityAlertBell";
@@ -70,6 +70,11 @@ export default async function IpdPage({
             <PrivacyShield />
             <SecurityAlertBell initialStats={securityAlertsData} />
             <div className="hidden lg:flex items-center gap-2">
+              <Link href="/ipd/monitoring">
+                <Button variant="outline" size="sm" className="gap-1.5 text-xs border-emerald-300 text-emerald-700 hover:bg-emerald-50 font-bold">
+                  <Activity className="w-3.5 h-3.5 text-emerald-600 animate-pulse" /> ICU Devices
+                </Button>
+              </Link>
               <Link href="/appointments">
                 <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
                   <CalendarCheck className="w-4 h-4 text-blue-600" /> Queue

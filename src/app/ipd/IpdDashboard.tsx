@@ -148,13 +148,22 @@ export function IpdDashboard({
           </p>
         </div>
 
-        <AdmitPatientModal
-          triggerButton={
-            <Button className="gap-1.5 bg-purple-600 hover:bg-purple-700 text-white shadow-xs">
-              <PlusCircle className="w-4 h-4" /> New Inpatient Admission
+        <div className="flex items-center gap-2">
+          <Link href="/ipd/monitoring">
+            <Button variant="outline" className="gap-1.5 border-emerald-300 text-emerald-700 hover:bg-emerald-50 font-bold shadow-2xs">
+              <Activity className="w-4 h-4 text-emerald-600 animate-pulse" />
+              ICU &amp; IPD Telemetry Station
             </Button>
-          }
-        />
+          </Link>
+
+          <AdmitPatientModal
+            triggerButton={
+              <Button className="gap-1.5 bg-purple-600 hover:bg-purple-700 text-white shadow-xs">
+                <PlusCircle className="w-4 h-4" /> New Inpatient Admission
+              </Button>
+            }
+          />
+        </div>
       </div>
 
       {/* Search & Filters */}

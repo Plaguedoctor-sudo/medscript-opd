@@ -369,6 +369,84 @@ sqlite.exec(`
   );
 
   CREATE INDEX IF NOT EXISTS idx_quarantine_ip ON quarantined_ips(ip_address);
+
+  CREATE TABLE IF NOT EXISTS medical_devices (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    device_id TEXT NOT NULL UNIQUE,
+    name TEXT NOT NULL,
+    device_type TEXT NOT NULL DEFAULT 'patient_monitor',
+    model TEXT,
+    serial_number TEXT,
+    location_ward TEXT NOT NULL DEFAULT 'ICU',
+    assigned_bed TEXT,
+    current_admission_id INTEGER REFERENCES ipd_admissions(id),
+    status TEXT NOT NULL DEFAULT 'STANDBY',
+    ip_address TEXT,
+    mac_address TEXT,
+    protocol TEXT DEFAULT 'HL7_V2_ORU',
+    battery_percent INTEGER DEFAULT 100,
+    last_telemetry_at INTEGER,
+    config TEXT,
+    created_at INTEGER
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_devices_bed ON medical_devices(assigned_bed);
+  CREATE INDEX IF NOT EXISTS idx_devices_admission ON medical_devices(current_admission_id);
+  CREATE INDEX IF NOT EXISTS idx_devices_status ON medical_devices(status);
+
+  CREATE TABLE IF NOT EXISTS device_telemetry_records (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    device_id TEXT NOT NULL,
+    admission_id INTEGER REFERENCES ipd_admissions(id),
+    patient_id INTEGER REFERENCES patients(id),
+    heart_rate INTEGER,
+    pulse_rate INTEGER,
+    spo2 INTEGER,
+    systolic_bp INTEGER,
+    diastolic_bp INTEGER,
+    mean_arterial_pressure INTEGER,
+    respiratory_rate INTEGER,
+    body_temperature REAL,
+    etco2 INTEGER,
+    ventilator_mode TEXT,
+    fio2 INTEGER,
+    peep REAL,
+    tidal_volume INTEGER,
+    peak_inspiratory_pressure REAL,
+    minute_ventilation REAL,
+    infusion_drug TEXT,
+    infusion_rate REAL,
+    infusion_dose TEXT,
+    total_volume_infused REAL,
+    infusion_status TEXT,
+    news2_score INTEGER,
+    alert_level TEXT DEFAULT 'NORMAL',
+    active_alerts TEXT,
+    raw_payload TEXT,
+    recorded_at INTEGER
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_telemetry_device ON device_telemetry_records(device_id);
+  CREATE INDEX IF NOT EXISTS idx_telemetry_admission ON device_telemetry_records(admission_id);
+  CREATE INDEX IF NOT EXISTS idx_telemetry_recorded_at ON device_telemetry_records(recorded_at);
+
+  CREATE TABLE IF NOT EXISTS device_alerts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    device_id TEXT NOT NULL,
+    admission_id INTEGER REFERENCES ipd_admissions(id),
+    severity TEXT NOT NULL DEFAULT 'WARNING',
+    category TEXT NOT NULL DEFAULT 'VITALS',
+    title TEXT NOT NULL,
+    description TEXT NOT NULL,
+    is_acknowledged INTEGER DEFAULT 0,
+    acknowledged_by TEXT,
+    acknowledged_at INTEGER,
+    created_at INTEGER
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_device_alerts_device ON device_alerts(device_id);
+  CREATE INDEX IF NOT EXISTS idx_device_alerts_admission ON device_alerts(admission_id);
+  CREATE INDEX IF NOT EXISTS idx_device_alerts_ack ON device_alerts(is_acknowledged);
 `);
 
 // Auto-seed default staff profiles across all major roles and subcategories

@@ -179,7 +179,11 @@ export type Permission =
   // Medical Documents
   | 'certificate:issue'
   | 'document:upload'
-  | 'template:manage';
+  | 'template:manage'
+  // ICU & IPD Medical Device Telemetry
+  | 'device:view'
+  | 'device:manage'
+  | 'device:telemetry';
 
 /**
  * Declarative permission matrix.
@@ -197,6 +201,7 @@ export const ROLE_PERMISSIONS: Record<Exclude<UserRole, 'admin_doctor'>, Permiss
     'reports:view', 'reports:idsp',
     'settings:view_own_pin', 'settings:clinic',
     'certificate:issue', 'document:upload', 'template:manage',
+    'device:view', 'device:manage', 'device:telemetry',
   ],
   nurse: [
     'prescription:view',
@@ -207,6 +212,7 @@ export const ROLE_PERMISSIONS: Record<Exclude<UserRole, 'admin_doctor'>, Permiss
     'inventory:view',
     'settings:view_own_pin',
     'document:upload',
+    'device:view', 'device:manage', 'device:telemetry',
   ],
   receptionist: [
     'prescription:view',
