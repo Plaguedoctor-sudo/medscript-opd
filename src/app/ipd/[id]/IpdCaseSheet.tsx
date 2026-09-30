@@ -561,7 +561,7 @@ export function IpdCaseSheet({
       </div>
 
       {/* Main Printable Inpatient Case Sheet */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8 sm:p-10 max-w-4xl mx-auto print:border-none print:shadow-none print:p-0 print:m-0 text-slate-800">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-10 max-w-5xl xl:max-w-6xl mx-auto print:border-none print:shadow-none print:p-0 print:m-0 print:max-w-none text-slate-800">
         {/* Hospital Header */}
         <div className="border-b-2 border-slate-900 pb-5 mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3.5">

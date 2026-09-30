@@ -9,6 +9,15 @@ import {
 import { canDo } from '../role-scope';
 
 describe('ICU & IPD Medical Device Telemetry Engine', () => {
+  describe('Default Alert Thresholds', () => {
+    it('defines clinical safe limits for critical alarm triggers', () => {
+      expect(DEFAULT_THRESHOLDS.hrLow).toBe(48);
+      expect(DEFAULT_THRESHOLDS.hrHigh).toBe(125);
+      expect(DEFAULT_THRESHOLDS.spo2Low).toBe(91);
+      expect(DEFAULT_THRESHOLDS.pipHigh).toBe(34);
+    });
+  });
+
   describe('NEWS2 Clinical Deterioration Scoring', () => {
     it('returns score 0 and LOW risk for normal physiological vitals', () => {
       const result = calculateNews2Score({

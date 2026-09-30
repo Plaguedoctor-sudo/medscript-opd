@@ -402,8 +402,65 @@ export function IcuCentralMonitoringDashboard({
         </div>
       </div>
 
+      {/* Real-time Ward KPI Metrics Bar */}
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3.5">
+        <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-3.5 shadow-sm">
+          <div className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">Monitored Beds</div>
+          <div className="flex items-baseline justify-between mt-1">
+            <span className="text-2xl font-black text-white font-mono">{bedMap.size}</span>
+            <span className="text-[10px] text-emerald-400 font-semibold">100% Online</span>
+          </div>
+        </div>
+
+        <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-3.5 shadow-sm">
+          <div className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">Occupied Beds</div>
+          <div className="flex items-baseline justify-between mt-1">
+            <span className="text-2xl font-black text-blue-400 font-mono">
+              {Array.from(bedMap.values()).filter((devs) => devs.some((d) => d.patient)).length}
+            </span>
+            <span className="text-[10px] text-slate-400">Active Care</span>
+          </div>
+        </div>
+
+        <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-3.5 shadow-sm">
+          <div className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">Ventilators Active</div>
+          <div className="flex items-baseline justify-between mt-1">
+            <span className="text-2xl font-black text-indigo-400 font-mono">
+              {devices.filter((d) => d.deviceType === 'ventilator').length}
+            </span>
+            <span className="text-[10px] text-indigo-300">Synchronized</span>
+          </div>
+        </div>
+
+        <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-3.5 shadow-sm">
+          <div className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">Infusion Pumps</div>
+          <div className="flex items-baseline justify-between mt-1">
+            <span className="text-2xl font-black text-purple-400 font-mono">
+              {devices.filter((d) => d.deviceType === 'infusion_pump').length}
+            </span>
+            <span className="text-[10px] text-purple-300">Titrating</span>
+          </div>
+        </div>
+
+        <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-3.5 shadow-sm col-span-2 sm:col-span-1">
+          <div className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">Critical Alarms</div>
+          <div className="flex items-baseline justify-between mt-1">
+            <span
+              className={`text-2xl font-black font-mono ${
+                devices.some((d) => (d.latestTelemetry?.news2Score ?? 0) >= 7 || (d.activeAlertCount ?? 0) > 0)
+                  ? 'text-red-400 animate-pulse'
+                  : 'text-emerald-400'
+              }`}
+            >
+              {devices.filter((d) => (d.latestTelemetry?.news2Score ?? 0) >= 7 || (d.activeAlertCount ?? 0) > 0).length}
+            </span>
+            <span className="text-[10px] text-slate-400">Immediate Action</span>
+          </div>
+        </div>
+      </div>
+
       {/* Bedside Monitors Matrix Grid */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-5">
         {Array.from(bedMap.entries()).map(([bedName, bedDevices]) => {
           // Identify primary patient monitor, ventilator, and syringe pump on this bed
           const patientMonitor = bedDevices.find((d) => d.deviceType === 'patient_monitor') || bedDevices[0];

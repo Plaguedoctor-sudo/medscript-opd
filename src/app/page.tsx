@@ -24,6 +24,7 @@ import {
   ShieldAlert,
   ShieldCheck,
   UserPlus,
+  Activity,
 } from "lucide-react";
 import { DashboardSearch } from "@/components/DashboardSearch";
 import { formatDate } from "@/lib/utils";
@@ -183,6 +184,14 @@ export default async function DashboardPage({
                   </Button>
                 </Link>
               )}
+              {/* ICU Telemetry — doctors and nurses */}
+              {(role === 'admin_doctor' || role === 'doctor' || role === 'nurse') && (
+                <Link href="/ipd/monitoring">
+                  <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-emerald-700 hover:text-emerald-800 hover:bg-emerald-50">
+                    <Activity className="w-4 h-4 text-emerald-600" /> ICU Telemetry
+                  </Button>
+                </Link>
+              )}
               {/* Labs — doctors, lab_technician, nurse (read), admin */}
               {(role === 'admin_doctor' || role === 'doctor' || role === 'nurse' || role === 'lab_technician') && (
                 <Link href="/labs">
@@ -249,7 +258,7 @@ export default async function DashboardPage({
       </nav>
 
 
-      <main className="container mx-auto px-4 py-8 max-w-6xl">
+      <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 max-w-[1440px]">
         {/* Breach Containment & Deception Lockdown Banner */}
         <LockdownBanner initialStatus={lockdownStatus} userRole={role} />
 
@@ -319,9 +328,9 @@ export default async function DashboardPage({
         )}
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3 mb-8">
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 xl:grid-cols-8 gap-3.5 mb-8">
           <Link href="/appointments" className="block group">
-            <Card className="hover:border-blue-400 hover:shadow-md transition-all cursor-pointer h-full">
+            <Card className="hover:border-blue-400 hover:shadow-md transition-all cursor-pointer h-full border-slate-200">
               <CardContent className="pt-4 pb-4 px-3 flex flex-col justify-between h-full">
                 <div className="flex items-center justify-between mb-2">
                   <div className="p-2 bg-blue-100 rounded-lg text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors">
@@ -343,7 +352,7 @@ export default async function DashboardPage({
           </Link>
 
           <Link href="/patients" className="block group">
-            <Card className="hover:border-blue-400 hover:shadow-md transition-all cursor-pointer h-full">
+            <Card className="hover:border-blue-400 hover:shadow-md transition-all cursor-pointer h-full border-slate-200">
               <CardContent className="pt-4 pb-4 px-3 flex flex-col justify-between h-full">
                 <div className="flex items-center justify-between mb-2">
                   <div className="p-2 bg-slate-100 rounded-lg text-slate-600 group-hover:bg-slate-700 group-hover:text-white transition-colors">
@@ -360,7 +369,7 @@ export default async function DashboardPage({
           </Link>
 
           <Link href="/inventory" className="block group">
-            <Card className="hover:border-emerald-400 hover:shadow-md transition-all cursor-pointer h-full">
+            <Card className="hover:border-emerald-400 hover:shadow-md transition-all cursor-pointer h-full border-slate-200">
               <CardContent className="pt-4 pb-4 px-3 flex flex-col justify-between h-full">
                 <div className="flex items-center justify-between mb-2">
                   <div className="p-2 bg-emerald-100 rounded-lg text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
@@ -384,7 +393,7 @@ export default async function DashboardPage({
           </Link>
 
           <Link href="/ipd" className="block group">
-            <Card className="hover:border-purple-400 hover:shadow-md transition-all cursor-pointer h-full">
+            <Card className="hover:border-purple-400 hover:shadow-md transition-all cursor-pointer h-full border-slate-200">
               <CardContent className="pt-4 pb-4 px-3 flex flex-col justify-between h-full">
                 <div className="flex items-center justify-between mb-2">
                   <div className="p-2 bg-purple-100 rounded-lg text-purple-600 group-hover:bg-purple-600 group-hover:text-white transition-colors">
@@ -400,8 +409,29 @@ export default async function DashboardPage({
             </Card>
           </Link>
 
+          {/* ICU Devices Telemetry Card */}
+          <Link href="/ipd/monitoring" className="block group">
+            <Card className="hover:border-emerald-400 hover:shadow-md transition-all cursor-pointer h-full border-slate-200">
+              <CardContent className="pt-4 pb-4 px-3 flex flex-col justify-between h-full">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="p-2 bg-emerald-100 rounded-lg text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+                    <Activity className="w-4 h-4" />
+                  </div>
+                  <span className="text-[10px] text-emerald-600 font-medium">Live &rarr;</span>
+                </div>
+                <div>
+                  <p className="text-[11px] font-medium text-slate-500">ICU Telemetry</p>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <h3 className="text-xl font-bold text-emerald-700">6 Beds</h3>
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-ping" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+
           <Link href="/labs" className="block group">
-            <Card className="hover:border-indigo-400 hover:shadow-md transition-all cursor-pointer h-full">
+            <Card className="hover:border-indigo-400 hover:shadow-md transition-all cursor-pointer h-full border-slate-200">
               <CardContent className="pt-4 pb-4 px-3 flex flex-col justify-between h-full">
                 <div className="flex items-center justify-between mb-2">
                   <div className="p-2 bg-indigo-100 rounded-lg text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-colors">
@@ -418,7 +448,7 @@ export default async function DashboardPage({
           </Link>
 
           <Link href="/reports" className="block group">
-            <Card className="hover:border-blue-400 hover:shadow-md transition-all cursor-pointer h-full">
+            <Card className="hover:border-blue-400 hover:shadow-md transition-all cursor-pointer h-full border-slate-200">
               <CardContent className="pt-4 pb-4 px-3 flex flex-col justify-between h-full">
                 <div className="flex items-center justify-between mb-2">
                   <div className="p-2 bg-blue-50 rounded-lg text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors">
@@ -435,8 +465,8 @@ export default async function DashboardPage({
           </Link>
 
           {(role === 'admin_doctor' || role === 'doctor') ? (
-            <Link href="/prescription/new" className="block col-span-2 md:col-span-1 xl:col-span-1 h-full">
-              <Card className="bg-gradient-to-r from-blue-600 to-blue-700 text-white cursor-pointer hover:from-blue-700 hover:to-blue-800 transition-all shadow-xs h-full">
+            <Link href="/prescription/new" className="block col-span-2 sm:col-span-1 h-full">
+              <Card className="bg-gradient-to-r from-blue-600 to-blue-700 text-white cursor-pointer hover:from-blue-700 hover:to-blue-800 transition-all shadow-xs h-full border-transparent">
                 <CardContent className="pt-4 pb-4 px-3 flex flex-col justify-between h-full">
                   <div className="flex items-center justify-between mb-2">
                     <div className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center">

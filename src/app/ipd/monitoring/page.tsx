@@ -49,7 +49,7 @@ export default async function IcuMonitoringPage() {
     <div className="min-h-screen bg-slate-950 text-slate-100 pb-16">
       {/* Top Navbar in Dark Cockpit Theme */}
       <nav className="bg-slate-900 border-b border-slate-800 shadow-md sticky top-0 z-30">
-        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between max-w-[1680px]">
           <div className="flex items-center gap-3">
             <Link
               href="/ipd"
@@ -92,7 +92,7 @@ export default async function IcuMonitoringPage() {
       </nav>
 
       {/* Main Command Center Container */}
-      <main className="container mx-auto px-4 py-6">
+      <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 max-w-[1680px]">
         <IcuCentralMonitoringDashboard
           initialDevices={devices}
           activeAdmissions={activeAdmissions}

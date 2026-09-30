@@ -43,7 +43,7 @@ export default async function IpdAdmissionPage({
     <div className="min-h-screen bg-slate-50 pb-12">
       {/* Top Navbar */}
       <nav className="bg-white border-b shadow-xs sticky top-0 z-10 print:hidden">
-        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-[1600px] h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Link href="/ipd" className="flex items-center gap-2 text-slate-600 hover:text-slate-900 transition-colors">
               <ChevronLeft className="w-5 h-5" />
@@ -72,6 +72,12 @@ export default async function IpdAdmissionPage({
             <UserProfileMenu user={currentUser} role={role} securityEnabled={securityEnabled} />
             <PrivacyShield />
             <SecurityAlertBell />
+            <Link href="/ipd/monitoring">
+              <Button variant="outline" size="sm" className="gap-1.5 text-xs border-indigo-200 text-indigo-700 bg-indigo-50/50 hover:bg-indigo-100/70">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                ICU Telemetry
+              </Button>
+            </Link>
             <Link href="/patients">
               <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
                 <Users className="w-4 h-4" /> Patients
@@ -96,7 +102,7 @@ export default async function IpdAdmissionPage({
         </div>
       </nav>
 
-      <main className="container mx-auto px-4 py-8 max-w-5xl">
+      <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 max-w-[1600px]">
         <IpdCaseSheet
           admission={data.admission}
           rounds={data.rounds}
