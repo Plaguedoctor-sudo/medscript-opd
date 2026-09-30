@@ -70,14 +70,14 @@ export async function GET(request?: Request) {
     });
   }
 
-  if (!authed || (role !== 'admin_doctor' && role !== 'doctor')) {
+  if (!authed || role !== 'admin_doctor') {
     await logAuditEvent({
       action: 'BACKUP_SNAPSHOT_DOWNLOADED',
       actorRole: role ? role.toUpperCase() : 'RECEPTIONIST',
-      details: 'Unauthorized raw database download attempt blocked (Doctor or Admin Doctor role required)',
+      details: 'Unauthorized raw database download attempt blocked (Admin Doctor / CMO role required)',
       status: 'FAILURE',
     });
-    return new NextResponse('Forbidden: Only verified Doctor accounts have authority to export the clinical database.', {
+    return new NextResponse('Forbidden: Only the Chief Medical Officer (Admin Doctor) has authority to export raw clinical database archives.', {
       status: 403,
     });
   }

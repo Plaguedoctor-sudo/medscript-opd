@@ -377,6 +377,64 @@ export async function runMilitaryFleetIntegritySweep(): Promise<FleetIntegrityRe
     console.error('Error verifying handovers:', err);
   }
 
+  // 6. Medical Certificates Cryptographic Seal Verification
+  try {
+    const certRows = sqlite
+      .prepare('SELECT id, certificate_no, patient_id, type, doctor_reg_no, diagnosis, issued_at, digital_seal_hash FROM medical_certificates')
+      .all() as Array<{
+        id: number;
+        certificate_no: string;
+        patient_id: number;
+        type: string;
+        doctor_reg_no: string;
+        diagnosis?: string | null;
+        issued_at: number;
+        digital_seal_hash?: string | null;
+      }>;
+
+    let certValid = 0;
+    let certTampered = 0;
+    const certTamperedList: Array<{ id: number; identifier: string; reason: string }> = [];
+
+    const clinicRow = sqlite.prepare('SELECT session_secret FROM clinic_settings WHERE id = 1').get() as { session_secret?: string } | undefined;
+    const certSecret = clinicRow?.session_secret || 'medscript-cert-salt-2026';
+
+    for (const c of certRows) {
+      if (!c.digital_seal_hash) {
+        certValid += 1;
+        continue;
+      }
+      const sealData = `${c.certificate_no}:${c.patient_id}:${c.type}:${c.doctor_reg_no}:${c.diagnosis || ''}:${c.issued_at}`;
+      const expected = crypto.createHmac('sha256', certSecret).update(sealData).digest('hex');
+      const bufA = Buffer.from(c.digital_seal_hash, 'utf8');
+      const bufB = Buffer.from(expected, 'utf8');
+      const matches = bufA.length === bufB.length && crypto.timingSafeEqual(bufA, bufB);
+
+      if (matches) {
+        certValid += 1;
+      } else {
+        certTampered += 1;
+        certTamperedList.push({
+          id: c.id,
+          identifier: `Medical Certificate ${c.certificate_no}`,
+          reason: 'Medical certificate diagnosis, doctor registration, or validity date altered',
+        });
+      }
+    }
+
+    sections.push({
+      artifactType: 'MEDICAL_CERTIFICATE',
+      totalChecked: certRows.length,
+      validCount: certValid,
+      tamperedCount: certTampered,
+      tamperedRecords: certTamperedList,
+    });
+    totalArtifactsChecked += certRows.length;
+    totalTamperedCount += certTampered;
+  } catch (err) {
+    console.error('Error verifying medical certificates:', err);
+  }
+
   // If any tampered record detected, raise immediate CRITICAL military alert
   if (totalTamperedCount > 0) {
     await createSecurityAlert({

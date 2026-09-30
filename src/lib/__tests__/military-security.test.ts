@@ -199,12 +199,26 @@ describe('Military-Grade Cryptographic Digital Seals', () => {
     expect(seal1).not.toBe(tamperedSeal);
   });
 
-  it('runs a full fleet-wide cryptographic sweep returning valid partition report', async () => {
+  it('runs a full fleet-wide cryptographic sweep returning valid partition report including medical certificates', async () => {
     const report = await runMilitaryFleetIntegritySweep();
     expect(report.sweepCompletedAt).toBeDefined();
     expect(typeof report.overallIntact).toBe('boolean');
     expect(typeof report.totalArtifactsChecked).toBe('number');
     expect(Array.isArray(report.sections)).toBe(true);
     expect(report.chainRootHash).toBeDefined();
+    expect(report.sections.some((s) => s.artifactType === 'MEDICAL_CERTIFICATE')).toBe(true);
+  });
+
+  it('validates state-secret POSIX 0600 file security permissions on storage at rest', () => {
+    const fs = require('fs');
+    const path = require('path');
+    const dbPath = path.resolve(process.cwd(), 'sqlite.db');
+
+    if (fs.existsSync(dbPath)) {
+      const stats = fs.statSync(dbPath);
+      const mode = stats.mode & 0o777;
+      // In state-secret arrangement, file permissions must be 0600 (read/write only by process owner)
+      expect(mode).toBe(0o600);
+    }
   });
 });

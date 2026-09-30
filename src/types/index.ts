@@ -598,7 +598,7 @@ export interface DefconThreatStatus {
 }
 
 export interface FleetIntegrityItem {
-  artifactType: 'PRESCRIPTION' | 'LAB_REPORT' | 'EMAR_RECORD' | 'IPD_HANDOVER' | 'AUDIT_LOG_CHAIN';
+  artifactType: 'PRESCRIPTION' | 'LAB_REPORT' | 'EMAR_RECORD' | 'IPD_HANDOVER' | 'AUDIT_LOG_CHAIN' | 'MEDICAL_CERTIFICATE';
   totalChecked: number;
   validCount: number;
   tamperedCount: number;
