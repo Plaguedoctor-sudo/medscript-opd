@@ -10,8 +10,8 @@ import android.view.LayoutInflater
 import android.view.View
 import android.webkit.*
 import android.widget.Button
-import android.widget.LinearLayout
 import android.widget.ProgressBar
+import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
@@ -19,6 +19,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.android.material.textfield.TextInputEditText
 
 class MainActivity : AppCompatActivity() {
@@ -26,9 +27,14 @@ class MainActivity : AppCompatActivity() {
     private lateinit var webView: WebView
     private lateinit var swipeRefreshLayout: SwipeRefreshLayout
     private lateinit var progressBar: ProgressBar
-    private lateinit var errorLayout: LinearLayout
+    private lateinit var errorScrollView: ScrollView
+    private lateinit var tvAttemptedUrl: TextView
+    private lateinit var btnConnectWifi1: Button
+    private lateinit var btnConnectWifi2: Button
+    private lateinit var btnConnectMdns: Button
     private lateinit var btnRetry: Button
     private lateinit var btnChangeServer: Button
+    private lateinit var fabSettings: FloatingActionButton
 
     private var fileUploadCallback: ValueCallback<Array<Uri>>? = null
 
@@ -48,7 +54,10 @@ class MainActivity : AppCompatActivity() {
     companion object {
         private const val PREFS_NAME = "MedScriptPrefs"
         private const val KEY_SERVER_URL = "server_url"
-        private const val DEFAULT_SERVER_URL = "http://192.168.1.100:3000"
+        const val IP_WIFI_1 = "http://10.133.236.54:3000"
+        const val IP_WIFI_2 = "http://10.133.236.175:3000"
+        const val IP_MDNS = "http://nitin-thinkcentre-m920q.local:3000"
+        private const val DEFAULT_SERVER_URL = IP_WIFI_1
     }
 
     @SuppressLint("SetJavaScriptEnabled")
@@ -59,21 +68,40 @@ class MainActivity : AppCompatActivity() {
         webView = findViewById(R.id.webView)
         swipeRefreshLayout = findViewById(R.id.swipeRefreshLayout)
         progressBar = findViewById(R.id.progressBar)
-        errorLayout = findViewById(R.id.errorLayout)
+        errorScrollView = findViewById(R.id.errorScrollView)
+        tvAttemptedUrl = findViewById(R.id.tvAttemptedUrl)
+        btnConnectWifi1 = findViewById(R.id.btnConnectWifi1)
+        btnConnectWifi2 = findViewById(R.id.btnConnectWifi2)
+        btnConnectMdns = findViewById(R.id.btnConnectMdns)
         btnRetry = findViewById(R.id.btnRetry)
         btnChangeServer = findViewById(R.id.btnChangeServer)
+        fabSettings = findViewById(R.id.fabSettings)
 
         setupWebView()
         setupSwipeRefresh()
         setupBackNavigation()
 
         btnRetry.setOnClickListener {
-            errorLayout.visibility = View.GONE
-            webView.visibility = View.VISIBLE
-            webView.reload()
+            loadUrl(getServerUrl())
+        }
+
+        btnConnectWifi1.setOnClickListener {
+            setServerUrl(IP_WIFI_1)
+        }
+
+        btnConnectWifi2.setOnClickListener {
+            setServerUrl(IP_WIFI_2)
+        }
+
+        btnConnectMdns.setOnClickListener {
+            setServerUrl(IP_MDNS)
         }
 
         btnChangeServer.setOnClickListener {
+            showServerConfigDialog()
+        }
+
+        fabSettings.setOnClickListener {
             showServerConfigDialog()
         }
 
@@ -104,7 +132,14 @@ class MainActivity : AppCompatActivity() {
                 val currentServer = getServerUrl()
 
                 // Keep same-origin and clinic LAN routes inside WebView
-                return if (url.startsWith(currentServer) || url.startsWith("http://192.168.") || url.startsWith("http://localhost") || url.startsWith("http://127.0.0.1") || url.contains(".local")) {
+                return if (
+                    url.startsWith(currentServer) ||
+                    url.startsWith("http://10.") ||
+                    url.startsWith("http://192.168.") ||
+                    url.startsWith("http://localhost") ||
+                    url.startsWith("http://127.0.0.1") ||
+                    url.contains(".local")
+                ) {
                     false
                 } else {
                     // External links open in default browser
@@ -123,11 +158,19 @@ class MainActivity : AppCompatActivity() {
                 request: WebResourceRequest?,
                 error: WebResourceError?
             ) {
-                super.onReceivedError(view, request, error)
                 if (request?.isForMainFrame == true) {
-                    webView.visibility = View.GONE
-                    errorLayout.visibility = View.VISIBLE
+                    showErrorState(request.url.toString(), error?.description?.toString())
                 }
+            }
+
+            @Deprecated("Deprecated in Java")
+            override fun onReceivedError(
+                view: WebView?,
+                errorCode: Int,
+                description: String?,
+                failingUrl: String?
+            ) {
+                showErrorState(failingUrl, description)
             }
 
             override fun onPageFinished(view: WebView?, url: String?) {
@@ -172,6 +215,15 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun showErrorState(failedUrl: String?, details: String?) {
+        swipeRefreshLayout.isRefreshing = false
+        swipeRefreshLayout.visibility = View.GONE
+        errorScrollView.visibility = View.VISIBLE
+        val displayUrl = failedUrl ?: getServerUrl()
+        val reason = details ?: "Unable to connect"
+        tvAttemptedUrl.text = "Attempted: $displayUrl\nStatus: $reason"
+    }
+
     private fun setupSwipeRefresh() {
         swipeRefreshLayout.setColorSchemeResources(R.color.accent, R.color.primary)
         swipeRefreshLayout.setOnRefreshListener {
@@ -194,7 +246,13 @@ class MainActivity : AppCompatActivity() {
 
     private fun getServerUrl(): String {
         val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        return prefs.getString(KEY_SERVER_URL, DEFAULT_SERVER_URL) ?: DEFAULT_SERVER_URL
+        val saved = prefs.getString(KEY_SERVER_URL, null)
+        // Automatically migrate stale 192.168.1.100 default to actual host Wi-Fi IP
+        if (saved == null || saved == "http://192.168.1.100:3000") {
+            prefs.edit().putString(KEY_SERVER_URL, DEFAULT_SERVER_URL).apply()
+            return DEFAULT_SERVER_URL
+        }
+        return saved
     }
 
     private fun setServerUrl(url: String) {
@@ -205,11 +263,13 @@ class MainActivity : AppCompatActivity() {
         }
         val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         prefs.edit().putString(KEY_SERVER_URL, trimmed).apply()
+        Toast.makeText(this, "Connecting to $trimmed...", Toast.LENGTH_SHORT).show()
         loadUrl(trimmed)
     }
 
     private fun loadUrl(url: String) {
-        errorLayout.visibility = View.GONE
+        errorScrollView.visibility = View.GONE
+        swipeRefreshLayout.visibility = View.VISIBLE
         webView.visibility = View.VISIBLE
         webView.loadUrl(url)
     }
@@ -217,7 +277,21 @@ class MainActivity : AppCompatActivity() {
     private fun showServerConfigDialog() {
         val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_server_url, null)
         val etUrl = dialogView.findViewById<TextInputEditText>(R.id.etServerUrl)
+        val btnPresetIp1 = dialogView.findViewById<Button>(R.id.btnPresetIp1)
+        val btnPresetIp2 = dialogView.findViewById<Button>(R.id.btnPresetIp2)
+        val btnPresetMdns = dialogView.findViewById<Button>(R.id.btnPresetMdns)
+
         etUrl.setText(getServerUrl())
+
+        btnPresetIp1.setOnClickListener {
+            etUrl.setText(IP_WIFI_1)
+        }
+        btnPresetIp2.setOnClickListener {
+            etUrl.setText(IP_WIFI_2)
+        }
+        btnPresetMdns.setOnClickListener {
+            etUrl.setText(IP_MDNS)
+        }
 
         AlertDialog.Builder(this)
             .setTitle(R.string.server_url_title)
@@ -226,7 +300,6 @@ class MainActivity : AppCompatActivity() {
                 val newUrl = etUrl.text?.toString()?.trim()
                 if (!newUrl.isNullOrEmpty()) {
                     setServerUrl(newUrl)
-                    Toast.makeText(this, "Connecting to $newUrl...", Toast.LENGTH_SHORT).show()
                 }
             }
             .setNegativeButton(R.string.cancel, null)
