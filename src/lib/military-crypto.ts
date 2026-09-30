@@ -6,10 +6,12 @@
  */
 import crypto from 'crypto';
 import { db, sqlite } from '@/db';
-import { prescriptions, labReports, emarRecords, ipdHandovers } from '@/db/schema';
+import { prescriptions, labReports, emarRecords, ipdHandovers, patients, clinicSettings } from '@/db/schema';
+import { eq } from 'drizzle-orm';
 import { getSessionSecret } from '@/lib/auth';
 import { computeAuditTrailIntegrityHash } from '@/lib/audit';
 import { createSecurityAlert } from '@/lib/security-engine';
+import { verifyPrescriptionIntegrity } from '@/lib/prescription-security';
 import { FleetIntegrityReport, FleetIntegrityItem } from '@/types';
 
 function getMilitaryMasterSecret(): string {
@@ -114,34 +116,20 @@ export function generateHandoverSeal(data: {
 /**
  * Verifies a prescription HMAC-SHA256 digital seal.
  */
-export function verifyPrescriptionSeal(p: {
-  id: number;
-  patientId: number;
-  diagnosis?: string | null;
-  medications: string;
-  signatureHash?: string | null;
-  createdAt?: Date | number | string | null;
-}): boolean {
+export function verifyPrescriptionSeal(
+  p: {
+    id: number;
+    patientId: number;
+    diagnosis?: string | null;
+    medications: string;
+    signatureHash?: string | null;
+    createdAt?: Date | number | string | null;
+  },
+  doctorRegNo?: string | null,
+  patientRegNo?: string | null
+): boolean {
   if (!p.signatureHash) return false;
-  const payload = [
-    `RX:${p.id}`,
-    `PT:${p.patientId}`,
-    `REG:`,
-    `DOC:`,
-    `DX:${(p.diagnosis || '').trim()}`,
-    `MEDS:${p.medications.trim()}`,
-    `TS:${p.createdAt ? new Date(p.createdAt).toISOString() : ''}`,
-  ].join('||');
-
-  const computed = crypto
-    .createHmac('sha256', getMilitaryMasterSecret())
-    .update(payload)
-    .digest('hex');
-
-  const bufA = Buffer.from(p.signatureHash, 'utf8');
-  const bufB = Buffer.from(computed, 'utf8');
-  if (bufA.length !== bufB.length) return false;
-  return crypto.timingSafeEqual(bufA, bufB);
+  return verifyPrescriptionIntegrity(p, doctorRegNo, patientRegNo).valid;
 }
 
 /**
@@ -171,6 +159,9 @@ export async function runMilitaryFleetIntegritySweep(): Promise<FleetIntegrityRe
 
   // 2. Prescriptions Verification
   try {
+    const clinic = await db.query.clinicSettings.findFirst({ where: eq(clinicSettings.id, 1) });
+    const doctorRegNo = clinic?.regNumber || null;
+
     const rxRows = await db
       .select({
         id: prescriptions.id,
@@ -179,8 +170,10 @@ export async function runMilitaryFleetIntegritySweep(): Promise<FleetIntegrityRe
         medications: prescriptions.medications,
         signatureHash: prescriptions.signatureHash,
         createdAt: prescriptions.createdAt,
+        patientRegNo: patients.regNo,
       })
-      .from(prescriptions);
+      .from(prescriptions)
+      .leftJoin(patients, eq(prescriptions.patientId, patients.id));
 
     let rxValid = 0;
     let rxTampered = 0;
@@ -192,7 +185,7 @@ export async function runMilitaryFleetIntegritySweep(): Promise<FleetIntegrityRe
         rxValid += 1;
         continue;
       }
-      const isValid = verifyPrescriptionSeal(r);
+      const isValid = verifyPrescriptionSeal(r, doctorRegNo, r.patientRegNo);
       if (isValid) {
         rxValid += 1;
       } else {

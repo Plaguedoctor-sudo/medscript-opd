@@ -1,5 +1,6 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterAll } from 'vitest';
 import { inspectPayload, isIpQuarantined, quarantineIp, pardonQuarantinedIp, calculateDynamicDefcon } from '../military-sentinel';
+import { sqlite } from '@/db';
 import {
   generateLabReportSeal,
   generateEmarDoseSeal,
@@ -95,6 +96,13 @@ describe('Military Threat Sentinel & IDS Heuristics', () => {
 
 describe('Automated IP Quarantine & Pardon Subsystem', () => {
   const testIp = '198.51.100.99';
+
+  afterAll(() => {
+    try {
+      sqlite.prepare('DELETE FROM quarantined_ips WHERE ip_address = ?').run(testIp);
+      sqlite.prepare('DELETE FROM security_alerts WHERE ip_address = ?').run(testIp);
+    } catch {}
+  });
 
   it('quarantines an attacker IP and confirms active quarantine', async () => {
     await quarantineIp(testIp, 'Simulated SQL Injection from test harness');

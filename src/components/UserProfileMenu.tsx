@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { SafeStaffUser, UserRole } from '@/types';
 import { UserRoleBadge } from './UserRoleBadge';
 import { logoutUser } from '@/app/login/actions';
-import { getRoleScope } from '@/lib/auth';
+import { getRoleScope } from '@/lib/role-scope';
 import {
   User,
   LogOut,

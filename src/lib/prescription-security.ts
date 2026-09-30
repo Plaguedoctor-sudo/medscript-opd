@@ -89,19 +89,53 @@ export function verifyPrescriptionIntegrity(
   const bufA = Buffer.from(prescription.signatureHash, 'utf8');
   const bufB = Buffer.from(computed, 'utf8');
 
-  if (bufA.length !== bufB.length) {
+  if (bufA.length === bufB.length && crypto.timingSafeEqual(bufA, bufB)) {
     return {
-      valid: false,
+      valid: true,
       isSigned: true,
       signature: prescription.signatureHash,
       computedSignature: computed,
     };
   }
 
-  const matches = crypto.timingSafeEqual(bufA, bufB);
+  // Fallback check for legacy signatures generated with initial application secret
+  const legacySecrets = ['medscript-opd-clinical-seal-2026'];
+  const regVariants = [
+    { regNo: patientRegNo, doctorRegNo },
+    { regNo: '', doctorRegNo: '' },
+  ];
+
+  for (const legSecret of legacySecrets) {
+    for (const v of regVariants) {
+      const legPayload = [
+        `RX:${prescription.id}`,
+        `PT:${prescription.patientId}`,
+        `REG:${v.regNo || ''}`,
+        `DOC:${v.doctorRegNo || ''}`,
+        `DX:${(prescription.diagnosis || '').trim()}`,
+        `MEDS:${prescription.medications.trim()}`,
+        `TS:${prescription.createdAt ? new Date(prescription.createdAt).toISOString() : ''}`,
+      ].join('||');
+
+      const legComputed = crypto
+        .createHmac('sha256', legSecret)
+        .update(legPayload)
+        .digest('hex');
+
+      const bufLeg = Buffer.from(legComputed, 'utf8');
+      if (bufA.length === bufLeg.length && crypto.timingSafeEqual(bufA, bufLeg)) {
+        return {
+          valid: true,
+          isSigned: true,
+          signature: prescription.signatureHash,
+          computedSignature: legComputed,
+        };
+      }
+    }
+  }
 
   return {
-    valid: matches,
+    valid: false,
     isSigned: true,
     signature: prescription.signatureHash,
     computedSignature: computed,
