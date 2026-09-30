@@ -3,7 +3,7 @@
 import { db, sqlite } from '@/db';
 import { ipdDischarges, ipdNursingNotes, ipdAdmissions, patients, clinicSettings } from '@/db/schema';
 import { eq, desc } from 'drizzle-orm';
-import { requireAuth, getCurrentUserRole, isDoctor, isNurse } from '@/lib/auth';
+import { requirePermission, isDoctor, isNurse } from '@/lib/auth';
 import { logAuditEvent } from '@/lib/audit';
 import { revalidatePath } from 'next/cache';
 import { IpdDischarge, IpdNursingNote, Medication } from '@/types';
@@ -41,7 +41,7 @@ export interface SaveDischargeData {
  * Fetch formal IPD Discharge Summary record
  */
 export async function getIpdDischargeRecord(admissionId: number): Promise<IpdDischarge | null> {
-  await requireAuth('/ipd');
+  await requirePermission('ipd:view', '/ipd');
 
   try {
     const record = await db.query.ipdDischarges.findFirst({
@@ -61,8 +61,7 @@ export async function saveIpdDischargeRecord(
   data: SaveDischargeData
 ): Promise<{ success: boolean; dischargeId?: number; error?: string }> {
   try {
-    await requireAuth('/ipd');
-    const role = await getCurrentUserRole();
+    const role = await requirePermission('ipd:admit_discharge', '/ipd');
 
     if (!isDoctor(role)) {
       return { success: false, error: 'Unauthorized: Only an attending doctor or CMO can finalize and sign an IPD Discharge Summary.' };
@@ -161,7 +160,7 @@ export async function saveIpdDischargeRecord(
  * Fetch shift-to-shift nursing notes for an admission
  */
 export async function getIpdNursingNotes(admissionId: number): Promise<IpdNursingNote[]> {
-  await requireAuth('/ipd');
+  await requirePermission('ipd:view', '/ipd');
 
   try {
     const notes = await db.query.ipdNursingNotes.findMany({
@@ -189,8 +188,7 @@ export async function addIpdNursingNote(data: {
   handoverNotes?: string;
 }): Promise<{ success: boolean; noteId?: number; error?: string }> {
   try {
-    await requireAuth('/ipd');
-    const role = await getCurrentUserRole();
+    const role = await requirePermission('ipd:nursing_notes', '/ipd');
 
     if (!isDoctor(role) && !isNurse(role)) {
       return { success: false, error: 'Unauthorized: Nursing or Doctor role required to record nursing handover notes.' };
@@ -238,8 +236,7 @@ export async function deleteIpdNursingNote(
   admissionId: number
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    await requireAuth('/ipd');
-    const role = await getCurrentUserRole();
+    const role = await requirePermission('ipd:nursing_notes', '/ipd');
 
     if (!isDoctor(role) && !isNurse(role)) {
       return { success: false, error: 'Unauthorized: Nursing or Doctor role required.' };

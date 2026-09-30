@@ -1,5 +1,5 @@
 import { db } from "@/db";
-import { requireAuth, getCurrentUserRole, getSecurityConfig, getCurrentUser } from "@/lib/auth";
+import { requirePermission, getSecurityConfig, getCurrentUser } from "@/lib/auth";
 import { getAppointments } from "./actions";
 import { AppointmentDashboard } from "./AppointmentDashboard";
 import { getSecurityAlerts } from "@/lib/security-engine";
@@ -30,10 +30,9 @@ export default async function AppointmentsPage({
 }: {
   searchParams: Promise<{ date?: string }>;
 }) {
-  await requireAuth("/appointments");
-  const [{ securityEnabled }, role, currentUser, resolvedParams, securityAlertsData] = await Promise.all([
+  const role = await requirePermission("appointment:view", "/appointments");
+  const [{ securityEnabled }, currentUser, resolvedParams, securityAlertsData] = await Promise.all([
     getSecurityConfig(),
-    getCurrentUserRole(),
     getCurrentUser(),
     searchParams,
     getSecurityAlerts({ unacknowledgedOnly: false, limit: 30 }),

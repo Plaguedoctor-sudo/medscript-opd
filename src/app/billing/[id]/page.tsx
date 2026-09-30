@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation';
-import { requireAuth, getCurrentUserRole, getSecurityConfig, getCurrentUser } from '@/lib/auth';
+import { requirePermission, getSecurityConfig, getCurrentUser } from '@/lib/auth';
 import { getInvoiceDetails } from '../actions';
 import { InvoiceView } from './InvoiceView';
 import { getSecurityAlerts } from '@/lib/security-engine';
@@ -18,7 +18,6 @@ export default async function InvoicePage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await requireAuth('/billing');
   const resolvedParams = await params;
   const invoiceId = parseInt(resolvedParams.id, 10);
 
@@ -26,10 +25,11 @@ export default async function InvoicePage({
     notFound();
   }
 
-  const [invoiceData, { securityEnabled }, role, currentUser, securityAlertsData] = await Promise.all([
+  const role = await requirePermission('billing:view', `/billing/${resolvedParams.id}`);
+
+  const [invoiceData, { securityEnabled }, currentUser, securityAlertsData] = await Promise.all([
     getInvoiceDetails(invoiceId),
     getSecurityConfig(),
-    getCurrentUserRole(),
     getCurrentUser(),
     getSecurityAlerts({ unacknowledgedOnly: false, limit: 30 }),
   ]);

@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { requireAuth, getCurrentUserRole, getSecurityConfig, getCurrentUser } from "@/lib/auth";
+import { requirePermission, getSecurityConfig, getCurrentUser } from "@/lib/auth";
 import { getLabReportById } from "../actions";
 import { LabReportView } from "./LabReportView";
 import Link from "next/link";
@@ -17,13 +17,12 @@ export default async function LabReportPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  await requireAuth(`/labs/${id}`);
+  const role = await requirePermission('lab:view', `/labs/${id}`);
   const reportId = parseInt(id, 10);
   if (isNaN(reportId)) notFound();
 
-  const [{ securityEnabled }, role, currentUser, data] = await Promise.all([
+  const [{ securityEnabled }, currentUser, data] = await Promise.all([
     getSecurityConfig(),
-    getCurrentUserRole(),
     getCurrentUser(),
     getLabReportById(reportId),
   ]);

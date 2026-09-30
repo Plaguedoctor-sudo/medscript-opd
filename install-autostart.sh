@@ -45,11 +45,12 @@ After=network.target
 [Service]
 Type=simple
 WorkingDirectory=$DIR
-ExecStart=$NPM_BIN run start -- -H 0.0.0.0 -p 3000
+ExecStart=$NPM_BIN run start
 Restart=always
 RestartSec=5
 Environment=NODE_ENV=production
 Environment=PORT=3000
+Environment=HOSTNAME=0.0.0.0
 
 StandardOutput=journal
 StandardError=journal
@@ -82,8 +83,8 @@ if command -v hostname &> /dev/null; then
     LOCAL_IP=$(hostname -I 2>/dev/null | awk '{print $1}' || echo "localhost")
 fi
 
-if curl -s -o /dev/null -w "%{http_code}" http://localhost:3000 | grep -q "200\|307\|308\|302"; then
-    echo "✅ SUCCESS! MedScript OPD is running in the background."
+if curl -k -s -o /dev/null -w "%{http_code}" https://localhost:3000 | grep -q "200\|307\|308\|302"; then
+    echo "✅ SUCCESS! MedScript OPD is running securely in the background."
 else
     echo "ℹ️ Server is initializing... check status in a few seconds."
 fi
@@ -92,8 +93,8 @@ echo ""
 echo "================================================================="
 echo " MedScript OPD is now permanently running as a background service!"
 echo ""
-echo " • On this PC:             http://localhost:3000"
-echo " • Other Clinic Devices:   http://${LOCAL_IP}:3000"
+echo " • On this PC:             https://localhost:3000"
+echo " • Other Clinic Devices:   https://${LOCAL_IP}:3000"
 echo ""
 echo " Useful commands to manage the background service:"
 echo "   systemctl --user status medscript   # Check service status"

@@ -2,8 +2,7 @@ module.exports = {
   apps: [
     {
       name: "medscript-opd",
-      script: "node_modules/next/dist/bin/next",
-      args: "start -H 0.0.0.0 -p 3000",
+      script: "server.js",
       instances: 1,
       autorestart: true,
       watch: false,

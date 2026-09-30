@@ -27,9 +27,12 @@
     "flatpak"
   ],
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --experimental-https --experimental-https-key ./certificates/localhost-key.pem --experimental-https-cert ./certificates/localhost.pem",
+    "dev:http": "next dev",
     "build": "next build",
-    "start": "next start",
+    "start": "node server.js",
+    "start:http": "next start",
+    "ssl:generate": "bash scripts/generate-ssl.sh",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",

@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import PrescriptionPreview from "./preview";
 import { ClinicSettings, SafeClinicSettings, Patient, Prescription } from "@/types";
-import { requireAuth, getCurrentUserRole } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
 import { logAuditEvent } from "@/lib/audit";
 
 export const dynamic = 'force-dynamic';
@@ -19,8 +19,7 @@ export default async function PrescriptionPage({
 }) {
   const { id } = await params;
   const resolvedSearchParams = searchParams ? await searchParams : {};
-  await requireAuth(`/prescription/${id}`);
-  const role = await getCurrentUserRole();
+  const role = await requirePermission('prescription:view', `/prescription/${id}`);
   const prescriptionId = parseInt(id, 10);
 
   const prescription = await db.query.prescriptions.findFirst({

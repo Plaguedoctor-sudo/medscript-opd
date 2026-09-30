@@ -30,13 +30,13 @@ echo ""
 echo "================================================================="
 echo " MedScript OPD is running in Clinic Multi-Device Mode!"
 echo ""
-echo " • On this computer:        http://localhost:3000"
-echo " • From Receptionist PC:    http://${LOCAL_IP}:3000"
-echo " • From Tablet / iPad:      http://${LOCAL_IP}:3000"
+echo " • On this computer:        https://localhost:3000"
+echo " • From Receptionist PC:    https://${LOCAL_IP}:3000"
+echo " • From Tablet / iPad:      https://${LOCAL_IP}:3000"
 echo ""
 echo " Press Ctrl+C in this terminal to stop the server."
 echo "================================================================="
 echo ""
 
-# Start listening on all network interfaces
-npm run start -- -H 0.0.0.0 -p 3000
+# Start listening on all network interfaces with HTTPS
+npm run start

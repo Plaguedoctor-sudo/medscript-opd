@@ -31,7 +31,7 @@ import { PatientVitalsAnalytics } from "./PatientVitalsAnalytics";
 import { AdmitPatientModal } from "@/app/ipd/AdmitPatientModal";
 import { LabEntryModal } from "@/app/labs/LabEntryModal";
 import { formatDate } from "@/lib/utils";
-import { requireAuth, getSecurityConfig, getCurrentUserRole, getCurrentUser } from "@/lib/auth";
+import { requirePermission, getSecurityConfig, getCurrentUserRole, getCurrentUser } from "@/lib/auth";
 import { logAuditEvent } from "@/lib/audit";
 import { LockDeskButton } from "@/components/LockDeskButton";
 import { PrivacyShield } from "@/components/PrivacyShield";
@@ -45,10 +45,9 @@ export const dynamic = 'force-dynamic';
 
 export default async function PatientProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  await requireAuth(`/patient/${id}`);
-  const [{ securityEnabled }, role, currentUser] = await Promise.all([
+  const role = await requirePermission('patient:view', `/patient/${id}`);
+  const [{ securityEnabled }, currentUser] = await Promise.all([
     getSecurityConfig(),
-    getCurrentUserRole(),
     getCurrentUser(),
   ]);
   const patientId = parseInt(id, 10);

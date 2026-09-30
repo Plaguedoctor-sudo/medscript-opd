@@ -189,17 +189,17 @@ Next.js 16.3.4 (Turbopack) · SQLite (Drizzle ORM) · Military-Grade Zero-Trust 
 - [ ] **Telemedicine integration** — video consult link in appointment
 
 ### Technical Debt
-- [ ] **Page-level RBAC** — several page.tsx still use `requireAuth` instead of `requirePermission`
-  - `src/app/patient/[id]/page.tsx` — needs `patient:view`
-  - `src/app/prescription/[id]/page.tsx` — needs `prescription:view`
-  - `src/app/ipd/[id]/page.tsx` — needs `ipd:view`
-  - `src/app/labs/[id]/page.tsx` — needs `lab:view`
-  - `src/app/billing/[id]/page.tsx` — needs `billing:view`
-  - `src/app/appointments/page.tsx` — needs `appointment:view`
-  - `src/app/page.tsx` (dashboard) — keep `requireAuth` (open to all authenticated)
-- [ ] **Prescription actions RBAC** — `src/app/prescription/new/actions.ts` still uses `requireAuth`
-- [ ] **IPD discharge actions RBAC** — `src/app/actions/ipd-discharge-actions.ts` still uses `requireAuth`
-- [ ] **Test coverage** — expand beyond 14 tests; add action/API route tests
+- [x] **Page-level RBAC** — several page.tsx still use `requireAuth` instead of `requirePermission`
+  - [x] `src/app/patient/[id]/page.tsx` — uses `requirePermission('patient:view')`
+  - [x] `src/app/prescription/[id]/page.tsx` — uses `requirePermission('prescription:view')`
+  - [x] `src/app/ipd/[id]/page.tsx` — uses `requirePermission('ipd:view')`
+  - [x] `src/app/labs/[id]/page.tsx` — uses `requirePermission('lab:view')`
+  - [x] `src/app/billing/[id]/page.tsx` — uses `requirePermission('billing:view')`
+  - [x] `src/app/appointments/page.tsx` — uses `requirePermission('appointment:view')`
+  - [x] `src/app/page.tsx` (dashboard) — keep `requireAuth` (open to all authenticated)
+- [x] **Prescription actions RBAC** — `src/app/prescription/new/actions.ts` uses `requirePermission`
+- [x] **IPD discharge actions RBAC** — `src/app/actions/ipd-discharge-actions.ts` uses `requirePermission`
+- [ ] **Test coverage** — expand beyond 27 tests; add action/API route tests
 - [ ] **E2E tests** — Playwright or Cypress smoke tests for critical flows
 - [ ] **Storybook** — component library documentation
 - [ ] **next/image migration** — audit `<img>` tags for performance
@@ -209,6 +209,8 @@ Next.js 16.3.4 (Turbopack) · SQLite (Drizzle ORM) · Military-Grade Zero-Trust 
 ## 🗓 Session Log
 
 | Date | What was done |
+|---|---|
+| 2026-09-30 | **Enterprise Infrastructure & RBAC Hardening** — (1) Localhost HTTP-to-HTTPS upgrade with dual-protocol TCP multiplexer in `server.js`; (2) 2-tier Clinic PKI (`MedScript-Clinic-Root-CA.crt` & server cert with SAN for localhost, mDNS, and LAN IPs); (3) Clinic mDNS hostname broadcast (`nitin-ThinkCentre-M920q.local`); (4) Automated daily & 6-hourly SQLite backup service (`medscript-backup.timer`); (5) PWA Service Worker verified over HTTPS; (6) Complete Page-Level RBAC migration across Patient, Prescription, IPD, Labs, Billing, and Appointments. Build ✅ Tests ✅ 27/27 passing across 5 test suites. |
 |---|---|
 | 2026-09-29 | **Receptionist patient registration** — scoped `/patients` page to `requirePermission('patient:view')`; gated Labs/Reports/Billing nav links with `canDo()`; bulk import uses `requirePermission('patient:register')`; receptionist dashboard now shows workspace panel (Register Patient, OPD Queue, Billing hero cards) instead of prescriptions table; register page back button → `/`; success state adds "Back to Dashboard". Build ✅ Tests ✅ 14/14. Committed: `0fddbc1` |
 |---|---|

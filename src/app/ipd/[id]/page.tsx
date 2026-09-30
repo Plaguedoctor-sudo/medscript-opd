@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { requireAuth, getCurrentUserRole, getSecurityConfig, getCurrentUser } from "@/lib/auth";
+import { requirePermission, getSecurityConfig, getCurrentUser } from "@/lib/auth";
 import { getIpdAdmissionById } from "../actions";
 import { getIpdDischargeRecord, getIpdNursingNotes } from "@/app/actions/ipd-discharge-actions";
 import { IpdCaseSheet } from "./IpdCaseSheet";
@@ -18,13 +18,12 @@ export default async function IpdAdmissionPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  await requireAuth(`/ipd/${id}`);
+  const role = await requirePermission('ipd:view', `/ipd/${id}`);
   const admissionId = parseInt(id, 10);
   if (isNaN(admissionId)) notFound();
 
-  const [{ securityEnabled }, role, currentUser, data, existingDischarge, nursingNotes] = await Promise.all([
+  const [{ securityEnabled }, currentUser, data, existingDischarge, nursingNotes] = await Promise.all([
     getSecurityConfig(),
-    getCurrentUserRole(),
     getCurrentUser(),
     getIpdAdmissionById(admissionId),
     getIpdDischargeRecord(admissionId),

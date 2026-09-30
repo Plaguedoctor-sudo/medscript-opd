@@ -45,22 +45,22 @@ fi
 (
     sleep 2
     if command -v google-chrome &> /dev/null; then
-        google-chrome --app="http://localhost:3000" &> /dev/null || true
+        google-chrome --app="https://localhost:3000" --ignore-certificate-errors &> /dev/null || true
     elif command -v chromium &> /dev/null; then
-        chromium --app="http://localhost:3000" &> /dev/null || true
+        chromium --app="https://localhost:3000" --ignore-certificate-errors &> /dev/null || true
     elif command -v brave-browser &> /dev/null; then
-        brave-browser --app="http://localhost:3000" &> /dev/null || true
+        brave-browser --app="https://localhost:3000" --ignore-certificate-errors &> /dev/null || true
     elif command -v xdg-open &> /dev/null; then
-        xdg-open "http://localhost:3000" &> /dev/null || true
+        xdg-open "https://localhost:3000" &> /dev/null || true
     elif command -v open &> /dev/null; then
-        open "http://localhost:3000" &> /dev/null || true
+        open "https://localhost:3000" &> /dev/null || true
     fi
 ) &
 
 echo ""
 echo "================================================================="
 echo " MedScript OPD is LIVE!"
-echo " Consultation Desk: http://localhost:3000"
+echo " Consultation Desk: https://localhost:3000"
 echo " Press Ctrl+C in this terminal to stop the server."
 echo "================================================================="
 echo ""

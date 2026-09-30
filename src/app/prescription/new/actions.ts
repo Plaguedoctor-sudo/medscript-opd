@@ -52,7 +52,7 @@ export interface PrescriptionFormData {
 }
 
 export async function generatePatientRegNo(targetDate: Date = new Date()): Promise<string> {
-  await requireAuth('/prescription/new');
+  await requirePermission('patient:register', '/prescription/new');
   const year = targetDate.getFullYear();
   const month = String(targetDate.getMonth() + 1).padStart(2, "0");
   const day = String(targetDate.getDate()).padStart(2, "0");
@@ -81,7 +81,7 @@ export async function generatePatientRegNo(targetDate: Date = new Date()): Promi
 }
 
 export async function searchPatients(query: string): Promise<Patient[]> {
-  await requireAuth('/prescription/new');
+  await requirePermission('patient:view', '/prescription/new');
   if (!query || query.trim().length < 1) return [];
   const clean = query.trim();
   let hyphenated = clean;
@@ -107,7 +107,7 @@ export async function searchPatients(query: string): Promise<Patient[]> {
 }
 
 export async function getPatientById(id: number): Promise<Patient | null> {
-  await requireAuth('/prescription/new');
+  await requirePermission('patient:view', '/prescription/new');
   const patient = await db.query.patients.findFirst({
     where: (patients, { eq }) => eq(patients.id, id)
   });
@@ -339,7 +339,7 @@ export async function deletePrescription(id: number) {
 }
 
 export async function verifyPrescriptionIntegrityAction(id: number) {
-  await requireAuth();
+  await requirePermission('prescription:view');
   const rx = await db.query.prescriptions.findFirst({
     where: eq(prescriptions.id, id),
   });
@@ -379,7 +379,7 @@ export async function updatePatient(
     abhaAddress?: string | null;
   }
 ) {
-  await requireAuth(`/patient/${id}`);
+  await requirePermission('patient:edit_demographics', `/patient/${id}`);
 
   const rawName = sanitizeString(data.name, 100);
   const rawAge = parseInt(String(data.age), 10);
