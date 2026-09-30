@@ -96,6 +96,7 @@ export function InputOutputChartSection({
   });
   const [appearance, setAppearance] = useState('');
   const [notes, setNotes] = useState('');
+  const [nurseName, setNurseName] = useState(defaultNurseName || 'Staff Nurse');
 
   // Calculations
   const filteredRecords = records.filter((r) => {
@@ -184,6 +185,7 @@ export function InputOutputChartSection({
         volumeMl: vol,
         shift,
         recordedAt,
+        nurseName: nurseName.trim() || defaultNurseName,
         appearance: appearance || undefined,
         notes: notes || undefined,
       });
@@ -198,7 +200,7 @@ export function InputOutputChartSection({
           volumeMl: vol,
           shift,
           recordedAt: new Date(recordedAt),
-          nurseName: defaultNurseName,
+          nurseName: nurseName.trim() || defaultNurseName,
           role: userRole || 'NURSE',
           appearance: appearance || null,
           notes: notes || null,
@@ -692,11 +694,13 @@ export function InputOutputChartSection({
                 </div>
 
                 <div className="space-y-1">
-                  <Label className="text-xs font-semibold">Recording Staff</Label>
+                  <Label className="text-xs font-semibold">Recording Nurse / Staff Name *</Label>
                   <Input
-                    value={defaultNurseName}
-                    disabled
-                    className="h-8 text-xs bg-slate-50 text-slate-600 font-semibold"
+                    value={nurseName}
+                    onChange={(e) => setNurseName(e.target.value)}
+                    placeholder="Staff Nurse Name"
+                    required
+                    className="h-8 text-xs font-semibold text-slate-800"
                   />
                 </div>
               </div>

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { SafeStaffUser, UserRole } from '@/types';
 import { UserRoleBadge } from './UserRoleBadge';
 import { logoutUser } from '@/app/login/actions';
+import { getRoleScope } from '@/lib/auth';
 import {
   User,
   LogOut,
@@ -146,38 +147,65 @@ export function UserProfileMenu({ user, role, securityEnabled = true }: UserProf
             )}
           </div>
 
-          {/* Role Authorities Box */}
-          <div className="p-3 bg-purple-50/60 rounded-xl border border-purple-200/80 text-[11px] text-purple-900 space-y-1">
-            <div className="font-bold flex items-center gap-1.5 text-purple-950">
-              <Shield className="w-3.5 h-3.5 text-purple-700" />
-              Role Authorities & Access Level:
-            </div>
-            {role === 'admin_doctor' && (
-              <p className="text-purple-800">
-                Full Unrestricted Authorities: OPD Consultations, IPD Inpatient Care, Diagnostic Labs, Billing, Clinic Settings, Staff User Management, Security & Database Backups.
-              </p>
-            )}
-            {role === 'doctor' && (
-              <p className="text-purple-800">
-                Clinical Authorities: Outpatient Consultations & Prescriptions, IPD Admissions & Daily Rounds, Patient Discharges, Lab Orders & Clinical Reports.
-              </p>
-            )}
-            {role === 'nurse' && (
-              <p className="text-purple-800">
-                Inpatient & Triage Care: IPD Ward Bed Census, Daily Nurse Rounds, Vital Signs Recording (BP, Pulse, Temp, SpO2, RBS), Clinical Observations.
-              </p>
-            )}
-            {role === 'receptionist' && (
-              <p className="text-purple-800">
-                Front Desk & Cashier: Patient Registration, Queue Management, OPD Billing & Invoicing, Payment Collection, Visitor Inquiries.
-              </p>
-            )}
-            {role === 'lab_technician' && (
-              <p className="text-purple-800">
-                Pathology & Diagnostics: Laboratory Census, Test Results Entry, Biological Reference Ranges, Report Sign-off, WhatsApp Report Dispatch.
-              </p>
-            )}
-          </div>
+          {/* Role Authorities & Scope Breakdown */}
+          {(() => {
+            const scope = getRoleScope(role);
+            return (
+              <div className="p-3 bg-purple-50/60 rounded-xl border border-purple-200/80 text-[11px] text-purple-900 space-y-2.5 max-h-64 overflow-y-auto">
+                <div className="font-bold flex items-center justify-between text-purple-950 border-b border-purple-200 pb-1">
+                  <div className="flex items-center gap-1.5">
+                    <Shield className="w-3.5 h-3.5 text-purple-700" />
+                    <span>Role Scope &amp; Responsibilities</span>
+                  </div>
+                  <span className="text-[10px] text-purple-700 font-mono">{scope.department}</span>
+                </div>
+
+                {/* Exclusive Work Highlight */}
+                {scope.exclusiveWork.length > 0 && (
+                  <div className="bg-purple-100/70 p-2 rounded-lg text-purple-950 font-semibold border border-purple-300">
+                    <span className="text-[10px] uppercase font-bold text-purple-800 block mb-0.5">
+                      ⭐ Exclusive Authority:
+                    </span>
+                    {scope.exclusiveWork.map((ex: string, i: number) => (
+                      <div key={i} className="text-[11px] leading-tight">• {ex}</div>
+                    ))}
+                  </div>
+                )}
+
+                {/* What role CAN DO */}
+                <div className="space-y-1">
+                  <span className="font-bold text-emerald-800 text-[10px] uppercase tracking-wider block">
+                    ✓ Permitted Scope (What You Can Do):
+                  </span>
+                  <ul className="space-y-0.5 text-slate-800">
+                    {scope.allowedWork.map((item: string, idx: number) => (
+                      <li key={idx} className="flex items-start gap-1.5 leading-snug">
+                        <span className="text-emerald-600 font-bold shrink-0">✓</span>
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                {/* What role CANNOT DO */}
+                {scope.restrictedWork.length > 0 && (
+                  <div className="space-y-1 pt-1 border-t border-purple-200">
+                    <span className="font-bold text-rose-800 text-[10px] uppercase tracking-wider block">
+                      ✕ Access Restrictions (What You Cannot Do):
+                    </span>
+                    <ul className="space-y-0.5 text-rose-900">
+                      {scope.restrictedWork.map((item: string, idx: number) => (
+                        <li key={idx} className="flex items-start gap-1.5 leading-snug">
+                          <span className="text-rose-600 font-bold shrink-0">✕</span>
+                          <span>{item}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           {/* Actions */}
           <div className="flex items-center justify-between gap-3 pt-2 border-t border-slate-200">

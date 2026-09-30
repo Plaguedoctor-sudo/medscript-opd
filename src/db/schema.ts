@@ -126,6 +126,12 @@ export const clinicSettings = sqliteTable("clinic_settings", {
   cloudSyncProvider: text("cloud_sync_provider").default("disabled"), // 'disabled' | 'custom_webhook' | 's3' | 'drive'
   cloudSyncEndpoint: text("cloud_sync_endpoint"),
   cloudSyncApiKey: text("cloud_sync_api_key"),
+  // Military Level Security & Threat Posture
+  defconLevel: integer("defcon_level").default(5), // 1 (Lockdown) to 5 (Normal)
+  militaryModeEnabled: integer("military_mode_enabled", { mode: "boolean" }).$defaultFn(() => true),
+  ipQuarantineEnabled: integer("ip_quarantine_enabled", { mode: "boolean" }).$defaultFn(() => true),
+  lastIntegritySweepAt: integer("last_integrity_sweep_at", { mode: "timestamp" }),
+  lastIntegrityStatus: text("last_integrity_status"),
 });
 
 export const auditLogs = sqliteTable("audit_logs", {
@@ -224,6 +230,8 @@ export const ipdAdmissionsRelations = relations(ipdAdmissions, ({ one, many }) =
   consents: many(clinicalConsents),
   deposits: many(ipdDeposits),
   fluidBalance: many(ipdFluidBalance),
+  handovers: many(ipdHandovers),
+  clinicalServices: many(ipdClinicalServices),
 }));
 
 export const ipdRounds = sqliteTable("ipd_rounds", {
@@ -266,6 +274,7 @@ export const labReports = sqliteTable("lab_reports", {
   results: text("results").notNull().default("[]"), // JSON string of LabResultParameter[]
   interpretation: text("interpretation"),
   notes: text("notes"),
+  digitalSealHash: text("digital_seal_hash"),
   createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
 });
 
@@ -383,7 +392,9 @@ export const emarRecords = sqliteTable("emar_records", {
   administeredAt: integer("administered_at", { mode: "timestamp" }),
   status: text("status").notNull().default("PENDING"), // 'PENDING' | 'GIVEN' | 'WITHHELD' | 'REFUSED'
   nurseName: text("nurse_name"),
+  prescribedBy: text("prescribed_by"),
   notes: text("notes"),
+  digitalSealHash: text("digital_seal_hash"),
   createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
 });
 
@@ -623,5 +634,85 @@ export const ipdNursingNotesRelations = relations(ipdNursingNotes, ({ one }) => 
     references: [patients.id],
   }),
 }));
+
+// Inpatient Shift & Round Handovers (for Doctors and Nurses)
+export const ipdHandovers = sqliteTable("ipd_handovers", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  admissionId: integer("admission_id")
+    .notNull()
+    .references(() => ipdAdmissions.id),
+  patientId: integer("patient_id")
+    .notNull()
+    .references(() => patients.id),
+  handoverType: text("handover_type").notNull().default("NURSING_SHIFT"), // 'NURSING_SHIFT' | 'DOCTOR_ROUND'
+  shift: text("shift").notNull().default("Morning"), // 'Morning' | 'Evening' | 'Night' | 'Day Round' | 'Night On-Call'
+  handoverDate: integer("handover_date", { mode: "timestamp" }).notNull(),
+  outgoingStaffName: text("outgoing_staff_name").notNull(),
+  outgoingStaffRole: text("outgoing_staff_role").notNull().default("NURSE"), // 'DOCTOR' | 'NURSE'
+  incomingStaffName: text("incoming_staff_name").notNull(),
+  patientCondition: text("patient_condition").notNull().default("Stable"), // 'Stable' | 'Critical' | 'Guarded' | 'Improving' | 'Post-Op' | 'Discharge Ready'
+  vitalsSummary: text("vitals_summary"), // e.g. "BP 120/80, Pulse 74, SpO2 98%"
+  summaryNotes: text("summary_notes").notNull(),
+  activeTreatmentOrders: text("active_treatment_orders"),
+  pendingTasks: text("pending_tasks"),
+  specialPrecautions: text("special_precautions"), // e.g. "Fall risk, NPO after midnight, strict fluid balance"
+  digitalSealHash: text("digital_seal_hash"),
+  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+});
+
+export const ipdHandoversRelations = relations(ipdHandovers, ({ one }) => ({
+  admission: one(ipdAdmissions, {
+    fields: [ipdHandovers.admissionId],
+    references: [ipdAdmissions.id],
+  }),
+  patient: one(patients, {
+    fields: [ipdHandovers.patientId],
+    references: [patients.id],
+  }),
+}));
+
+// Inpatient Nursing Procedures & Clinical Services (Oxygen, Suction, Drainage, etc.)
+export const ipdClinicalServices = sqliteTable("ipd_clinical_services", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  admissionId: integer("admission_id")
+    .notNull()
+    .references(() => ipdAdmissions.id),
+  patientId: integer("patient_id")
+    .notNull()
+    .references(() => patients.id),
+  serviceType: text("service_type").notNull().default("OXYGEN_THERAPY"), // 'OXYGEN_THERAPY' | 'SUCTIONING' | 'DRAINAGE_CARE' | 'NEBULIZATION' | 'CATHETER_CARE' | 'WOUND_DRESSING' | 'OTHER'
+  serviceName: text("service_name").notNull(),
+  performedAt: integer("performed_at", { mode: "timestamp" }).notNull(),
+  nurseName: text("nurse_name").notNull(), // Administering nurse name
+  attendingDoctorName: text("attending_doctor_name").notNull(), // Ordering/supervising doctor name
+  flowRateOrDetails: text("flow_rate_or_details"), // e.g. "3 L/min via Nasal Cannula, SpO2 99%", "120 mL serosanguinous output"
+  observations: text("observations"),
+  status: text("status").notNull().default("COMPLETED"), // 'COMPLETED' | 'ONGOING' | 'DISCONTINUED'
+  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+});
+
+export const ipdClinicalServicesRelations = relations(ipdClinicalServices, ({ one }) => ({
+  admission: one(ipdAdmissions, {
+    fields: [ipdClinicalServices.admissionId],
+    references: [ipdAdmissions.id],
+  }),
+  patient: one(patients, {
+    fields: [ipdClinicalServices.patientId],
+    references: [patients.id],
+  }),
+}));
+
+// Military Security Threat Sentinel - Automated IP Quarantine & Blacklist
+export const quarantinedIps = sqliteTable("quarantined_ips", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  ipAddress: text("ip_address").notNull().unique(),
+  reason: text("reason").notNull(),
+  violationCount: integer("violation_count").notNull().default(1),
+  quarantinedAt: integer("quarantined_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+  expiresAt: integer("expires_at", { mode: "timestamp" }),
+  pardonedAt: integer("pardoned_at", { mode: "timestamp" }),
+  pardonedBy: text("pardoned_by"),
+});
+
 
 

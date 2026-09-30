@@ -8,6 +8,7 @@ import { toast } from "@/components/ui/toast";
 import { formatDate } from "@/lib/utils";
 import { LabReportWithPatient, LabResultParameter, ClinicSettings } from "@/types";
 import { deleteLabReport, logLabReportAction } from "../actions";
+import { LabResultEditorModal } from "../LabResultEditorModal";
 import {
   ArrowLeft,
   Printer,
@@ -140,6 +141,11 @@ export function LabReportView({ report, settings, userRole }: LabReportViewProps
             </Button>
           </Link>
 
+          {/* Lab Technician Exclusive Result Editor */}
+          {(userRole === "admin_doctor" || userRole === "lab_technician") && (
+            <LabResultEditorModal report={report} />
+          )}
+
           <Button
             size="sm"
             onClick={handlePrint}
@@ -148,13 +154,14 @@ export function LabReportView({ report, settings, userRole }: LabReportViewProps
             <Printer className="w-4 h-4" /> Print Report
           </Button>
 
-          {(userRole === "admin_doctor" || userRole === "doctor") && (
+          {(userRole === "admin_doctor" || userRole === "lab_technician") && (
             <Button
               variant="ghost"
               size="sm"
               onClick={handleDelete}
               disabled={isDeleting}
               className="text-red-600 hover:bg-red-50 hover:text-red-700"
+              title="Delete Lab Report (Lab Technician & Admin only)"
             >
               <Trash2 className="w-4 h-4" />
             </Button>

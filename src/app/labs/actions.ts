@@ -5,6 +5,7 @@ import { labReports, patients } from "@/db/schema";
 import { eq, desc, or, like, and } from "drizzle-orm";
 import { requirePermission, getCurrentUserRole, isDoctor, isLabTech } from "@/lib/auth";
 import { logAuditEvent } from "@/lib/audit";
+import { generateLabReportSeal } from "@/lib/military-crypto";
 import { LabReportWithPatient, LabResultParameter, LabReportStatus, LabResultFlag, ClinicSettings } from "@/types";
 
 export interface LabFilterOptions {
@@ -328,8 +329,11 @@ export async function updateLabReport(
   await requirePermission('lab:view', '/labs');
   const role = await getCurrentUserRole();
 
-  if (!isDoctor(role) && !isLabTech(role)) {
-    return { success: false, error: "Unauthorized: Only lab technologists or doctors can update lab report results." };
+  if (role !== 'admin_doctor' && role !== 'lab_technician') {
+    return {
+      success: false,
+      error: "Unauthorized: Diagnostic lab results and parameter data can exclusively be edited by the Lab Technician.",
+    };
   }
 
   try {
@@ -350,12 +354,27 @@ export async function updateLabReport(
       }
     }
 
+    // Retrieve existing report to compute cryptographic seal
+    const existing = await db.query.labReports.findFirst({ where: eq(labReports.id, id) });
+    if (existing) {
+      const sealPayload = {
+        id: existing.id,
+        reportNo: existing.reportNo,
+        testName: (updateValues.testName as string) ?? existing.testName,
+        results: (updateValues.results as string) ?? existing.results,
+        status: (updateValues.status as string) ?? existing.status,
+        technicianName: (updateValues.technicianName as string) ?? existing.technicianName,
+        reportedAt: (updateValues.reportedAt as Date) ?? existing.reportedAt,
+      };
+      updateValues.digitalSealHash = generateLabReportSeal(sealPayload);
+    }
+
     await db.update(labReports).set(updateValues).where(eq(labReports.id, id));
 
     await logAuditEvent({
       action: data.status === 'COMPLETED' ? 'LAB_REPORT_COMPLETED' : 'LAB_REPORT_UPDATED',
       actorRole: role.toUpperCase(),
-      details: `Lab Report #${id} updated (Status: ${data.status || 'UNCHANGED'})`,
+      details: `Lab Report #${id} updated by ${role} (Status: ${data.status || 'UNCHANGED'})`,
       status: 'SUCCESS',
     });
 
@@ -374,8 +393,8 @@ export async function deleteLabReport(id: number): Promise<{ success: boolean; e
   await requirePermission('lab:view', '/labs');
   const role = await getCurrentUserRole();
 
-  if (!isDoctor(role) && !isLabTech(role)) {
-    return { success: false, error: "Unauthorized: Only lab technologists or doctors can delete lab reports." };
+  if (role !== 'admin_doctor' && role !== 'lab_technician') {
+    return { success: false, error: "Unauthorized: Only the Lab Technician or Admin Doctor can delete lab reports." };
   }
 
   try {

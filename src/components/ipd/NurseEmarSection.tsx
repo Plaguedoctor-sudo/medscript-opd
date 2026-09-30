@@ -1,5 +1,12 @@
 'use client';
 
+/**
+ * Copyright (c) 2026 Dr. Nitin Hiralal Sonare <sonarenitin3@gmail.com>. All Rights Reserved.
+ * MedScript OPD - Proprietary Clinical Software.
+ * Inpatient Bedside eMAR (Electronic Medication Administration Record)
+ * Clearly records and displays Prescribing Attending Doctor and Administering Nurse.
+ */
+
 import { useState, useTransition } from 'react';
 import {
   Pill,
@@ -11,6 +18,8 @@ import {
   Trash2,
   ShieldCheck,
   X,
+  Stethoscope,
+  HeartPulse,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -28,32 +37,51 @@ interface NurseEmarSectionProps {
   admissionId: number;
   initialRecords: EmarRecord[];
   userRole?: string;
+  currentStaffName?: string;
+  attendingDoctorName?: string;
 }
 
 export function NurseEmarSection({
   admissionId,
   initialRecords,
   userRole,
+  currentStaffName,
+  attendingDoctorName,
 }: NurseEmarSectionProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
   const [records, setRecords] = useState<EmarRecord[]>(initialRecords);
   const [showAddModal, setShowAddModal] = useState(false);
+
+  // Administer dose modal state
+  const [administerTargetId, setAdministerTargetId] = useState<number | null>(null);
+  const [administeringNurseName, setAdministeringNurseName] = useState(
+    currentStaffName || (userRole === 'nurse' ? 'Staff Nurse' : 'Sister on Duty')
+  );
+
+  // Withhold modal state
   const [withholdTargetId, setWithholdTargetId] = useState<number | null>(null);
   const [withholdReason, setWithholdReason] = useState('');
 
-  // Form state
+  // Schedule modal form state
   const [medicationName, setMedicationName] = useState('');
   const [dosage, setDosage] = useState('');
   const [route, setRoute] = useState('IV Infusion');
   const [scheduledTimeString, setScheduledTimeString] = useState('');
+  const [prescribedBy, setPrescribedBy] = useState(attendingDoctorName || 'Dr. Attending Physician');
   const [notes, setNotes] = useState('');
 
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const handleStatusUpdate = async (id: number, status: EmarStatus, extraNotes?: string) => {
-    const res = await updateEmarDoseStatusAction(id, status, admissionId, extraNotes);
+  const handleStatusUpdate = async (
+    id: number,
+    status: EmarStatus,
+    extraNotes?: string,
+    nurseNameOverride?: string
+  ) => {
+    const finalNurseName = nurseNameOverride || administeringNurseName || currentStaffName || 'Staff Nurse';
+    const res = await updateEmarDoseStatusAction(id, status, admissionId, extraNotes, finalNurseName);
     if (res.success) {
       setRecords((prev) =>
         prev.map((r) =>
@@ -61,12 +89,14 @@ export function NurseEmarSection({
             ? {
                 ...r,
                 status,
+                nurseName: status === 'GIVEN' ? finalNurseName : r.nurseName,
                 administeredAt: status === 'GIVEN' ? new Date() : null,
                 notes: extraNotes || r.notes,
               }
             : r
         )
       );
+      setAdministerTargetId(null);
       setWithholdTargetId(null);
       setWithholdReason('');
       startTransition(() => router.refresh());
@@ -99,6 +129,7 @@ export function NurseEmarSection({
       dosage,
       route,
       scheduledTime: scheduledDate,
+      prescribedBy: prescribedBy.trim() || attendingDoctorName || 'Attending Physician',
       notes,
     });
 
@@ -123,18 +154,21 @@ export function NurseEmarSection({
           <div className="w-6 h-6 rounded-md bg-emerald-600 text-white flex items-center justify-center">
             <Pill className="w-3.5 h-3.5" />
           </div>
-          <h2 className="text-sm font-bold text-emerald-950 uppercase tracking-wider">
-            Inpatient Nurse eMAR (Electronic Medication Administration) ({records.length})
-          </h2>
-          <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-semibold border border-emerald-200">
-            Bedside Checklist
-          </span>
+          <div>
+            <h2 className="text-sm font-bold text-emerald-950 uppercase tracking-wider">
+              Inpatient Nurse eMAR (Electronic Medication Administration) ({records.length})
+            </h2>
+            <p className="text-[11px] text-slate-500">
+              Prescribing attending doctor and administering nurse names recorded on every dose.
+            </p>
+          </div>
         </div>
 
         <Button
           size="sm"
           onClick={() => {
             setErrorMsg(null);
+            setPrescribedBy(attendingDoctorName || 'Dr. Attending Physician');
             setShowAddModal(true);
           }}
           className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 h-7 px-2.5 print:hidden"
@@ -155,8 +189,9 @@ export function NurseEmarSection({
                 <th className="px-4 py-3">Scheduled Time</th>
                 <th className="px-3 py-3">Medication &amp; Dosage</th>
                 <th className="px-3 py-3">Route</th>
+                <th className="px-3 py-3">Prescribed By (Doctor)</th>
                 <th className="px-3 py-3">Status</th>
-                <th className="px-3 py-3">Administering Nurse</th>
+                <th className="px-3 py-3">Administered By (Nurse)</th>
                 <th className="px-4 py-3 text-right print:hidden">Action</th>
               </tr>
             </thead>
@@ -197,6 +232,15 @@ export function NurseEmarSection({
                       </span>
                     </td>
 
+                    {/* Prescribed By Doctor */}
+                    <td className="px-3 py-3">
+                      <div className="flex items-center gap-1 text-slate-800 font-semibold text-[11px]">
+                        <Stethoscope className="w-3 h-3 text-indigo-600 shrink-0" />
+                        <span>{r.prescribedBy || attendingDoctorName || 'Dr. Attending'}</span>
+                      </div>
+                    </td>
+
+                    {/* Status */}
                     <td className="px-3 py-3">
                       {isGiven ? (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
@@ -217,19 +261,23 @@ export function NurseEmarSection({
                       )}
                     </td>
 
+                    {/* Administered By Nurse */}
                     <td className="px-3 py-3 text-slate-600">
-                      {r.nurseName ? (
+                      {isGiven && r.nurseName ? (
                         <div>
-                          <div className="font-semibold text-slate-900">{r.nurseName}</div>
+                          <div className="font-bold text-slate-900 flex items-center gap-1">
+                            <HeartPulse className="w-3 h-3 text-rose-600 shrink-0" />
+                            <span>Nurse {r.nurseName}</span>
+                          </div>
                           {r.administeredAt && (
-                            <div className="text-[10px] text-emerald-700 font-semibold flex items-center gap-1">
+                            <div className="text-[10px] text-emerald-700 font-semibold flex items-center gap-1 mt-0.5">
                               <CheckCircle2 className="w-3 h-3 text-emerald-600" />
                               {formatDateTime(r.administeredAt)}
                             </div>
                           )}
                         </div>
                       ) : (
-                        <span className="text-[10px] text-slate-400 italic">Pending dose</span>
+                        <span className="text-[10px] text-slate-400 italic">Pending administration</span>
                       )}
                     </td>
 
@@ -239,10 +287,13 @@ export function NurseEmarSection({
                           <>
                             <Button
                               size="sm"
-                              onClick={() => handleStatusUpdate(r.id, 'GIVEN')}
-                              className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white gap-1 px-2"
+                              onClick={() => {
+                                setAdministeringNurseName(currentStaffName || 'Staff Nurse');
+                                setAdministerTargetId(r.id);
+                              }}
+                              className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white gap-1 px-2.5 font-semibold"
                             >
-                              <CheckCircle2 className="w-3 h-3" /> Given
+                              <CheckCircle2 className="w-3 h-3" /> Administer
                             </Button>
                             <Button
                               size="sm"
@@ -270,6 +321,42 @@ export function NurseEmarSection({
               })}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Administer Medication Nurse Confirmation Modal */}
+      {administerTargetId !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-2xl max-w-sm w-full p-5 shadow-xl border space-y-3">
+            <h3 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Confirm Bedside Administration
+            </h3>
+            <p className="text-xs text-slate-500">
+              Confirm patient identity, 5 rights of medication administration, and verify the administering nurse&apos;s name.
+            </p>
+            <div className="space-y-1">
+              <Label className="text-xs font-semibold">Administering Nurse Name *</Label>
+              <Input
+                autoFocus
+                placeholder="Nurse Full Name"
+                value={administeringNurseName}
+                onChange={(e) => setAdministeringNurseName(e.target.value)}
+                className="text-xs font-semibold"
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-2 border-t">
+              <Button size="sm" variant="outline" onClick={() => setAdministerTargetId(null)}>
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => handleStatusUpdate(administerTargetId, 'GIVEN', undefined, administeringNurseName)}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
+              >
+                Sign &amp; Record Administration
+              </Button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -366,6 +453,20 @@ export function NurseEmarSection({
                 </div>
               </div>
 
+              {/* Prescribing Attending Doctor */}
+              <div>
+                <Label className="text-xs font-semibold flex items-center gap-1">
+                  <Stethoscope className="w-3.5 h-3.5 text-indigo-600" /> Prescribing Attending Doctor *
+                </Label>
+                <Input
+                  required
+                  placeholder="e.g. Dr. Rajesh Sharma"
+                  value={prescribedBy}
+                  onChange={(e) => setPrescribedBy(e.target.value)}
+                  className="mt-1 text-xs font-semibold text-slate-900"
+                />
+              </div>
+
               <div>
                 <Label className="text-xs font-semibold">Scheduled Date &amp; Time</Label>
                 <Input
@@ -391,7 +492,7 @@ export function NurseEmarSection({
                 <Button type="button" variant="outline" size="sm" onClick={() => setShowAddModal(false)}>
                   Cancel
                 </Button>
-                <Button type="submit" size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white">
+                <Button type="submit" size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold">
                   Add to eMAR Chart
                 </Button>
               </div>

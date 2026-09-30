@@ -85,6 +85,11 @@ export interface ClinicSettings {
   cloudSyncProvider?: string | null;
   cloudSyncEndpoint?: string | null;
   cloudSyncApiKey?: string | null;
+  defconLevel?: number | null;
+  militaryModeEnabled?: boolean | null;
+  ipQuarantineEnabled?: boolean | null;
+  lastIntegritySweepAt?: Date | null;
+  lastIntegrityStatus?: string | null;
 }
 
 export type SafeClinicSettings = Omit<
@@ -309,6 +314,7 @@ export interface EmarRecord {
   administeredAt?: Date | null;
   status: EmarStatus;
   nurseName?: string | null;
+  prescribedBy?: string | null;
   notes?: string | null;
   createdAt: Date | null;
 }
@@ -486,3 +492,95 @@ export interface IpdNursingNote {
   handoverNotes?: string | null;
   createdAt?: Date | null;
 }
+
+export type IpdHandoverType = 'NURSING_SHIFT' | 'DOCTOR_ROUND';
+
+export interface IpdHandover {
+  id: number;
+  admissionId: number;
+  patientId: number;
+  handoverType: IpdHandoverType | string;
+  shift: string;
+  handoverDate: Date;
+  outgoingStaffName: string;
+  outgoingStaffRole: 'DOCTOR' | 'NURSE' | string;
+  incomingStaffName: string;
+  patientCondition: string;
+  vitalsSummary?: string | null;
+  summaryNotes: string;
+  activeTreatmentOrders?: string | null;
+  pendingTasks?: string | null;
+  specialPrecautions?: string | null;
+  createdAt?: Date | null;
+}
+
+export type ClinicalServiceType =
+  | 'OXYGEN_THERAPY'
+  | 'SUCTIONING'
+  | 'DRAINAGE_CARE'
+  | 'NEBULIZATION'
+  | 'CATHETER_CARE'
+  | 'WOUND_DRESSING'
+  | 'OTHER';
+
+export interface IpdClinicalService {
+  id: number;
+  admissionId: number;
+  patientId: number;
+  serviceType: ClinicalServiceType | string;
+  serviceName: string;
+  performedAt: Date;
+  nurseName: string;
+  attendingDoctorName: string;
+  flowRateOrDetails?: string | null;
+  observations?: string | null;
+  status: 'COMPLETED' | 'ONGOING' | 'DISCONTINUED' | string;
+  createdAt?: Date | null;
+}
+
+// ---------------------------------------------------------------------------
+// Military Level Security & Defensive Cyber Operations Types
+// ---------------------------------------------------------------------------
+
+export type DefconLevel = 1 | 2 | 3 | 4 | 5;
+
+export interface QuarantinedIpRecord {
+  id: number;
+  ipAddress: string;
+  reason: string;
+  violationCount: number;
+  quarantinedAt: Date;
+  expiresAt?: Date | null;
+  pardonedAt?: Date | null;
+  pardonedBy?: string | null;
+}
+
+export interface DefconThreatStatus {
+  level: DefconLevel;
+  title: string;
+  badgeVariant: 'default' | 'secondary' | 'destructive' | 'outline';
+  threatScore: number;
+  indicators: string[];
+  recommendation: string;
+  quarantineCount: number;
+  lockdownActive: boolean;
+  deceptionActive: boolean;
+}
+
+export interface FleetIntegrityItem {
+  artifactType: 'PRESCRIPTION' | 'LAB_REPORT' | 'EMAR_RECORD' | 'IPD_HANDOVER' | 'AUDIT_LOG_CHAIN';
+  totalChecked: number;
+  validCount: number;
+  tamperedCount: number;
+  tamperedRecords: Array<{ id: number | string; identifier: string; reason: string }>;
+}
+
+export interface FleetIntegrityReport {
+  sweepCompletedAt: string;
+  overallIntact: boolean;
+  totalArtifactsChecked: number;
+  totalTamperedCount: number;
+  chainRootHash: string;
+  sections: FleetIntegrityItem[];
+}
+

@@ -1,12 +1,24 @@
 'use server'
 
 import { db, sqlite } from "@/db";
-import { ipdAdmissions, ipdRounds, labReports, patients, emarRecords, clinicalConsents, ipdDeposits, ipdFluidBalance } from "@/db/schema";
+import {
+  ipdAdmissions,
+  ipdRounds,
+  labReports,
+  patients,
+  emarRecords,
+  clinicalConsents,
+  ipdDeposits,
+  ipdFluidBalance,
+  ipdHandovers,
+  ipdClinicalServices,
+} from "@/db/schema";
 import { eq, desc, or, like, and } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { requirePermission, getCurrentUserRole, getCurrentUser, isDoctor, isNurse } from "@/lib/auth";
 import { logAuditEvent } from "@/lib/audit";
 import { generateConsentDigitalSeal } from "@/lib/consent-security";
+import { generateEmarDoseSeal, generateHandoverSeal } from "@/lib/military-crypto";
 import { sanitizeClinicalText } from "@/lib/phi-sanitizer";
 import { getClientIp } from "@/lib/rate-limiter";
 import {
@@ -25,6 +37,10 @@ import {
   FluidEntryType,
   FluidRoute,
   FluidShift,
+  IpdHandover,
+  IpdHandoverType,
+  IpdClinicalService,
+  ClinicalServiceType,
 } from "@/types";
 
 export interface IpdFilterOptions {
@@ -178,6 +194,8 @@ export async function getIpdAdmissionById(id: number): Promise<{
   consentsList: ClinicalConsent[];
   depositsList: IpdDeposit[];
   fluidBalanceList: FluidBalanceRecord[];
+  handoversList: IpdHandover[];
+  clinicalServicesList: IpdClinicalService[];
   settings: ClinicSettings | null;
 }> {
   await requirePermission('ipd:view', `/ipd/${id}`);
@@ -222,7 +240,18 @@ export async function getIpdAdmissionById(id: number): Promise<{
 
   if (!row || row.length === 0) {
     const settings = (await db.query.clinicSettings.findFirst()) || null;
-    return { admission: null, rounds: [], labReportsList: [], emarRecordsList: [], consentsList: [], depositsList: [], fluidBalanceList: [], settings };
+    return {
+      admission: null,
+      rounds: [],
+      labReportsList: [],
+      emarRecordsList: [],
+      consentsList: [],
+      depositsList: [],
+      fluidBalanceList: [],
+      handoversList: [],
+      clinicalServicesList: [],
+      settings,
+    };
   }
 
   // Fetch all clinical progress rounds for this admission
@@ -292,6 +321,20 @@ export async function getIpdAdmissionById(id: number): Promise<{
   // Fetch fluid balance (Input/Output) records
   const fluidBalanceList = await getFluidBalanceRecordsAction(id);
 
+  // Fetch shift & round handovers
+  const handoversList = (await db
+    .select()
+    .from(ipdHandovers)
+    .where(eq(ipdHandovers.admissionId, id))
+    .orderBy(desc(ipdHandovers.handoverDate), desc(ipdHandovers.id))) as IpdHandover[];
+
+  // Fetch clinical procedures & nursing services (oxygen, suction, drainage, etc.)
+  const clinicalServicesList = (await db
+    .select()
+    .from(ipdClinicalServices)
+    .where(eq(ipdClinicalServices.admissionId, id))
+    .orderBy(desc(ipdClinicalServices.performedAt), desc(ipdClinicalServices.id))) as IpdClinicalService[];
+
   const settings = (await db.query.clinicSettings.findFirst()) || null;
 
   return {
@@ -302,6 +345,8 @@ export async function getIpdAdmissionById(id: number): Promise<{
     consentsList,
     depositsList,
     fluidBalanceList,
+    handoversList,
+    clinicalServicesList,
     settings,
   };
 }
@@ -535,23 +580,29 @@ export async function addEmarRecordAction(data: {
   dosage: string;
   route?: string;
   scheduledTime: number;
+  prescribedBy?: string;
   notes?: string;
 }): Promise<{ success: boolean; id?: number; error?: string }> {
   await requirePermission('ipd:view', '/ipd');
   const role = await getCurrentUserRole();
   const user = await getCurrentUser();
+  const settings = await db.query.clinicSettings.findFirst();
 
   if (!isDoctor(role) && !isNurse(role)) {
     return { success: false, error: 'Unauthorized: Only nursing or medical staff can schedule medication on eMAR.' };
   }
 
   try {
+    const doctorAuthor =
+      data.prescribedBy?.trim() ||
+      (isDoctor(role) ? user?.name || settings?.doctorName || 'Attending Physician' : settings?.doctorName || 'Attending Physician');
+
     const res = sqlite
       .prepare(`
         INSERT INTO emar_records (
           admission_id, medication_name, dosage, route, scheduled_time,
-          status, notes, created_at
-        ) VALUES (?, ?, ?, ?, ?, 'PENDING', ?, ?)
+          status, nurse_name, prescribed_by, notes, created_at
+        ) VALUES (?, ?, ?, ?, ?, 'PENDING', NULL, ?, ?, ?)
       `)
       .run(
         data.admissionId,
@@ -559,6 +610,7 @@ export async function addEmarRecordAction(data: {
         data.dosage.trim(),
         data.route || 'Oral',
         data.scheduledTime,
+        doctorAuthor,
         data.notes?.trim() || null,
         Date.now()
       );
@@ -566,7 +618,7 @@ export async function addEmarRecordAction(data: {
     await logAuditEvent({
       action: 'EMAR_DOSE_SCHEDULED',
       actorRole: role.toUpperCase(),
-      details: `Scheduled ${data.medicationName} (${data.dosage}) for Admission #${data.admissionId} by ${user?.name || role}`,
+      details: `Scheduled ${data.medicationName} (${data.dosage}) for Admission #${data.admissionId} (Prescribed by Dr. ${doctorAuthor}) by ${user?.name || role}`,
       status: 'SUCCESS',
     });
 
@@ -582,7 +634,8 @@ export async function updateEmarDoseStatusAction(
   id: number,
   status: EmarStatus,
   admissionId: number,
-  notes?: string
+  notes?: string,
+  nurseName?: string
 ): Promise<{ success: boolean; error?: string }> {
   await requirePermission('ipd:view', '/ipd');
   const role = await getCurrentUserRole();
@@ -594,7 +647,7 @@ export async function updateEmarDoseStatusAction(
 
   try {
     const now = Date.now();
-    const nurseName = user?.name || (role === 'nurse' ? 'Staff Nurse' : 'Attending Staff');
+    const effectiveNurseName = nurseName?.trim() || user?.name || (role === 'nurse' ? 'Staff Nurse' : 'Attending Staff');
 
     sqlite
       .prepare(`
@@ -609,17 +662,47 @@ export async function updateEmarDoseStatusAction(
       .run(
         status,
         status === 'GIVEN' ? now : null,
-        nurseName,
+        effectiveNurseName,
         notes?.trim() || null,
         notes?.trim() || null,
         notes?.trim() || null,
         id
       );
 
+    // Military Cryptographic Sealing of Bedside Dose Administration
+    const updatedDose = sqlite
+      .prepare('SELECT id, admission_id, medication_name, dosage, status, nurse_name, prescribed_by, scheduled_time, administered_at FROM emar_records WHERE id = ?')
+      .get(id) as {
+        id: number;
+        admission_id: number;
+        medication_name: string;
+        dosage: string;
+        status: string;
+        nurse_name: string | null;
+        prescribed_by: string | null;
+        scheduled_time: number;
+        administered_at: number | null;
+      } | undefined;
+
+    if (updatedDose) {
+      const seal = generateEmarDoseSeal({
+        id: updatedDose.id,
+        admissionId: updatedDose.admission_id,
+        medicationName: updatedDose.medication_name,
+        dosage: updatedDose.dosage,
+        status: updatedDose.status,
+        nurseName: updatedDose.nurse_name,
+        prescribedBy: updatedDose.prescribed_by,
+        scheduledTime: updatedDose.scheduled_time,
+        administeredAt: updatedDose.administered_at,
+      });
+      sqlite.prepare('UPDATE emar_records SET digital_seal_hash = ? WHERE id = ?').run(seal, id);
+    }
+
     await logAuditEvent({
       action: 'EMAR_DOSE_ADMINISTERED',
       actorRole: role.toUpperCase(),
-      details: `Marked eMAR dose #${id} as ${status} by ${nurseName}`,
+      details: `Marked eMAR dose #${id} as ${status} by Nurse ${effectiveNurseName}`,
       status: 'SUCCESS',
     });
 
@@ -821,6 +904,7 @@ export async function addFluidBalanceAction(data: {
   volumeMl: number;
   shift?: FluidShift | string;
   recordedAt?: string | Date;
+  nurseName?: string;
   appearance?: string;
   notes?: string;
 }): Promise<{ success: boolean; id?: number; error?: string }> {
@@ -839,7 +923,7 @@ export async function addFluidBalanceAction(data: {
   try {
     const now = Date.now();
     const recordedTimestamp = data.recordedAt ? new Date(data.recordedAt).getTime() : now;
-    const authorName = user?.name || (role === 'nurse' ? 'Staff Nurse' : 'Attending Doctor');
+    const authorName = data.nurseName?.trim() || user?.name || (role === 'nurse' ? 'Staff Nurse' : 'Attending Doctor');
 
     const result = sqlite
       .prepare(`
@@ -946,4 +1030,242 @@ export async function getFluidBalanceRecordsAction(admissionId: number): Promise
     return [];
   }
 }
+
+// ==========================================
+// Inpatient Shift & Round Handover Actions
+// ==========================================
+
+export async function addIpdHandoverAction(data: {
+  admissionId: number;
+  patientId: number;
+  handoverType: IpdHandoverType;
+  shift: string;
+  handoverDate?: string | Date;
+  outgoingStaffName: string;
+  outgoingStaffRole: 'DOCTOR' | 'NURSE';
+  incomingStaffName: string;
+  patientCondition: string;
+  vitalsSummary?: string;
+  summaryNotes: string;
+  activeTreatmentOrders?: string;
+  pendingTasks?: string;
+  specialPrecautions?: string;
+}): Promise<{ success: boolean; id?: number; error?: string }> {
+  await requirePermission('ipd:view', `/ipd/${data.admissionId}`);
+  const role = await getCurrentUserRole();
+  const user = await getCurrentUser();
+
+  if (data.handoverType === 'DOCTOR_ROUND' && !isDoctor(role)) {
+    return { success: false, error: 'Unauthorized: Only an attending physician can record a Doctor Round Handover.' };
+  }
+
+  if (!isDoctor(role) && !isNurse(role)) {
+    return { success: false, error: 'Unauthorized: Clinical or Nursing credentials required.' };
+  }
+
+  if (!data.summaryNotes?.trim()) {
+    return { success: false, error: 'Clinical summary and handover assessment are required.' };
+  }
+
+  if (!data.outgoingStaffName?.trim() || !data.incomingStaffName?.trim()) {
+    return { success: false, error: 'Both outgoing and incoming clinician names are required.' };
+  }
+
+  try {
+    const now = Date.now();
+    const handoverTimestamp = data.handoverDate ? new Date(data.handoverDate).getTime() : now;
+
+    const res = sqlite
+      .prepare(`
+        INSERT INTO ipd_handovers (
+          admission_id, patient_id, handover_type, shift, handover_date,
+          outgoing_staff_name, outgoing_staff_role, incoming_staff_name,
+          patient_condition, vitals_summary, summary_notes,
+          active_treatment_orders, pending_tasks, special_precautions, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `)
+      .run(
+        data.admissionId,
+        data.patientId,
+        data.handoverType,
+        data.shift || 'Morning',
+        handoverTimestamp,
+        data.outgoingStaffName.trim(),
+        data.outgoingStaffRole || 'NURSE',
+        data.incomingStaffName.trim(),
+        data.patientCondition || 'Stable',
+        data.vitalsSummary?.trim() || null,
+        data.summaryNotes.trim(),
+        data.activeTreatmentOrders?.trim() || null,
+        data.pendingTasks?.trim() || null,
+        data.specialPrecautions?.trim() || null,
+        now
+      );
+
+    const insertedId = Number(res.lastInsertRowid);
+
+    // Military Cryptographic Sealing of Cross-Shift / Doctor Round Handover
+    const seal = generateHandoverSeal({
+      id: insertedId,
+      admissionId: data.admissionId,
+      handoverType: data.handoverType,
+      shift: data.shift || 'Morning',
+      outgoingStaffName: data.outgoingStaffName.trim(),
+      incomingStaffName: data.incomingStaffName.trim(),
+      patientCondition: data.patientCondition || 'Stable',
+      summaryNotes: data.summaryNotes.trim(),
+      activeTreatmentOrders: data.activeTreatmentOrders?.trim() || null,
+    });
+    sqlite.prepare('UPDATE ipd_handovers SET digital_seal_hash = ? WHERE id = ?').run(seal, insertedId);
+
+    await logAuditEvent({
+      action: 'IPD_HANDOVER_RECORDED',
+      actorRole: role.toUpperCase(),
+      details: `${data.handoverType} (${data.shift}) from ${data.outgoingStaffName} to ${data.incomingStaffName} recorded for Admission #${data.admissionId}`,
+      status: 'SUCCESS',
+    });
+
+    revalidatePath(`/ipd/${data.admissionId}`);
+    return { success: true, id: insertedId };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { success: false, error: msg };
+  }
+}
+
+export async function deleteIpdHandoverAction(
+  id: number,
+  admissionId: number
+): Promise<{ success: boolean; error?: string }> {
+  await requirePermission('ipd:view', `/ipd/${admissionId}`);
+  const role = await getCurrentUserRole();
+
+  if (!isDoctor(role) && !isNurse(role)) {
+    return { success: false, error: 'Unauthorized: Clinical staff authority required.' };
+  }
+
+  try {
+    sqlite.prepare('DELETE FROM ipd_handovers WHERE id = ? AND admission_id = ?').run(id, admissionId);
+
+    await logAuditEvent({
+      action: 'IPD_HANDOVER_DELETED',
+      actorRole: role.toUpperCase(),
+      details: `Shift/Round Handover #${id} removed from Admission #${admissionId}`,
+      status: 'WARNING',
+    });
+
+    revalidatePath(`/ipd/${admissionId}`);
+    return { success: true };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { success: false, error: msg };
+  }
+}
+
+// ==========================================
+// Inpatient Nursing Procedures & Clinical Services
+// (Oxygen, Suction, Drainage, etc.)
+// ==========================================
+
+export async function addClinicalServiceAction(data: {
+  admissionId: number;
+  patientId: number;
+  serviceType: ClinicalServiceType;
+  serviceName: string;
+  performedAt?: string | Date;
+  nurseName: string;
+  attendingDoctorName: string;
+  flowRateOrDetails?: string;
+  observations?: string;
+  status?: 'COMPLETED' | 'ONGOING' | 'DISCONTINUED';
+}): Promise<{ success: boolean; id?: number; error?: string }> {
+  await requirePermission('ipd:view', `/ipd/${data.admissionId}`);
+  const role = await getCurrentUserRole();
+
+  if (!isNurse(role) && !isDoctor(role)) {
+    return { success: false, error: 'Unauthorized: Nursing or Medical authority required to log clinical services.' };
+  }
+
+  if (!data.serviceName?.trim()) {
+    return { success: false, error: 'Service/Procedure name is required.' };
+  }
+
+  if (!data.nurseName?.trim()) {
+    return { success: false, error: 'Administering nurse name must be specified.' };
+  }
+
+  if (!data.attendingDoctorName?.trim()) {
+    return { success: false, error: 'Round attending doctor name must be specified.' };
+  }
+
+  try {
+    const now = Date.now();
+    const performedTimestamp = data.performedAt ? new Date(data.performedAt).getTime() : now;
+
+    const res = sqlite
+      .prepare(`
+        INSERT INTO ipd_clinical_services (
+          admission_id, patient_id, service_type, service_name, performed_at,
+          nurse_name, attending_doctor_name, flow_rate_or_details,
+          observations, status, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `)
+      .run(
+        data.admissionId,
+        data.patientId,
+        data.serviceType || 'OXYGEN_THERAPY',
+        data.serviceName.trim(),
+        performedTimestamp,
+        data.nurseName.trim(),
+        data.attendingDoctorName.trim(),
+        data.flowRateOrDetails?.trim() || null,
+        data.observations?.trim() || null,
+        data.status || 'COMPLETED',
+        now
+      );
+
+    await logAuditEvent({
+      action: 'IPD_CLINICAL_SERVICE_LOGGED',
+      actorRole: role.toUpperCase(),
+      details: `${data.serviceName} (${data.serviceType}) performed by Nurse ${data.nurseName} (Ordered by Dr. ${data.attendingDoctorName}) on Admission #${data.admissionId}`,
+      status: 'SUCCESS',
+    });
+
+    revalidatePath(`/ipd/${data.admissionId}`);
+    return { success: true, id: Number(res.lastInsertRowid) };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { success: false, error: msg };
+  }
+}
+
+export async function deleteClinicalServiceAction(
+  id: number,
+  admissionId: number
+): Promise<{ success: boolean; error?: string }> {
+  await requirePermission('ipd:view', `/ipd/${admissionId}`);
+  const role = await getCurrentUserRole();
+
+  if (!isDoctor(role) && !isNurse(role)) {
+    return { success: false, error: 'Unauthorized: Clinical staff authority required.' };
+  }
+
+  try {
+    sqlite.prepare('DELETE FROM ipd_clinical_services WHERE id = ? AND admission_id = ?').run(id, admissionId);
+
+    await logAuditEvent({
+      action: 'IPD_CLINICAL_SERVICE_DELETED',
+      actorRole: role.toUpperCase(),
+      details: `Clinical Service #${id} deleted from Admission #${admissionId}`,
+      status: 'WARNING',
+    });
+
+    revalidatePath(`/ipd/${admissionId}`);
+    return { success: true };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { success: false, error: msg };
+  }
+}
+
 

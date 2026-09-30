@@ -9,11 +9,11 @@
 
 ## Current State
 
-**Version:** `1.1.1` | **Branch:** `main` | **Last commit:** `0fddbc1`
-**Build:** ✅ 0 errors | **Tests:** ✅ 14/14 passing
+**Version:** `1.1.2` | **Branch:** `main`
+**Build:** ✅ 0 errors | **Tests:** ✅ 27/27 passing across 5 test suites
 
 ```
-Next.js 16.3.4 (Turbopack) · SQLite (Drizzle ORM) · Offline-First PWA
+Next.js 16.3.4 (Turbopack) · SQLite (Drizzle ORM) · Military-Grade Zero-Trust · Offline-First PWA
 ```
 
 ---
@@ -37,16 +37,27 @@ Next.js 16.3.4 (Turbopack) · SQLite (Drizzle ORM) · Offline-First PWA
 - [x] **IPD admissions** — create, list, filter (`/ipd`, `/ipd/[id]`)
 - [x] **Clinical rounds** — doctor round notes with vitals
 - [x] **Nurse nursing notes section** — IPD nursing notes
-- [x] **eMAR** (Electronic Medication Administration Record) — nurse drug charting
-- [x] **Fluid balance I/O chart** — 24h nurse input/output tracking with running totals
+- [x] **eMAR** (Electronic Medication Administration Record) — nurse drug charting with prescribing doctor & administering nurse attribution
+- [x] **Fluid balance I/O chart** — 24h nurse input/output tracking with running totals and nurse attribution
+- [x] **Inpatient Handovers** — cross-shift nursing handovers and doctor round handovers (`IpdHandoverSection`)
+- [x] **Inpatient Clinical Services & Procedures** — oxygen therapy, suctioning, drainage care with nurse and doctor attribution (`IpdNursingServicesSection`)
 - [x] **Discharge workflow** — discharge summary, advice, referral (`IpdDischargeModal`)
 - [x] **IPD deposits** — advance, top-up, refund receipts
 - [x] **Clinical consents** — digital consent with tamper-evident seal
 
 ### Labs
 - [x] **Lab reports module** — create, update, print, dispatch (`/labs`, `/labs/[id]`)
+- [x] **Lab data editing exclusivity** — strictly restricted to certified `lab_technician` and `admin_doctor` (`LabResultEditorModal`)
 - [x] **Standard lab templates** — CBC, LFT, RFT, Urine, Lipid, Thyroid, etc.
 - [x] **Lab report PDF** — structured printable output
+
+### Military-Grade Security Subsystem
+- [x] **DoD DEFCON Threat Readiness Matrix** — real-time levels 1 to 5 with threat score gauge & admin manual override
+- [x] **Deep Payload Inspection & IDS Sentinel** — zero-day heuristics for SQLi, XSS, Path Traversal, and RCE (`military-sentinel.ts`)
+- [x] **Automated 24h IP Quarantine** — autonomous hardware/SQLite blocklist and pardon workflow
+- [x] **Next.js 16 Edge Proxy Defense** — request filtering and DoD STIG security headers (`src/proxy.ts`)
+- [x] **Fleet-Wide Cryptographic Seals** — HMAC-SHA256 seals for prescriptions, lab results, eMAR, handovers, and audit blockchain (`military-crypto.ts`)
+- [x] **Military Cyber Command Center UI** — integrated radar, fleet sweep, quarantine table, and attack drills (`MilitarySecurityCommandCenter.tsx`)
 
 ### Billing
 - [x] **OPD invoice system** — create, edit, status management (`/billing`, `/billing/[id]`)

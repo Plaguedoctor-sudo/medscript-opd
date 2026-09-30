@@ -57,7 +57,9 @@ import { IpdDepositsSection } from "@/components/ipd/IpdDepositsSection";
 import { InputOutputChartSection } from "@/components/ipd/InputOutputChartSection";
 import { IpdDischargeModal } from "@/components/ipd/IpdDischargeModal";
 import { IpdNursingNotesSection } from "@/components/ipd/IpdNursingNotesSection";
-import { IpdDischarge, IpdNursingNote } from "@/types";
+import { IpdNursingServicesSection } from "@/components/ipd/IpdNursingServicesSection";
+import { IpdHandoverSection } from "@/components/ipd/IpdHandoverSection";
+import { IpdDischarge, IpdNursingNote, IpdHandover, IpdClinicalService } from "@/types";
 
 interface IpdCaseSheetProps {
   admission: IpdAdmissionWithPatient;
@@ -67,6 +69,8 @@ interface IpdCaseSheetProps {
   consents?: ClinicalConsent[];
   deposits?: IpdDeposit[];
   fluidBalanceRecords?: FluidBalanceRecord[];
+  handovers?: IpdHandover[];
+  clinicalServices?: IpdClinicalService[];
   settings: ClinicSettings | null;
   userRole?: string;
   currentStaffName?: string;
@@ -82,6 +86,8 @@ export function IpdCaseSheet({
   consents = [],
   deposits = [],
   fluidBalanceRecords = [],
+  handovers = [],
+  clinicalServices = [],
   settings,
   userRole,
   currentStaffName,
@@ -866,6 +872,8 @@ export function IpdCaseSheet({
           admissionId={admission.id}
           initialRecords={emarRecords}
           userRole={userRole}
+          currentStaffName={currentStaffName}
+          attendingDoctorName={admission.attendingDoctor || settings?.doctorName}
         />
 
         {/* SECTION 4: Inpatient Fluid Balance & Input / Output (I/O) Chart */}
@@ -876,7 +884,28 @@ export function IpdCaseSheet({
           defaultNurseName={currentStaffName || (userRole === 'nurse' ? 'Staff Nurse' : settings?.doctorName || 'Attending Staff')}
         />
 
-        {/* SECTION 5: Clinical Consent Forms & Touch Signature Pad */}
+        {/* SECTION 5: Inpatient Nursing Procedures & Clinical Services (Oxygen, Suction, Drainage, etc.) */}
+        <IpdNursingServicesSection
+          admissionId={admission.id}
+          patientId={admission.patient.id}
+          initialServices={clinicalServices}
+          userRole={userRole}
+          currentStaffName={currentStaffName}
+          attendingDoctorName={admission.attendingDoctor || settings?.doctorName}
+        />
+
+        {/* SECTION 6: Inpatient Clinical & Nursing Shift Handover System (Rounds & Nurses) */}
+        <IpdHandoverSection
+          admissionId={admission.id}
+          patientId={admission.patient.id}
+          patientName={admission.patient.name}
+          initialHandovers={handovers}
+          userRole={userRole}
+          currentStaffName={currentStaffName}
+          attendingDoctorName={admission.attendingDoctor || settings?.doctorName}
+        />
+
+        {/* SECTION 7: Clinical Consent Forms & Touch Signature Pad */}
         <ClinicalConsentsSection
           admissionId={admission.id}
           patientId={admission.patient.id}
@@ -885,7 +914,7 @@ export function IpdCaseSheet({
           userRole={userRole}
         />
 
-        {/* SECTION 6: Inpatient Advance Deposits & Financial Ledger */}
+        {/* SECTION 8: Inpatient Advance Deposits & Financial Ledger */}
         <IpdDepositsSection
           admissionId={admission.id}
           patientId={admission.patient.id}
@@ -893,7 +922,7 @@ export function IpdCaseSheet({
           userRole={userRole}
         />
 
-        {/* SECTION 7: Shift-to-Shift Nursing Handover Notes */}
+        {/* SECTION 9: Shift-to-Shift Nursing Handover Notes */}
         <IpdNursingNotesSection
           admission={admission}
           notes={nursingNotes}

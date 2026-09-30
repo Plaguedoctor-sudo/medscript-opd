@@ -104,6 +104,8 @@ export default async function IpdAdmissionPage({
           currentStaffName={currentUser?.name}
           existingDischarge={existingDischarge}
           nursingNotes={nursingNotes}
+          handovers={data.handoversList || []}
+          clinicalServices={data.clinicalServicesList || []}
         />
       </main>
     </div>

@@ -316,6 +316,59 @@ sqlite.exec(`
 
   CREATE INDEX IF NOT EXISTS idx_fluid_admission ON ipd_fluid_balance(admission_id);
   CREATE INDEX IF NOT EXISTS idx_fluid_recorded ON ipd_fluid_balance(recorded_at);
+
+  CREATE TABLE IF NOT EXISTS ipd_handovers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    admission_id INTEGER NOT NULL REFERENCES ipd_admissions(id),
+    patient_id INTEGER NOT NULL REFERENCES patients(id),
+    handover_type TEXT NOT NULL DEFAULT 'NURSING_SHIFT',
+    shift TEXT NOT NULL DEFAULT 'Morning',
+    handover_date INTEGER NOT NULL,
+    outgoing_staff_name TEXT NOT NULL,
+    outgoing_staff_role TEXT NOT NULL DEFAULT 'NURSE',
+    incoming_staff_name TEXT NOT NULL,
+    patient_condition TEXT NOT NULL DEFAULT 'Stable',
+    vitals_summary TEXT,
+    summary_notes TEXT NOT NULL,
+    active_treatment_orders TEXT,
+    pending_tasks TEXT,
+    special_precautions TEXT,
+    created_at INTEGER
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_handovers_admission ON ipd_handovers(admission_id);
+  CREATE INDEX IF NOT EXISTS idx_handovers_date ON ipd_handovers(handover_date);
+
+  CREATE TABLE IF NOT EXISTS ipd_clinical_services (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    admission_id INTEGER NOT NULL REFERENCES ipd_admissions(id),
+    patient_id INTEGER NOT NULL REFERENCES patients(id),
+    service_type TEXT NOT NULL DEFAULT 'OXYGEN_THERAPY',
+    service_name TEXT NOT NULL,
+    performed_at INTEGER NOT NULL,
+    nurse_name TEXT NOT NULL,
+    attending_doctor_name TEXT NOT NULL,
+    flow_rate_or_details TEXT,
+    observations TEXT,
+    status TEXT NOT NULL DEFAULT 'COMPLETED',
+    created_at INTEGER
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_services_admission ON ipd_clinical_services(admission_id);
+  CREATE INDEX IF NOT EXISTS idx_services_performed ON ipd_clinical_services(performed_at);
+
+  CREATE TABLE IF NOT EXISTS quarantined_ips (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ip_address TEXT NOT NULL UNIQUE,
+    reason TEXT NOT NULL,
+    violation_count INTEGER NOT NULL DEFAULT 1,
+    quarantined_at INTEGER NOT NULL,
+    expires_at INTEGER,
+    pardoned_at INTEGER,
+    pardoned_by TEXT
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_quarantine_ip ON quarantined_ips(ip_address);
 `);
 
 // Auto-seed default staff profiles across all major roles and subcategories
@@ -522,6 +575,51 @@ try {
 }
 try {
   sqlite.exec('ALTER TABLE clinic_settings ADD COLUMN session_revoked_before INTEGER;');
+} catch {
+  // Column already exists
+}
+try {
+  sqlite.exec('ALTER TABLE emar_records ADD COLUMN prescribed_by TEXT;');
+} catch {
+  // Column already exists
+}
+try {
+  sqlite.exec('ALTER TABLE clinic_settings ADD COLUMN defcon_level INTEGER DEFAULT 5;');
+} catch {
+  // Column already exists
+}
+try {
+  sqlite.exec('ALTER TABLE clinic_settings ADD COLUMN military_mode_enabled INTEGER DEFAULT 1;');
+} catch {
+  // Column already exists
+}
+try {
+  sqlite.exec('ALTER TABLE clinic_settings ADD COLUMN ip_quarantine_enabled INTEGER DEFAULT 1;');
+} catch {
+  // Column already exists
+}
+try {
+  sqlite.exec('ALTER TABLE clinic_settings ADD COLUMN last_integrity_sweep_at INTEGER;');
+} catch {
+  // Column already exists
+}
+try {
+  sqlite.exec('ALTER TABLE clinic_settings ADD COLUMN last_integrity_status TEXT;');
+} catch {
+  // Column already exists
+}
+try {
+  sqlite.exec('ALTER TABLE lab_reports ADD COLUMN digital_seal_hash TEXT;');
+} catch {
+  // Column already exists
+}
+try {
+  sqlite.exec('ALTER TABLE emar_records ADD COLUMN digital_seal_hash TEXT;');
+} catch {
+  // Column already exists
+}
+try {
+  sqlite.exec('ALTER TABLE ipd_handovers ADD COLUMN digital_seal_hash TEXT;');
 } catch {
   // Column already exists
 }

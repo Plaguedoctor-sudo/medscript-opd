@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { formatDate } from "@/lib/utils";
 import { LabReportWithPatient, LabResultParameter } from "@/types";
 import { LabEntryModal } from "./LabEntryModal";
+import { LabResultEditorModal } from "./LabResultEditorModal";
 import { LAB_CATEGORIES } from "@/lib/lab-library";
 import {
   FlaskConical,
@@ -20,6 +21,7 @@ import {
   CheckCircle2,
   Clock,
   AlertTriangle,
+  Edit,
 } from "lucide-react";
 
 interface LabDashboardProps {
@@ -39,6 +41,7 @@ interface LabDashboardProps {
 export function LabDashboard({
   reports,
   stats,
+  userRole = "",
   initialQuery = "",
   initialStatus = "ALL",
   initialCategory = "All",
@@ -336,6 +339,21 @@ export function LabDashboard({
 
                       <TableCell className="text-right whitespace-nowrap">
                         <div className="flex items-center justify-end gap-1.5">
+                          {(userRole === "admin_doctor" || userRole === "lab_technician") && (
+                            <LabResultEditorModal
+                              report={r}
+                              triggerButton={
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-8 gap-1 text-xs border-indigo-300 text-indigo-700 hover:bg-indigo-50 font-semibold"
+                                >
+                                  <Edit className="w-3.5 h-3.5 text-indigo-600" /> Enter Results
+                                </Button>
+                              }
+                            />
+                          )}
+
                           <Link href={`/labs/${r.id}`}>
                             <Button variant="outline" size="sm" className="h-8 gap-1 text-xs">
                               <ExternalLink className="w-3.5 h-3.5" /> View/Print

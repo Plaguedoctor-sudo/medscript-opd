@@ -14,12 +14,14 @@ import { StaffManagementSection } from "./StaffManagementSection";
 import { getStaffUsers } from "@/app/login/actions";
 import { getGoogleDriveConfigAction } from "./actions";
 import { GoogleDriveBackupCard } from "@/components/GoogleDriveBackupCard";
+import { MilitarySecurityCommandCenter } from "@/components/MilitarySecurityCommandCenter";
+import { getMilitarySecurityDataAction } from "./military-actions";
 
 export const dynamic = 'force-dynamic';
 
 export default async function SettingsPage() {
   await requirePermission('settings:clinic', '/settings');
-  const [settings, securityConfig, backupSnapshots, recentAuditLogs, role, currentUser, staffUsers, gdriveConfig] = await Promise.all([
+  const [settings, securityConfig, backupSnapshots, recentAuditLogs, role, currentUser, staffUsers, gdriveConfig, militaryData] = await Promise.all([
     getSettings(),
     getSecurityConfig(),
     getLocalBackupSnapshots(),
@@ -28,6 +30,7 @@ export default async function SettingsPage() {
     getCurrentUser(),
     getStaffUsers(),
     getGoogleDriveConfigAction(),
+    getMilitarySecurityDataAction(),
   ]);
 
   return (
@@ -91,6 +94,11 @@ export default async function SettingsPage() {
       </nav>
 
       <main className="container mx-auto px-4 py-8 space-y-8">
+        <MilitarySecurityCommandCenter
+          initialDefcon={militaryData.defcon}
+          initialQuarantinedIps={militaryData.quarantinedIps}
+          isAdmin={role === 'admin_doctor'}
+        />
         <StaffManagementSection
           initialStaffUsers={staffUsers}
           currentRole={role}
