@@ -550,6 +550,26 @@ try {
   console.error('Failed to seed default staff users:', seedErr);
 }
 
+// Auto-seed default ICU and IPD devices if table is empty
+try {
+  const deviceCount = sqlite.prepare('SELECT COUNT(*) as count FROM medical_devices').get() as { count: number } | undefined;
+  if (!deviceCount || deviceCount.count === 0) {
+    const insertDevice = sqlite.prepare(`
+      INSERT INTO medical_devices (device_id, name, device_type, model, serial_number, location_ward, assigned_bed, status, protocol, battery_percent, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    const now = Date.now();
+    insertDevice.run('DEV-ICU-MON-01', 'Mindray BeneVision N17 Patient Monitor', 'patient_monitor', 'BeneVision N17', 'MR-BV17-9821', 'ICU', 'ICU-01', 'STREAMING', 'HL7_V2_ORU', 100, now);
+    insertDevice.run('DEV-ICU-VENT-01', 'Hamilton-C6 Intensive Care Ventilator', 'ventilator', 'Hamilton-C6', 'HM-C6-4412', 'ICU', 'ICU-01', 'STREAMING', 'IEEE_11073', 98, now);
+    insertDevice.run('DEV-ICU-PUMP-01', 'B. Braun Space Syringe Infusion Pump', 'infusion_pump', 'Perfusor Space', 'BB-SP-7711', 'ICU', 'ICU-01', 'STREAMING', 'REST_JSON', 100, now);
+    insertDevice.run('DEV-ICU-MON-02', 'Philips IntelliVue MX750 Monitor', 'patient_monitor', 'IntelliVue MX750', 'PH-MX75-1092', 'ICU', 'ICU-02', 'STREAMING', 'HL7_V2_ORU', 95, now);
+    insertDevice.run('DEV-HDU-MON-01', 'GE Healthcare Carescape B650', 'patient_monitor', 'Carescape B650', 'GE-CS65-5519', 'HDU', 'HDU-01', 'STREAMING', 'HL7_V2_ORU', 100, now);
+    insertDevice.run('DEV-WARD-MON-01', 'Contec CMS8000 Multi-Parameter Monitor', 'patient_monitor', 'CMS8000', 'CT-8000-3321', 'General Ward', 'Bed-01', 'STREAMING', 'REST_JSON', 88, now);
+  }
+} catch (deviceSeedErr) {
+  console.error('Failed to seed default medical devices:', deviceSeedErr);
+}
+
 // Auto-migrate newly added columns if existing DB
 try {
   sqlite.exec('ALTER TABLE clinic_settings ADD COLUMN pin_hash TEXT;');
