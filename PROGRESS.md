@@ -10,10 +10,10 @@
 ## Current State
 
 **Version:** `1.1.3` | **Branch:** `main`
-**Build:** ✅ 0 errors | **Tests:** ✅ 41/41 passing across 6 test suites
+**Build:** ✅ 0 errors | **Tests:** ✅ 54/54 passing across 7 test suites
 
 ```
-Next.js 16.3.4 (Turbopack) · SQLite (Drizzle ORM) · Military-Grade Zero-Trust · Offline-First PWA
+Next.js 16.3.4 (Turbopack) · SQLite (Drizzle ORM) · Military-Grade Zero-Trust · Offline-First PWA · Android Native APK
 ```
 
 ---
@@ -102,6 +102,11 @@ Next.js 16.3.4 (Turbopack) · SQLite (Drizzle ORM) · Military-Grade Zero-Trust 
   - Roles: `admin_doctor`, `doctor`, `nurse`, `receptionist`, `lab_technician`
   - 30+ granular `Permission` keys in `ROLE_PERMISSIONS` matrix
   - `canDo(role, permission)` client helper for UI gating
+  - **Clinical Lab Access Control**:
+    - `doctor`: Can order lab tests (`lab:order`), cannot edit diagnostic lab reports/results.
+    - `nurse`: Cannot order lab tests, cannot edit diagnostic lab reports/results.
+    - `lab_technician`: Exclusive editor of diagnostic lab results & parameters (`lab:manage`), can intake walk-in lab tests (`lab:order`).
+    - `admin_doctor`: Complete supervisor over lab ordering, result calibration, and report deletion.
 - [x] **Multi-user staff management** — individual PINs per staff member (`/settings` → Staff tab)
 - [x] **TOTP / MFA** — TOTP setup and verify (`/lib/totp.ts`, `MfaSetupModal`)
 - [x] **PHI sanitization** — ABHA, Aadhaar masking in logs (`phi-sanitizer.ts`)
