@@ -1,0 +1,12 @@
+<resources>
+    <string name="app_name">MedScript OPD</string>
+    <string name="action_settings">Server Settings</string>
+    <string name="action_refresh">Refresh Page</string>
+    <string name="server_url_title">Clinic Server Connection</string>
+    <string name="server_url_hint">e.g., http://192.168.1.100:3000</string>
+    <string name="server_url_help">Enter the IP address of your clinic host machine running MedScript OPD.</string>
+    <string name="save">Connect &amp; Save</string>
+    <string name="cancel">Cancel</string>
+    <string name="error_connecting">Unable to connect to clinic server. Make sure your device is connected to the clinic Wi-Fi and the server is running.</string>
+    <string name="retry">Retry Connection</string>
+</resources>

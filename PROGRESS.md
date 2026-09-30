@@ -60,6 +60,15 @@ Next.js 16.3.4 (Turbopack) · SQLite (Drizzle ORM) · Military-Grade Zero-Trust 
 - [x] **Fleet-Wide Cryptographic Seals** — HMAC-SHA256 seals for prescriptions, lab results, eMAR, handovers, and audit blockchain (`military-crypto.ts`)
 - [x] **Military Cyber Command Center UI** — integrated radar, fleet sweep, quarantine table, and attack drills (`MilitarySecurityCommandCenter.tsx`)
 
+### Android & Mobile Experience
+- [x] **Mobile Viewport & Touch Optimization** — Next.js 16 `Viewport` config (`viewportFit: "cover"`, touch-action manipulation, safe-area-inset CSS for Android navigation pills).
+- [x] **Native Bottom Navigation Bar** (`MobileNavigation.tsx`) — Android-native bottom navigation with Quick actions (Queue, Consultation, Patients, IPD, More).
+- [x] **Role-Scoped Mobile Navigation Drawer** — Slide-out drawer with quick links to all authorized clinical modules based on user role.
+- [x] **Responsive Desktop Headers** — Screen-adaptive headers across all main pages (`/`, `/patients`, `/ipd`, `/billing`, `/labs`, `/inventory`, `/appointments`, `/reports`, `/settings`) hiding cluttered desktop links on mobile phones.
+- [x] **Instant PWA WebAPK Installation** — Android Chrome 1-tap "Install App on Phone" with manifest and beforeinstallprompt support.
+- [x] **Native Android APK Wrapper Project** (`/android`) — Standalone Android Studio Kotlin Gradle project with cleartext LAN support, camera/upload handling, pull-to-refresh, hardware back button, and dynamic Server URL config.
+- [x] **Automated APK Build Script** (`scripts/build-android-apk.sh`) & Documentation (`android/README.md`).
+
 ### Billing
 - [x] **OPD invoice system** — create, edit, status management (`/billing`, `/billing/[id]`)
 - [x] **Invoice PDF** — printable invoice with clinic branding

@@ -58,36 +58,38 @@ export default async function SettingsPage() {
             />
             <PrivacyShield />
             <SecurityAlertBell />
-            <Link href="/appointments">
-              <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
-                <CalendarCheck className="w-4 h-4 text-blue-600" /> Queue
-              </Button>
-            </Link>
-            <Link href="/inventory">
-              <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
-                <Pill className="w-4 h-4 text-emerald-600" /> Pharmacy
-              </Button>
-            </Link>
-            <Link href="/patients">
-              <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
-                <Users className="w-4 h-4" /> Patients
-              </Button>
-            </Link>
-            <Link href="/ipd">
-              <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
-                <Bed className="w-4 h-4 text-purple-600" /> IPD
-              </Button>
-            </Link>
-            <Link href="/labs">
-              <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
-                <FlaskConical className="w-4 h-4 text-indigo-600" /> Labs
-              </Button>
-            </Link>
-            <Link href="/reports">
-              <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
-                <BarChart3 className="w-4 h-4 text-blue-600" /> Reports & Audit
-              </Button>
-            </Link>
+            <div className="hidden lg:flex items-center gap-2">
+              <Link href="/appointments">
+                <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
+                  <CalendarCheck className="w-4 h-4 text-blue-600" /> Queue
+                </Button>
+              </Link>
+              <Link href="/inventory">
+                <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
+                  <Pill className="w-4 h-4 text-emerald-600" /> Pharmacy
+                </Button>
+              </Link>
+              <Link href="/patients">
+                <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
+                  <Users className="w-4 h-4" /> Patients
+                </Button>
+              </Link>
+              <Link href="/ipd">
+                <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
+                  <Bed className="w-4 h-4 text-purple-600" /> IPD
+                </Button>
+              </Link>
+              <Link href="/labs">
+                <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
+                  <FlaskConical className="w-4 h-4 text-indigo-600" /> Labs
+                </Button>
+              </Link>
+              <Link href="/reports">
+                <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
+                  <BarChart3 className="w-4 h-4 text-blue-600" /> Reports & Audit
+                </Button>
+              </Link>
+            </div>
             {securityConfig.securityEnabled && <LockDeskButton />}
           </div>
         </div>

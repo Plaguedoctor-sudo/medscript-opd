@@ -133,3 +133,103 @@ export function getRoleScope(role: UserRole): RoleScope {
       };
   }
 }
+
+// ── Granular Permission Keys ──────────────────────────────────────────────────
+export type Permission =
+  // Prescriptions / Consultations
+  | 'prescription:create'
+  | 'prescription:edit'
+  | 'prescription:view'
+  // Patients
+  | 'patient:register'
+  | 'patient:edit_demographics'
+  | 'patient:view'
+  // Appointments / Queue
+  | 'appointment:manage'
+  | 'appointment:view'
+  // IPD
+  | 'ipd:view'
+  | 'ipd:admit_discharge'
+  | 'ipd:clinical_rounds'
+  | 'ipd:nursing_notes'
+  | 'ipd:emar'
+  | 'ipd:fluid_io'
+  | 'ipd:services'
+  | 'ipd:handovers'
+  // Labs
+  | 'lab:view'
+  | 'lab:manage'
+  // Billing / Invoicing
+  | 'billing:view'
+  | 'billing:manage'
+  // Pharmacy / Inventory
+  | 'inventory:view'
+  | 'inventory:manage'
+  // Reports & Analytics
+  | 'reports:view'
+  | 'reports:idsp'
+  // Settings / Admin
+  | 'settings:view_own_pin'
+  | 'settings:clinic'
+  | 'settings:staff_management'
+  | 'settings:security'
+  | 'settings:backup'
+  // Medical Documents
+  | 'certificate:issue'
+  | 'document:upload'
+  | 'template:manage';
+
+/**
+ * Declarative permission matrix.
+ * admin_doctor inherits ALL permissions (checked first in canDo).
+ */
+export const ROLE_PERMISSIONS: Record<Exclude<UserRole, 'admin_doctor'>, Permission[]> = {
+  doctor: [
+    'prescription:create', 'prescription:edit', 'prescription:view',
+    'patient:register', 'patient:edit_demographics', 'patient:view',
+    'appointment:manage', 'appointment:view',
+    'ipd:view', 'ipd:admit_discharge', 'ipd:clinical_rounds', 'ipd:nursing_notes', 'ipd:emar', 'ipd:fluid_io', 'ipd:services', 'ipd:handovers',
+    'lab:view',
+    'billing:view', 'billing:manage',
+    'inventory:view', 'inventory:manage',
+    'reports:view', 'reports:idsp',
+    'settings:view_own_pin', 'settings:clinic',
+    'certificate:issue', 'document:upload', 'template:manage',
+  ],
+  nurse: [
+    'prescription:view',
+    'patient:register', 'patient:edit_demographics', 'patient:view',
+    'appointment:view',
+    'ipd:view', 'ipd:nursing_notes', 'ipd:emar', 'ipd:fluid_io', 'ipd:services', 'ipd:handovers',
+    'lab:view',
+    'inventory:view',
+    'settings:view_own_pin',
+    'document:upload',
+  ],
+  receptionist: [
+    'prescription:view',
+    'patient:register', 'patient:edit_demographics', 'patient:view',
+    'appointment:manage', 'appointment:view',
+    'ipd:view',
+    'billing:view', 'billing:manage',
+    'inventory:view',
+    'settings:view_own_pin',
+    'document:upload',
+  ],
+  lab_technician: [
+    'prescription:view',
+    'patient:view',
+    'lab:view', 'lab:manage',
+    'settings:view_own_pin',
+  ],
+};
+
+/**
+ * Returns true if the given role has the specified permission.
+ * admin_doctor always returns true.
+ */
+export function canDo(role: UserRole, permission: Permission): boolean {
+  if (role === 'admin_doctor') return true;
+  return ROLE_PERMISSIONS[role]?.includes(permission) ?? false;
+}
+

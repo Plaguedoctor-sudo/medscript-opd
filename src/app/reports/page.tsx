@@ -51,41 +51,43 @@ export default async function ReportsPage() {
           <div className="flex items-center gap-2.5">
             <UserProfileMenu user={currentUser} role={role} securityEnabled={securityEnabled} />
             <SecurityAlertBell />
-            <Link href="/appointments">
-              <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600 hidden sm:inline-flex">
-                <CalendarCheck className="w-3.5 h-3.5 text-blue-600" /> Queue
-              </Button>
-            </Link>
-            <Link href="/inventory">
-              <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600 hidden sm:inline-flex">
-                <Pill className="w-3.5 h-3.5 text-emerald-600" /> Pharmacy
-              </Button>
-            </Link>
-            <Link href="/ipd">
-              <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600 hidden sm:inline-flex">
-                <Bed className="w-3.5 h-3.5 text-purple-600" /> IPD
-              </Button>
-            </Link>
-            <Link href="/labs">
-              <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600 hidden sm:inline-flex">
-                <FlaskConical className="w-3.5 h-3.5 text-indigo-600" /> Labs
-              </Button>
-            </Link>
-            <Link href="/billing">
-              <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600 hidden sm:inline-flex">
-                <Receipt className="w-3.5 h-3.5 text-emerald-600" /> Billing
-              </Button>
-            </Link>
-            <Link href="/patients">
-              <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600 hidden sm:inline-flex">
-                <Users className="w-3.5 h-3.5" /> Patients
-              </Button>
-            </Link>
-            <Link href="/settings">
-              <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600 hidden sm:inline-flex">
-                <Settings className="w-3.5 h-3.5" /> Settings
-              </Button>
-            </Link>
+            <div className="hidden lg:flex items-center gap-2">
+              <Link href="/appointments">
+                <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
+                  <CalendarCheck className="w-3.5 h-3.5 text-blue-600" /> Queue
+                </Button>
+              </Link>
+              <Link href="/inventory">
+                <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
+                  <Pill className="w-3.5 h-3.5 text-emerald-600" /> Pharmacy
+                </Button>
+              </Link>
+              <Link href="/ipd">
+                <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
+                  <Bed className="w-3.5 h-3.5 text-purple-600" /> IPD
+                </Button>
+              </Link>
+              <Link href="/labs">
+                <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
+                  <FlaskConical className="w-3.5 h-3.5 text-indigo-600" /> Labs
+                </Button>
+              </Link>
+              <Link href="/billing">
+                <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
+                  <Receipt className="w-3.5 h-3.5 text-emerald-600" /> Billing
+                </Button>
+              </Link>
+              <Link href="/patients">
+                <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
+                  <Users className="w-3.5 h-3.5" /> Patients
+                </Button>
+              </Link>
+              <Link href="/settings">
+                <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
+                  <Settings className="w-3.5 h-3.5" /> Settings
+                </Button>
+              </Link>
+            </div>
             <Link href="/prescription/new">
               <Button size="sm" className="gap-1.5 text-xs">
                 <PlusCircle className="w-3.5 h-3.5" /> New Consultation

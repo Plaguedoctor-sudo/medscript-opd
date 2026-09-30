@@ -498,112 +498,23 @@ export function isLabTech(role: UserRole): boolean {
   return role === 'admin_doctor' || role === 'lab_technician';
 }
 
-// ── Granular Permission Keys ──────────────────────────────────────────────────
-export type Permission =
-  // Prescriptions / Consultations
-  | 'prescription:create'
-  | 'prescription:edit'
-  | 'prescription:view'
-  // Patients
-  | 'patient:register'
-  | 'patient:edit_demographics'
-  | 'patient:view'
-  // Appointments / Queue
-  | 'appointment:manage'
-  | 'appointment:view'
-  // IPD
-  | 'ipd:view'
-  | 'ipd:admit_discharge'
-  | 'ipd:clinical_rounds'
-  | 'ipd:nursing_notes'
-  | 'ipd:emar'
-  | 'ipd:fluid_io'
-  | 'ipd:services'
-  | 'ipd:handovers'
-  // Labs
-  | 'lab:view'
-  | 'lab:manage'
-  // Billing / Invoicing
-  | 'billing:view'
-  | 'billing:manage'
-  // Pharmacy / Inventory
-  | 'inventory:view'
-  | 'inventory:manage'
-  // Reports & Analytics
-  | 'reports:view'
-  | 'reports:idsp'
-  // Settings / Admin
-  | 'settings:view_own_pin'
-  | 'settings:clinic'
-  | 'settings:staff_management'
-  | 'settings:security'
-  | 'settings:backup'
-  // Medical Documents
-  | 'certificate:issue'
-  | 'document:upload'
-  | 'template:manage';
+// ── Granular Permissions & Role Scope ──────────────────────────────────────────
+import {
+  type Permission,
+  ROLE_PERMISSIONS,
+  canDo,
+  type RoleScope,
+  getRoleScope,
+} from '@/lib/role-scope';
 
-/**
- * Declarative permission matrix.
- * admin_doctor inherits ALL permissions (checked first in canDo).
- *
- * Specific Role Constraints:
- * - Lab Technician: Can view prescriptions/requisitions & manage lab data; cannot edit prescriptions or register patients.
- * - Lab data can ONLY be edited by the Lab Technician (and admin_doctor).
- * - Nurse: Can view prescriptions, create new patient bio & manage inpatient care (eMAR, fluid balance, handovers, procedures);
- *   cannot create/edit prescriptions or other exclusive doctor work, and cannot edit lab data.
- */
-const ROLE_PERMISSIONS: Record<Exclude<UserRole, 'admin_doctor'>, Permission[]> = {
-  doctor: [
-    'prescription:create', 'prescription:edit', 'prescription:view',
-    'patient:register', 'patient:edit_demographics', 'patient:view',
-    'appointment:manage', 'appointment:view',
-    'ipd:view', 'ipd:admit_discharge', 'ipd:clinical_rounds', 'ipd:nursing_notes', 'ipd:emar', 'ipd:fluid_io', 'ipd:services', 'ipd:handovers',
-    'lab:view', // Doctors view and order labs, but lab data is exclusively edited by lab technician
-    'billing:view', 'billing:manage',
-    'inventory:view', 'inventory:manage',
-    'reports:view', 'reports:idsp',
-    'settings:view_own_pin', 'settings:clinic',
-    'certificate:issue', 'document:upload', 'template:manage',
-  ],
-  nurse: [
-    'prescription:view', // Can view prescriptions, cannot create or edit
-    'patient:register', 'patient:edit_demographics', 'patient:view', // Can create new patient bio
-    'appointment:view',
-    'ipd:view', 'ipd:nursing_notes', 'ipd:emar', 'ipd:fluid_io', 'ipd:services', 'ipd:handovers',
-    'lab:view',
-    'inventory:view',
-    'settings:view_own_pin',
-    'document:upload',
-  ],
-  receptionist: [
-    'prescription:view',
-    'patient:register', 'patient:edit_demographics', 'patient:view',
-    'appointment:manage', 'appointment:view',
-    'ipd:view',
-    'billing:view', 'billing:manage',
-    'inventory:view',
-    'settings:view_own_pin',
-    'document:upload',
-  ],
-  lab_technician: [
-    'prescription:view', // Can view prescription / test requisition
-    'patient:view',
-    'lab:view', 'lab:manage', // Exclusive editor of lab data & results
-    'settings:view_own_pin',
-  ],
+export {
+  type Permission,
+  ROLE_PERMISSIONS,
+  canDo,
+  type RoleScope,
+  getRoleScope,
 };
 
-export { type RoleScope, getRoleScope } from '@/lib/role-scope';
-
-/**
- * Returns true if the given role has the specified permission.
- * admin_doctor always returns true.
- */
-export function canDo(role: UserRole, permission: Permission): boolean {
-  if (role === 'admin_doctor') return true;
-  return ROLE_PERMISSIONS[role]?.includes(permission) ?? false;
-}
 
 /**
  * Server action guard: redirects to home if the current user
