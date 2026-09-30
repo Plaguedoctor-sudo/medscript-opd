@@ -31,7 +31,7 @@ import { PatientVitalsAnalytics } from "./PatientVitalsAnalytics";
 import { AdmitPatientModal } from "@/app/ipd/AdmitPatientModal";
 import { LabEntryModal } from "@/app/labs/LabEntryModal";
 import { formatDate } from "@/lib/utils";
-import { requirePermission, getSecurityConfig, getCurrentUserRole, getCurrentUser } from "@/lib/auth";
+import { requirePermission, getSecurityConfig, getCurrentUserRole, getCurrentUser, canDo } from "@/lib/auth";
 import { logAuditEvent } from "@/lib/audit";
 import { LockDeskButton } from "@/components/LockDeskButton";
 import { PrivacyShield } from "@/components/PrivacyShield";
@@ -103,15 +103,17 @@ export default async function PatientProfilePage({ params }: { params: Promise<{
             <PrivacyShield />
             <SecurityAlertBell />
             <EditPatientModal patient={typedPatient} />
-            <LabEntryModal
-              initialPatient={typedPatient}
-              initialPatientId={typedPatient.id}
-              triggerButton={
-                <Button variant="outline" size="sm" className="gap-1.5 text-xs text-indigo-700 border-indigo-200 hover:bg-indigo-50">
-                  <FlaskConical className="w-3.5 h-3.5 text-indigo-600" /> Lab Test
-                </Button>
-              }
-            />
+            {canDo(role, 'lab:order') && (
+              <LabEntryModal
+                initialPatient={typedPatient}
+                initialPatientId={typedPatient.id}
+                triggerButton={
+                  <Button variant="outline" size="sm" className="gap-1.5 text-xs text-indigo-700 border-indigo-200 hover:bg-indigo-50">
+                    <FlaskConical className="w-3.5 h-3.5 text-indigo-600" /> Lab Test
+                  </Button>
+                }
+              />
+            )}
             <AdmitPatientModal
               initialPatient={typedPatient}
               initialPatientId={typedPatient.id}
@@ -404,15 +406,17 @@ export default async function PatientProfilePage({ params }: { params: Promise<{
               <FlaskConical className="w-5 h-5 text-indigo-600" />
               Diagnostic & Lab Reports ({typedLabReports.length})
             </CardTitle>
-            <LabEntryModal
-              initialPatient={typedPatient}
-              initialPatientId={typedPatient.id}
-              triggerButton={
-                <Button variant="outline" size="sm" className="gap-1.5 text-xs text-indigo-700 border-indigo-200 hover:bg-indigo-50">
-                  <FlaskConical className="w-3.5 h-3.5 text-indigo-600" /> Record Lab Report
-                </Button>
-              }
-            />
+            {canDo(role, 'lab:order') && (
+              <LabEntryModal
+                initialPatient={typedPatient}
+                initialPatientId={typedPatient.id}
+                triggerButton={
+                  <Button variant="outline" size="sm" className="gap-1.5 text-xs text-indigo-700 border-indigo-200 hover:bg-indigo-50">
+                    <FlaskConical className="w-3.5 h-3.5 text-indigo-600" /> Record Lab Report
+                  </Button>
+                }
+              />
+            )}
           </CardHeader>
           <CardContent>
             {typedLabReports.length === 0 ? (

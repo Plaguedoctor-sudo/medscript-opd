@@ -50,6 +50,7 @@ export function LabDashboard({
   const [query, setQuery] = useState(initialQuery);
   const [selectedStatus, setSelectedStatus] = useState(initialStatus);
   const [selectedCategory, setSelectedCategory] = useState(initialCategory);
+  const canOrder = userRole === 'admin_doctor' || userRole === 'doctor' || userRole === 'lab_technician';
 
   const handleFilterChange = (newStatus?: string, newCategory?: string) => {
     const s = newStatus !== undefined ? newStatus : selectedStatus;
@@ -143,13 +144,15 @@ export function LabDashboard({
           </p>
         </div>
 
-        <LabEntryModal
-          triggerButton={
-            <Button className="gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs">
-              <PlusCircle className="w-4 h-4" /> New Lab Order / Report
-            </Button>
-          }
-        />
+        {canOrder && (
+          <LabEntryModal
+            triggerButton={
+              <Button className="gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs">
+                <PlusCircle className="w-4 h-4" /> New Lab Order / Report
+              </Button>
+            }
+          />
+        )}
       </div>
 
       {/* Search & Filter Controls */}
@@ -225,15 +228,19 @@ export function LabDashboard({
               <FlaskConical className="w-12 h-12 mx-auto mb-3 opacity-20 text-indigo-600" />
               <p className="text-base font-medium">No lab reports found.</p>
               <p className="text-xs text-slate-400 mt-1 mb-4">
-                Record your first diagnostic test or select a patient to generate a report.
+                {canOrder
+                  ? "Record your first diagnostic test or select a patient to generate a report."
+                  : "No diagnostic lab reports currently on record."}
               </p>
-              <LabEntryModal
-                triggerButton={
-                  <Button size="sm" className="bg-indigo-600 hover:bg-indigo-700 text-white">
-                    Record First Lab Report
-                  </Button>
-                }
-              />
+              {canOrder && (
+                <LabEntryModal
+                  triggerButton={
+                    <Button size="sm" className="bg-indigo-600 hover:bg-indigo-700 text-white">
+                      Record First Lab Report
+                    </Button>
+                  }
+                />
+              )}
             </div>
           ) : (
             <Table>

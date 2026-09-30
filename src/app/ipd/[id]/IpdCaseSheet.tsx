@@ -144,7 +144,7 @@ export function IpdCaseSheet({
   const isDoctor = userRole === 'admin_doctor' || userRole === 'doctor';
   const isNurseOrAbove = isDoctor || userRole === 'nurse';
   const canDischarge = isDoctor; // Only doctors can discharge
-  const canOrderLab = isNurseOrAbove; // Nurses can order labs
+  const canOrderLab = isDoctor; // Only doctors can order labs (nurses cannot order labs)
   const canAddClinicalRound = isNurseOrAbove; // Nurses add nursing notes; doctors add rounds
   const canViewBilling = isDoctor || userRole === 'receptionist';
 
@@ -279,7 +279,7 @@ export function IpdCaseSheet({
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Order Lab Investigation Modal — nurse and above */}
+          {/* Order Lab Investigation Modal — doctor and above only (nurses cannot order labs) */}
           {canOrderLab && (
             <LabEntryModal
               initialPatient={admission.patient}

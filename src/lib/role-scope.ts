@@ -61,6 +61,7 @@ export function getRoleScope(role: UserRole): RoleScope {
           'CANNOT edit doctor prescriptions or outpatient consultations (Doctor exclusive)',
           'CANNOT authorize inpatient discharge or generate discharge summaries (Doctor exclusive)',
           'CANNOT issue medical fitness or leave certificates (Doctor exclusive)',
+          'CANNOT order laboratory tests or diagnostic requisitions (Doctor exclusive)',
           'CANNOT edit laboratory test result parameters or lab data (Lab Technician exclusive)',
           'CANNOT modify clinic administrative configuration, master PIN, or cloud backups',
         ],
@@ -87,7 +88,7 @@ export function getRoleScope(role: UserRole): RoleScope {
           'Order oxygen, suction, and drainage protocols for nursing execution',
         ],
         restrictedWork: [
-          'CANNOT edit laboratory test results/parameter data (Exclusively edited by Lab Technician)',
+          'CANNOT edit laboratory test results/parameter data (Exclusively edited by Lab Technician & Admin Doctor)',
           'CANNOT alter hospital-wide security settings, master lockouts, or staff credentials (Admin Doctor exclusive)',
         ],
         exclusiveWork: [
@@ -109,7 +110,7 @@ export function getRoleScope(role: UserRole): RoleScope {
         restrictedWork: [
           'CANNOT create or edit clinical prescriptions',
           'CANNOT conduct clinical rounds, eMAR, or administer medications',
-          'CANNOT edit laboratory test results',
+          'CANNOT order laboratory tests or edit laboratory test results',
           'CANNOT discharge inpatient patients or issue medical certificates',
           'CANNOT modify clinic administrative settings or security PINs',
         ],
@@ -158,6 +159,7 @@ export type Permission =
   | 'ipd:handovers'
   // Labs
   | 'lab:view'
+  | 'lab:order'
   | 'lab:manage'
   // Billing / Invoicing
   | 'billing:view'
@@ -189,7 +191,7 @@ export const ROLE_PERMISSIONS: Record<Exclude<UserRole, 'admin_doctor'>, Permiss
     'patient:register', 'patient:edit_demographics', 'patient:view',
     'appointment:manage', 'appointment:view',
     'ipd:view', 'ipd:admit_discharge', 'ipd:clinical_rounds', 'ipd:nursing_notes', 'ipd:emar', 'ipd:fluid_io', 'ipd:services', 'ipd:handovers',
-    'lab:view',
+    'lab:view', 'lab:order',
     'billing:view', 'billing:manage',
     'inventory:view', 'inventory:manage',
     'reports:view', 'reports:idsp',
@@ -219,7 +221,7 @@ export const ROLE_PERMISSIONS: Record<Exclude<UserRole, 'admin_doctor'>, Permiss
   lab_technician: [
     'prescription:view',
     'patient:view',
-    'lab:view', 'lab:manage',
+    'lab:view', 'lab:order', 'lab:manage',
     'settings:view_own_pin',
   ],
 };

@@ -35,6 +35,7 @@ import { logClinicalAuditAction } from '@/app/login/actions';
 import { PrescriptionDispatchModal } from '@/components/PrescriptionDispatchModal';
 import { sendPrescriptionDirectly } from '@/lib/prescription-message';
 import { LabEntryModal } from '@/app/labs/LabEntryModal';
+import { canDo } from '@/lib/role-scope';
 
 interface PrescriptionPreviewProps {
   prescription: Prescription;
@@ -365,18 +366,20 @@ export default function PrescriptionPreview({
             Customize
           </Button>
 
-          {/* Lab Order Link (if lab tests recommended or doctor wishes to order) */}
-          <LabEntryModal
-            initialPatient={patient}
-            initialPatientId={patient.id}
-            prescriptionId={prescription.id}
-            preselectedTestName={prescription.labTests ? prescription.labTests.split(/,|\n/)[0]?.trim() : undefined}
-            triggerButton={
-              <Button variant="outline" size="sm" className="gap-1.5 border-indigo-300 text-indigo-700 hover:bg-indigo-50">
-                <FlaskConical className="w-4 h-4 text-indigo-600" /> Lab Order
-              </Button>
-            }
-          />
+          {/* Lab Order Link (only doctors and lab technicians can order lab tests) */}
+          {canDo(userRole, 'lab:order') && (
+            <LabEntryModal
+              initialPatient={patient}
+              initialPatientId={patient.id}
+              prescriptionId={prescription.id}
+              preselectedTestName={prescription.labTests ? prescription.labTests.split(/,|\n/)[0]?.trim() : undefined}
+              triggerButton={
+                <Button variant="outline" size="sm" className="gap-1.5 border-indigo-300 text-indigo-700 hover:bg-indigo-50">
+                  <FlaskConical className="w-4 h-4 text-indigo-600" /> Lab Order
+                </Button>
+              }
+            />
+          )}
 
           {/* Bill / Invoice Link */}
           <Link href={`/billing?patientId=${patient.id}&prescriptionId=${prescription.id}`}>
@@ -787,19 +790,21 @@ export default function PrescriptionPreview({
                       <h4 className="font-bold text-blue-900 text-xs uppercase tracking-wider">
                         Recommended Investigations / Lab Tests
                       </h4>
-                      <div className="print:hidden">
-                        <LabEntryModal
-                          initialPatient={patient}
-                          initialPatientId={patient.id}
-                          prescriptionId={prescription.id}
-                          preselectedTestName={prescription.labTests.split(/,|\n/)[0]?.trim()}
-                          triggerButton={
-                            <Button variant="ghost" size="sm" className="h-6 px-1.5 text-[11px] text-indigo-700 hover:bg-indigo-50 font-semibold gap-1">
-                              <FlaskConical className="w-3 h-3 text-indigo-600" /> Enter Lab Results
-                            </Button>
-                          }
-                        />
-                      </div>
+                      {canDo(userRole, 'lab:order') && (
+                        <div className="print:hidden">
+                          <LabEntryModal
+                            initialPatient={patient}
+                            initialPatientId={patient.id}
+                            prescriptionId={prescription.id}
+                            preselectedTestName={prescription.labTests.split(/,|\n/)[0]?.trim()}
+                            triggerButton={
+                              <Button variant="ghost" size="sm" className="h-6 px-1.5 text-[11px] text-indigo-700 hover:bg-indigo-50 font-semibold gap-1">
+                                <FlaskConical className="w-3 h-3 text-indigo-600" /> Enter Lab Results
+                              </Button>
+                            }
+                          />
+                        </div>
+                      )}
                     </div>
                     <p className="text-xs sm:text-sm text-slate-700 whitespace-pre-line leading-relaxed">
                       {prescription.labTests}

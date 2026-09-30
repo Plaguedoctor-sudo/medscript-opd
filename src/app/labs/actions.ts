@@ -243,8 +243,16 @@ export async function createLabReport(input: CreateLabReportInput): Promise<{
   reportNo?: string;
   error?: string;
 }> {
-  await requirePermission('lab:view', '/labs');
+  await requirePermission('lab:order', '/labs');
   const role = await getCurrentUserRole();
+
+  if (role === 'nurse') {
+    return { success: false, error: "Unauthorized: Nurses are not authorized to order laboratory tests." };
+  }
+
+  if (role !== 'admin_doctor' && role !== 'doctor' && role !== 'lab_technician') {
+    return { success: false, error: "Unauthorized: You do not have permission to order laboratory tests." };
+  }
 
   if (!input.patientId || typeof input.patientId !== 'number' || input.patientId <= 0) {
     return { success: false, error: "Valid Patient ID is required." };
@@ -326,13 +334,13 @@ export async function updateLabReport(
   id: number,
   data: Partial<CreateLabReportInput>
 ): Promise<{ success: boolean; error?: string }> {
-  await requirePermission('lab:view', '/labs');
+  await requirePermission('lab:manage', '/labs');
   const role = await getCurrentUserRole();
 
   if (role !== 'admin_doctor' && role !== 'lab_technician') {
     return {
       success: false,
-      error: "Unauthorized: Diagnostic lab results and parameter data can exclusively be edited by the Lab Technician.",
+      error: "Unauthorized: Diagnostic lab reports and result parameters can only be edited by the Lab Technician or Admin Doctor.",
     };
   }
 
@@ -390,7 +398,7 @@ export async function updateLabReport(
  * Delete a Lab Report
  */
 export async function deleteLabReport(id: number): Promise<{ success: boolean; error?: string }> {
-  await requirePermission('lab:view', '/labs');
+  await requirePermission('lab:manage', '/labs');
   const role = await getCurrentUserRole();
 
   if (role !== 'admin_doctor' && role !== 'lab_technician') {
