@@ -9,12 +9,29 @@
 
 ## Current State
 
-**Version:** `1.1.4` | **Branch:** `main`
-**Build:** ✅ 0 errors | **Tests:** ✅ 63/63 passing across 8 test suites
+**Version:** `1.1.5` | **Branch:** `main`
+**Build:** ✅ 0 errors | **Tests:** ✅ 136/136 passing across 13 test suites
+**Status:** FIPS 140-3 KAT Verified · Sovereign Setup Wizard · CCTV Sentinel Station Active
 
 ```
-Next.js 16.3.4 (Turbopack) · SQLite (Drizzle ORM) · Military-Grade Zero-Trust · Offline-First PWA · Android Native APK
+Next.js 16.3.8 (Turbopack) · SQLite (Drizzle ORM) · Military-Grade Zero-Trust · Offline-First PWA · Android Native APK
 ```
+
+---
+
+## 🎯 Target Tasks for Tomorrow (Priority Roadmap)
+
+### 1. Automated LAN Peer Mirroring (High Availability & Zero Data Loss)
+- Implement automated real-time / periodic background database syncing between two clinic PCs (e.g. Doctor Desk Master + Reception Desk Replica).
+- Peer-to-peer SQLite replication / WAL ship or LiteFS integration with automatic failover so that if the primary host hardware dies, the secondary desk immediately assumes the live system with zero data loss.
+
+### 2. Native RTSP Bridge for Hospital CCTV
+- Embed or interface with a lightweight native Go-based RTSP gateway (such as `go2rtc` or `MediaMTX`) for plug-and-play ONVIF camera discovery.
+- Convert raw H.264/H.265 RTSP streams from clinic IP cameras into ultra-low-latency WebRTC/MSE feeds without burdening the Node.js event loop.
+
+### 3. ABDM / PMJAY Sandbox Validation
+- Run existing FHIR R4 document generators and ABDM client actions against the official National Health Authority (NHA) ABDM Sandbox validator.
+- Ensure strict compliance with M1 (ABHA creation/verification), M2 (HIP facility linking), and M3 (Health Information Exchange) specifications for PMJAY insurance claim readiness.
 
 ---
 
