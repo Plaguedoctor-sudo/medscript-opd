@@ -42,7 +42,9 @@
     "package:secured": "bash scripts/package-secured-appliance.sh",
     "package:flatpak": "bash scripts/build-flatpak.sh",
     "code:lock": "sudo bash scripts/lock-local-development.sh",
-    "code:unlock": "sudo bash scripts/unlock-local-development.sh"
+    "code:unlock": "sudo bash scripts/unlock-local-development.sh",
+    "audit:ci": "npm audit --audit-level=high",
+    "sbom": "npx --yes @cyclonedx/cyclonedx-npm --output-file bom.json"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",
@@ -54,7 +56,7 @@
     "cn": "^0.2.6",
     "drizzle-orm": "^0.45.2",
     "lucide-react": "^1.42.0",
-    "next": "16.3.4",
+    "next": "16.3.8",
     "qrcode": "^1.5.4",
     "react": "19.2.8",
     "react-dom": "19.2.8",

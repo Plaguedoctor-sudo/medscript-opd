@@ -52,6 +52,10 @@ try {
 export async function getClientIp(): Promise<string> {
   try {
     const headerList = await headers();
+    const verifiedIp = headerList.get('x-medscript-verified-ip');
+    if (verifiedIp && isValidIp(verifiedIp.trim())) {
+      return verifiedIp.trim();
+    }
     const realIp = headerList.get('x-real-ip');
     if (realIp && isValidIp(realIp.trim())) {
       return realIp.trim();

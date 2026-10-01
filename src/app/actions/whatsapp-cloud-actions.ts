@@ -1,8 +1,9 @@
 'use server';
 
 import { db } from '@/db';
-import { clinicSettings } from '@/db/schema';
-import { requirePermission } from '@/lib/auth';
+import { clinicSettings, prescriptions } from '@/db/schema';
+import { eq } from 'drizzle-orm';
+import { requirePermission, getCurrentUserRole, isDoctor } from '@/lib/auth';
 import { logAuditEvent } from '@/lib/audit';
 import { decryptPhi } from '@/lib/crypto-storage';
 
@@ -24,6 +25,31 @@ export async function dispatchWhatsAppCloudMessageAction(params: {
   patientName?: string;
 }): Promise<WhatsAppCloudDispatchResult> {
   await requirePermission('prescription:view', '/prescription');
+
+  // Prevent Arbitrary Messaging Relay (OWASP / CWE-862):
+  // If attached to a prescription, verify prescription existence.
+  // If unattached, require Doctor or CMO authority to send custom messaging.
+  if (params.prescriptionId) {
+    const rx = await db.query.prescriptions.findFirst({
+      where: eq(prescriptions.id, params.prescriptionId),
+    });
+    if (!rx) {
+      return {
+        success: false,
+        mode: 'WEB_FALLBACK',
+        error: 'Invalid prescription: Target prescription record was not found.',
+      };
+    }
+  } else {
+    const role = await getCurrentUserRole();
+    if (!isDoctor(role)) {
+      return {
+        success: false,
+        mode: 'WEB_FALLBACK',
+        error: 'Unauthorized: Custom patient communications via WhatsApp require Doctor or CMO authorization.',
+      };
+    }
+  }
 
   const settings = await db.query.clinicSettings.findFirst();
 

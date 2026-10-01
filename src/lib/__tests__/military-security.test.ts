@@ -7,6 +7,21 @@ import {
   generateHandoverSeal,
   runMilitaryFleetIntegritySweep,
 } from '../military-crypto';
+import {
+  runFipsKnownAnswerTests,
+  secureWipeBuffer,
+  withSecureBuffer,
+  getUserClearance,
+  canReadClassification,
+  requestTwoPersonAction,
+  authorizeTwoPersonAction,
+  consumeTwoPersonTicket,
+  enterCitadelMode,
+  exitCitadelMode,
+  isCitadelModeActive,
+  generateRuntimeAttestationManifest,
+} from '../military-fips';
+
 
 describe('Military Threat Sentinel & IDS Heuristics', () => {
   it('detects SQL Injection attack payloads with high severity score', () => {
@@ -222,3 +237,101 @@ describe('Military-Grade Cryptographic Digital Seals', () => {
     }
   });
 });
+
+describe('Military FIPS 140-3 Cryptographic Self-Tests & Multi-Level Security', () => {
+  it('executes FIPS 140-3 Known Answer Tests (KAT) with 100% bitwise fidelity', () => {
+    const res = runFipsKnownAnswerTests(true);
+    expect(res.passed).toBe(true);
+    expect(res.sha256KatPassed).toBe(true);
+    expect(res.hmacSha256KatPassed).toBe(true);
+    expect(res.aes256GcmKatPassed).toBe(true);
+    expect(res.scryptKatPassed).toBe(true);
+    expect(res.crngHealthTestPassed).toBe(true);
+    expect(res.details.length).toBe(5);
+  });
+
+  it('securely zeroizes memory buffers in compliance with DoD 5220.22-M', () => {
+    const sensitive = Buffer.from('TOP_SECRET_MILITARY_ENCRYPTION_KEY_2026', 'utf8');
+    expect(sensitive.toString('utf8')).toContain('TOP_SECRET');
+    secureWipeBuffer(sensitive);
+    expect(sensitive.toString('utf8')).not.toContain('TOP_SECRET');
+    expect(sensitive.every((b) => b === 0)).toBe(true);
+  });
+
+  it('guarantees in-memory zeroization via withSecureBuffer wrapper', () => {
+    let capturedBuffer: Buffer | null = null;
+    const result = withSecureBuffer(32, (buf) => {
+      buf.fill(0xaa);
+      capturedBuffer = buf;
+      return buf.toString('hex');
+    });
+    expect(result).toHaveLength(64);
+    expect(capturedBuffer).not.toBeNull();
+    // Buffer must be wiped to 0x00 after callback completion
+    expect((capturedBuffer as unknown as Buffer).every((b) => b === 0)).toBe(true);
+  });
+
+  it('enforces Multi-Level Security (MLS) and Bell-LaPadula Simple Security Property', () => {
+    // Admin Doctor has TOP_SECRET clearance
+    expect(getUserClearance('admin_doctor')).toBe('TOP_SECRET');
+    expect(canReadClassification('admin_doctor', 'TOP_SECRET')).toBe(true);
+    expect(canReadClassification('admin_doctor', 'SECRET')).toBe(true);
+    expect(canReadClassification('admin_doctor', 'CONFIDENTIAL')).toBe(true);
+
+    // Doctor has SECRET clearance
+    expect(getUserClearance('doctor')).toBe('SECRET');
+    expect(canReadClassification('doctor', 'SECRET')).toBe(true);
+    expect(canReadClassification('doctor', 'TOP_SECRET')).toBe(false); // No Read Up!
+
+    // Receptionist has UNCLASSIFIED clearance
+    expect(getUserClearance('receptionist')).toBe('UNCLASSIFIED');
+    expect(canReadClassification('receptionist', 'CONFIDENTIAL')).toBe(false); // No Read Up!
+    expect(canReadClassification('receptionist', 'SECRET')).toBe(false);
+  });
+
+  it('enforces Two-Person Integrity (TPI) dual-control quorum lifecycle', () => {
+    const { ticketId } = requestTwoPersonAction(
+      1,
+      'admin_doctor',
+      'ZEROIZE_DATABASE',
+      'Emergency cryptographic memory shredding requested'
+    );
+
+    // Rule of Two: Initiator cannot authorize their own action
+    const selfAuth = authorizeTwoPersonAction(ticketId, 1, 'admin_doctor');
+    expect(selfAuth.success).toBe(false);
+    expect(selfAuth.error).toContain('Two-Person Integrity violation');
+
+    // Low-privilege staff cannot authorize strategic action
+    const nurseAuth = authorizeTwoPersonAction(ticketId, 3, 'nurse');
+    expect(nurseAuth.success).toBe(false);
+    expect(nurseAuth.error).toContain('Insufficient clearance');
+
+    // Secondary distinct Doctor authorizes
+    const docAuth = authorizeTwoPersonAction(ticketId, 2, 'doctor');
+    expect(docAuth.success).toBe(true);
+
+    // Consume ticket
+    const consumed = consumeTwoPersonTicket(ticketId);
+    expect(consumed).toBe(true);
+
+    // Double consumption rejected
+    expect(consumeTwoPersonTicket(ticketId)).toBe(false);
+  });
+
+  it('activates and deactivates Citadel Defense Mode', () => {
+    expect(isCitadelModeActive()).toBe(false);
+    enterCitadelMode('Simulated active DEFCON 1 breach containment');
+    expect(isCitadelModeActive()).toBe(true);
+    exitCitadelMode();
+    expect(isCitadelModeActive()).toBe(false);
+  });
+
+  it('generates cryptographic runtime attestation manifest over core modules', () => {
+    const manifest = generateRuntimeAttestationManifest();
+    expect(manifest.allIntact).toBe(true);
+    expect(manifest.totalFilesAttested).toBeGreaterThanOrEqual(7);
+    expect(manifest.manifestHash).toHaveLength(64);
+  });
+});
+

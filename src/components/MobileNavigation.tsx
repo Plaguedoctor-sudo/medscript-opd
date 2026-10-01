@@ -24,6 +24,7 @@ import {
   ShieldAlert,
   Activity,
   Wrench,
+  Cctv,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { canDo, ROLE_PERMISSIONS } from '@/lib/role-scope';
@@ -116,6 +117,7 @@ export function MobileNavigation({
   const showManager = canDo(userRole as any, 'manager:assets');
   const showReports = canDo(userRole as any, 'reports:view');
   const showSettings = canDo(userRole as any, 'settings:clinic');
+  const showCctv = canDo(userRole as any, 'cctv:view');
   const canPrescribe = canDo(userRole as any, 'prescription:create');
 
   if (pathname === '/login' || pathname.startsWith('/login')) {
@@ -325,6 +327,19 @@ export function MobileNavigation({
                       <span>ICU &amp; IPD Device Telemetry</span>
                     </div>
                     <ChevronRight className="w-4 h-4 text-slate-400" />
+                  </Link>
+                )}
+
+                {showCctv && (
+                  <Link
+                    href="/cctv"
+                    className="flex items-center justify-between p-2.5 rounded-lg text-indigo-950 bg-indigo-50 hover:bg-indigo-100 font-semibold transition-colors border border-indigo-100"
+                  >
+                    <div className="flex items-center gap-3">
+                      <Cctv className="w-4 h-4 text-indigo-600" />
+                      <span>CCTV Surveillance Command</span>
+                    </div>
+                    <span className="text-[10px] font-bold bg-indigo-200 text-indigo-800 px-1.5 py-0.5 rounded">LIVE</span>
                   </Link>
                 )}
 

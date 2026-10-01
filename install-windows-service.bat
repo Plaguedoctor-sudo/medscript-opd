@@ -18,13 +18,13 @@ if %errorlevel% neq 0 (
     exit /b 1
 )
 
-:: Create hidden runner VBS script so no console window stays open
+:: Create hidden runner VBS script with fully quoted binary paths (Anti-Unquoted Service Path / CWE-428)
 set "VBS_FILE=%SCRIPT_DIR%start-hidden.vbs"
 echo Set WshShell = CreateObject("WScript.Shell") > "%VBS_FILE%"
-echo WshShell.Run "cmd /c cd /d """ ^& "%SCRIPT_DIR%" ^& """ && npm run start -- -H 0.0.0.0 -p 3000", 0, False >> "%VBS_FILE%"
+echo WshShell.Run """" ^& WshShell.ExpandEnvironmentStrings("%SystemRoot%\System32\cmd.exe") ^& """ /c cd /d """ ^& "%SCRIPT_DIR%" ^& """ && npm run start -- -H 0.0.0.0 -p 3000", 0, False >> "%VBS_FILE%"
 
 echo Registering Windows Startup Task '%TASK_NAME%'...
-schtasks /create /tn "%TASK_NAME%" /tr "wscript.exe \"%VBS_FILE%\"" /sc onlogon /f /rl highest
+schtasks /create /tn "%TASK_NAME%" /tr "\"%SystemRoot%\System32\wscript.exe\" \"%VBS_FILE%\"" /sc onlogon /f /rl highest
 
 if %errorlevel% equ 0 (
     echo.
@@ -40,7 +40,7 @@ if %errorlevel% equ 0 (
     schtasks /run /tn "%TASK_NAME%"
 ) else (
     echo [WARNING] Failed to register with elevated privileges. Retrying standard user task...
-    schtasks /create /tn "%TASK_NAME%" /tr "wscript.exe \"%VBS_FILE%\"" /sc onlogon /f
+    schtasks /create /tn "%TASK_NAME%" /tr "\"%SystemRoot%\System32\wscript.exe\" \"%VBS_FILE%\"" /sc onlogon /f
 )
 
 pause

@@ -3,7 +3,7 @@ import { requirePermission, getCurrentUserRole, getSecurityConfig, getCurrentUse
 import { getHospitalDevicesAction } from '../device-actions';
 import { IcuCentralMonitoringDashboard } from '@/components/ipd/IcuCentralMonitoringDashboard';
 import Link from 'next/link';
-import { Activity, ChevronLeft, Bed, ShieldAlert, ArrowLeft } from 'lucide-react';
+import { Activity, ChevronLeft, Bed, ShieldAlert, ArrowLeft, Cctv } from 'lucide-react';
 import { UserProfileMenu } from '@/components/UserProfileMenu';
 import { SecurityAlertBell } from '@/components/SecurityAlertBell';
 import { LockDeskButton } from '@/components/LockDeskButton';
@@ -78,6 +78,13 @@ export default async function IcuMonitoringPage() {
           </div>
 
           <div className="flex items-center gap-2">
+            <Link
+              href="/cctv"
+              className="text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-indigo-950/80 text-indigo-300 hover:text-white border border-indigo-800 transition-colors flex items-center gap-1.5"
+            >
+              <Cctv className="w-3.5 h-3.5 text-indigo-400" />
+              <span>CCTV Feeds</span>
+            </Link>
             <Link
               href="/ipd"
               className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 hover:text-white border border-slate-700 transition-colors"

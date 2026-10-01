@@ -103,6 +103,39 @@ export function validateCredentialPolicy(
         reason: 'Complex credential requires a combination of letters and numbers.',
       };
     }
+
+    // Mitigate Password Spraying: Ban seasonal and predictable year passwords (e.g. Summer2024!, Fall2019!)
+    const seasonalRegex = /^(spring|summer|autumn|fall|winter)\d{2,4}[!@#$%^&*?]?$/i;
+    if (seasonalRegex.test(clean)) {
+      return {
+        valid: false,
+        reason: 'Passcode cannot use predictable seasonal or year templates (e.g., Fall2019!).',
+      };
+    }
+
+    // Ban generic spray patterns and default factory passwords
+    const commonSprayPatterns = [
+      'password123',
+      'admin123',
+      'admin1234',
+      'doctor123',
+      'nurse123',
+      'reception123',
+      'lab123',
+      'pharmacy123',
+      'pharm123',
+      'manager123',
+      'welcome123',
+      'clinic1234',
+      'medscript123',
+      '12345678',
+    ];
+    if (commonSprayPatterns.includes(clean.toLowerCase())) {
+      return {
+        valid: false,
+        reason: 'Passcode cannot be a commonly sprayed default pattern or default demo password.',
+      };
+    }
   }
 
   return { valid: true };

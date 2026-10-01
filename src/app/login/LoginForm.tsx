@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { loginWithCredentials, loginWithPin } from './actions';
+import { loginWithCredentials, loginWithPin, setupInitialAdminAccount } from './actions';
 import { SafeStaffUser, UserRole } from '@/types';
 import {
   Lock,
@@ -31,12 +31,20 @@ interface LoginFormProps {
   doctorName: string;
   clinicName: string;
   initialStaffUsers?: SafeStaffUser[];
+  setupRequired?: boolean;
 }
 
-export function LoginForm({ doctorName, clinicName, initialStaffUsers = [] }: LoginFormProps) {
+export function LoginForm({ doctorName, clinicName, initialStaffUsers = [], setupRequired = false }: LoginFormProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectUrl = searchParams.get('redirect') || '/';
+
+  // Initial Admin Provisioning State (when no active admin password exists)
+  const [setupDoctorName, setSetupDoctorName] = useState(doctorName || 'Dr. Nitin Hiralal Sonare');
+  const [setupLoginId, setSetupLoginId] = useState('');
+  const [setupPassword, setSetupPassword] = useState('');
+  const [setupConfirmPassword, setSetupConfirmPassword] = useState('');
+  const [showSetupPassword, setShowSetupPassword] = useState(false);
 
   // Mode: 'CREDENTIALS' (individual login ID & password) or 'PIN' (quick desk PIN)
   const [mode, setMode] = useState<'CREDENTIALS' | 'PIN'>('CREDENTIALS');
@@ -56,6 +64,7 @@ export function LoginForm({ doctorName, clinicName, initialStaffUsers = [] }: Lo
   const [pin, setPin] = useState('');
   const [requiresMfa, setRequiresMfa] = useState(false);
   const [mfaCode, setMfaCode] = useState('');
+
 
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -113,6 +122,33 @@ export function LoginForm({ doctorName, clinicName, initialStaffUsers = [] }: Lo
       } else if (!res.success) {
         setError(res.error || 'Authentication failed');
         if (!requiresMfa) setPin('');
+      } else {
+        window.location.href = res.redirectUrl || '/';
+      }
+    });
+  };
+
+  const handleSetupSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!setupLoginId.trim() || !setupPassword.trim()) {
+      setError('Please provide both an Administrator Login ID and Password.');
+      return;
+    }
+    if (setupPassword !== setupConfirmPassword) {
+      setError('Password and Confirm Password do not match.');
+      return;
+    }
+
+    setError(null);
+    startTransition(async () => {
+      const res = await setupInitialAdminAccount(
+        setupLoginId,
+        setupPassword,
+        setupConfirmPassword,
+        setupDoctorName
+      );
+      if (!res.success) {
+        setError(res.error || 'Failed to initialize administrator account.');
       } else {
         window.location.href = res.redirectUrl || '/';
       }
@@ -195,25 +231,27 @@ export function LoginForm({ doctorName, clinicName, initialStaffUsers = [] }: Lo
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => setMode(mode === 'CREDENTIALS' ? 'PIN' : 'CREDENTIALS')}
-            className="text-white hover:bg-white/20 border border-white/25 text-xs font-semibold rounded-xl"
-          >
-            {mode === 'CREDENTIALS' ? (
-              <>
-                <KeyRound className="w-3.5 h-3.5 mr-1.5" /> Switch to Desk PIN
-              </>
-            ) : (
-              <>
-                <User className="w-3.5 h-3.5 mr-1.5" /> Staff Login ID & Password
-              </>
-            )}
-          </Button>
-        </div>
+        {!setupRequired && (
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setMode(mode === 'CREDENTIALS' ? 'PIN' : 'CREDENTIALS')}
+              className="text-white hover:bg-white/20 border border-white/25 text-xs font-semibold rounded-xl"
+            >
+              {mode === 'CREDENTIALS' ? (
+                <>
+                  <KeyRound className="w-3.5 h-3.5 mr-1.5" /> Switch to Desk PIN
+                </>
+              ) : (
+                <>
+                  <User className="w-3.5 h-3.5 mr-1.5" /> Staff Login ID & Password
+                </>
+              )}
+            </Button>
+          </div>
+        )}
       </div>
 
       <div className="p-6 sm:p-8">
@@ -224,7 +262,104 @@ export function LoginForm({ doctorName, clinicName, initialStaffUsers = [] }: Lo
           </div>
         )}
 
-        {mode === 'CREDENTIALS' ? (
+        {setupRequired ? (
+          <div className="max-w-xl mx-auto space-y-6">
+            <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs space-y-1.5">
+              <div className="font-bold flex items-center gap-1.5 text-amber-950">
+                <ShieldAlert className="w-4 h-4 text-amber-700 shrink-0" />
+                Hardened Sovereign Setup • Default Credentials Permanently Eliminated
+              </div>
+              <p className="leading-relaxed text-amber-800">
+                In strict compliance with NIST SP 800-218 and OWASP security standards, MedScript OPD does not ship with default or demo passwords. Please initialize your sovereign Chief Medical Officer / Admin Doctor credentials.
+              </p>
+            </div>
+
+            <form onSubmit={handleSetupSubmit} className="space-y-4 bg-slate-50/70 p-6 rounded-2xl border border-slate-200">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-slate-700">Administrator Full Name</Label>
+                <Input
+                  value={setupDoctorName}
+                  onChange={(e) => setSetupDoctorName(e.target.value)}
+                  placeholder="e.g. Dr. Nitin Hiralal Sonare"
+                  className="h-10 text-xs font-medium bg-white"
+                  disabled={isPending}
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-slate-700">Custom Admin Login ID</Label>
+                <Input
+                  value={setupLoginId}
+                  onChange={(e) => setSetupLoginId(e.target.value)}
+                  placeholder="e.g. drsonare, nitin, or admin"
+                  className="h-10 text-xs font-medium bg-white"
+                  disabled={isPending}
+                  required
+                  autoFocus
+                />
+                <p className="text-[11px] text-slate-500">Only letters, numbers, hyphens, and underscores.</p>
+              </div>
+
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-semibold text-slate-700">Strong Admin Password</Label>
+                  <button
+                    type="button"
+                    onClick={() => setShowSetupPassword(!showSetupPassword)}
+                    className="text-[11px] text-indigo-600 hover:text-indigo-800 font-medium flex items-center gap-1"
+                  >
+                    {showSetupPassword ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                    {showSetupPassword ? 'Hide' : 'Show'}
+                  </button>
+                </div>
+                <Input
+                  type={showSetupPassword ? 'text' : 'password'}
+                  value={setupPassword}
+                  onChange={(e) => setSetupPassword(e.target.value)}
+                  placeholder="Minimum 8 characters (letters + numbers)"
+                  className="h-10 text-xs font-medium bg-white"
+                  disabled={isPending}
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-slate-700">Confirm Password</Label>
+                <Input
+                  type={showSetupPassword ? 'text' : 'password'}
+                  value={setupConfirmPassword}
+                  onChange={(e) => setSetupConfirmPassword(e.target.value)}
+                  placeholder="Re-enter password"
+                  className="h-10 text-xs font-medium bg-white"
+                  disabled={isPending}
+                  required
+                />
+              </div>
+
+              <Button
+                type="submit"
+                disabled={isPending}
+                className="w-full h-11 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2"
+              >
+                {isPending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" /> Provisioning Administrator...
+                  </>
+                ) : (
+                  <>
+                    <ShieldCheck className="w-4 h-4" /> Initialize Sovereign Account & Sign In
+                  </>
+                )}
+              </Button>
+
+              <div className="pt-2 text-center text-[11px] text-slate-500 flex items-center justify-center gap-1.5">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                <span>Protected by memory-hard scrypt KDF encryption. Factory defaults banned.</span>
+              </div>
+            </form>
+          </div>
+        ) : mode === 'CREDENTIALS' ? (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
             {/* Left Column: Direct Login ID & Password Form */}
             <div className="lg:col-span-5 bg-slate-50/70 p-6 rounded-2xl border border-slate-200/90 shadow-2xs space-y-5">
@@ -246,7 +381,7 @@ export function LoginForm({ doctorName, clinicName, initialStaffUsers = [] }: Lo
                       setLoginId(e.target.value);
                       setSelectedLoginId(null);
                     }}
-                    placeholder="e.g. admin, doctor, nurse, labtech"
+                    placeholder="Enter your assigned staff Login ID"
                     className="h-10 text-xs font-medium bg-white"
                     disabled={isPending}
                     required
@@ -366,55 +501,65 @@ export function LoginForm({ doctorName, clinicName, initialStaffUsers = [] }: Lo
               </div>
 
               {/* Staff Persona Cards Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[380px] overflow-y-auto pr-1">
-                {filteredStaff.map((staff) => {
-                  const isSelected = selectedLoginId === staff.loginId;
-                  return (
-                    <div
-                      key={staff.id}
-                      onClick={() => handleSelectPersona(staff)}
-                      className={`cursor-pointer p-3.5 rounded-2xl border transition-all text-left flex flex-col justify-between ${
-                        isSelected
-                          ? 'border-indigo-600 bg-indigo-50/60 ring-2 ring-indigo-500/20 shadow-xs'
-                          : 'border-slate-200 bg-white hover:border-indigo-300 hover:bg-slate-50/70 shadow-2xs'
-                      }`}
-                    >
-                      <div>
-                        <div className="flex items-center justify-between gap-2 mb-1.5">
-                          <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center">
-                              {getRoleIcon(staff.role)}
-                            </div>
-                            <div>
-                              <div className="font-bold text-xs text-slate-900 leading-tight">
-                                {staff.name}
+              {filteredStaff.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[380px] overflow-y-auto pr-1">
+                  {filteredStaff.map((staff) => {
+                    const isSelected = selectedLoginId === staff.loginId;
+                    return (
+                      <div
+                        key={staff.id}
+                        onClick={() => handleSelectPersona(staff)}
+                        className={`cursor-pointer p-3.5 rounded-2xl border transition-all text-left flex flex-col justify-between ${
+                          isSelected
+                            ? 'border-indigo-600 bg-indigo-50/60 ring-2 ring-indigo-500/20 shadow-xs'
+                            : 'border-slate-200 bg-white hover:border-indigo-300 hover:bg-slate-50/70 shadow-2xs'
+                        }`}
+                      >
+                        <div>
+                          <div className="flex items-center justify-between gap-2 mb-1.5">
+                            <div className="flex items-center gap-2">
+                              <div className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center">
+                                {getRoleIcon(staff.role)}
                               </div>
-                              <div className="text-[10px] text-slate-500 leading-tight">
-                                {staff.subRole || staff.department || 'Staff'}
+                              <div>
+                                <div className="font-bold text-xs text-slate-900 leading-tight">
+                                  {staff.name}
+                                </div>
+                                <div className="text-[10px] text-slate-500 leading-tight">
+                                  {staff.subRole || staff.department || 'Staff'}
+                                </div>
                               </div>
                             </div>
                           </div>
+
+                          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                            <span
+                              className={`text-[10px] px-2 py-0.5 rounded-full font-bold border ${getRoleBadgeClasses(staff.role)}`}
+                            >
+                              {getRoleTitle(staff.role)}
+                            </span>
+                          </div>
                         </div>
 
-                        <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                          <span
-                            className={`text-[10px] px-2 py-0.5 rounded-full font-bold border ${getRoleBadgeClasses(staff.role)}`}
-                          >
-                            {getRoleTitle(staff.role)}
+                        <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] font-mono text-slate-500">
+                          <span>ID: <strong className="text-slate-800">{staff.loginId}</strong></span>
+                          <span className="text-[10px] text-indigo-600 font-semibold font-sans">
+                            {isSelected ? '✓ Selected' : 'Click to select'}
                           </span>
                         </div>
                       </div>
-
-                      <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] font-mono text-slate-500">
-                        <span>ID: <strong className="text-slate-800">{staff.loginId}</strong></span>
-                        <span className="text-[10px] text-indigo-600 font-semibold font-sans">
-                          {isSelected ? '✓ Selected' : 'Click to select'}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="p-8 text-center bg-slate-50 border border-dashed border-slate-200 rounded-2xl text-slate-500 text-xs space-y-2">
+                  <ShieldCheck className="w-7 h-7 text-indigo-500 mx-auto" />
+                  <p className="font-bold text-slate-700">No additional staff personas registered</p>
+                  <p className="text-slate-500 max-w-xs mx-auto">
+                    Sign in with your Administrator credentials on the left, or add authorized staff members in Clinic Settings.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         ) : (

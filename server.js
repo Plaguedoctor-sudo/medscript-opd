@@ -95,13 +95,28 @@ const TRAVERSAL_REGEX = /(\.\.[\/\\]|\/etc\/(passwd|shadow|hosts)|boot\.ini|win\
 const RCE_REGEX = /(\||;|`|\$\()\s*(cat|ls|whoami|id|curl|wget|nc|sh|bash|powershell|cmd|rm\s+-rf)/i;
 const HONEY_PATHS = ['/.env', '/.git', '/wp-admin', '/wp-login.php', '/phpmyadmin', '/.aws', '/config.json', '/actuator', '/admin_debug_override'];
 
+const gatewayPeerMap = new Map();
+
 function getClientIp(req) {
+  // 1. Check if the connection arrived via the front-facing TCP gateway multiplexer
+  const peerFromGateway = req.socket && req.socket.remotePort ? gatewayPeerMap.get(req.socket.remotePort) : null;
+  if (peerFromGateway) {
+    return peerFromGateway;
+  }
+
+  // 2. Direct connection to listener (e.g. direct socket)
+  const directRemote = (req.socket && req.socket.remoteAddress ? req.socket.remoteAddress : '').replace(/^::ffff:/, '');
+  if (directRemote && directRemote !== '127.0.0.1' && directRemote !== '::1') {
+    return directRemote;
+  }
+
+  // 3. Fallback for trusted reverse proxy on loopback without gateway
   const forwarded = req.headers['x-forwarded-for'];
   if (forwarded) {
-    const ips = forwarded.split(',').map((s) => s.trim());
+    const ips = forwarded.split(',').map((s) => s.trim().replace(/^::ffff:/, ''));
     if (ips.length > 0 && ips[0]) return ips[0];
   }
-  return req.headers['x-real-ip'] || req.socket.remoteAddress || '127.0.0.1';
+  return (req.headers['x-real-ip'] || '127.0.0.1').replace(/^::ffff:/, '');
 }
 
 function checkQuarantine(ip) {
@@ -147,10 +162,15 @@ function dispatchSecureRequest(req, res, proto) {
   res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=(), usb=(), vr=()');
   res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
   res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
+  res.removeHeader('X-Powered-By');
   res.setHeader('Server', 'MedScript-State-Defense-Gateway');
 
   const clientIp = getClientIp(req);
   const cleanIp = clientIp.replace(/^::ffff:/, '');
+
+  // Strip or sanitize user-supplied IP headers to prevent upstream spoofing in Next.js
+  req.headers['x-real-ip'] = cleanIp;
+  req.headers['x-medscript-verified-ip'] = cleanIp;
 
   // 2. Check if IP is currently quarantined
   if (cleanIp !== '127.0.0.1' && cleanIp !== '::1' && cleanIp !== 'localhost') {
@@ -220,6 +240,8 @@ app
 
         // Front-Facing TCP Multiplexer Gateway on configured port
         const gateway = net.createServer((socket) => {
+          const peerAddress = (socket.remoteAddress || '127.0.0.1').replace(/^::ffff:/, '');
+
           socket.once('data', (chunk) => {
             socket.pause();
             // 0x16 (22) = TLS Handshake ClientHello
@@ -227,14 +249,31 @@ app
             const targetPort = isTls ? httpsPort : httpPort;
 
             const client = net.connect(targetPort, '127.0.0.1', () => {
+              if (client.localPort) {
+                gatewayPeerMap.set(client.localPort, peerAddress);
+              }
               client.write(chunk);
               socket.pipe(client);
               client.pipe(socket);
               socket.resume();
             });
 
-            client.on('error', () => socket.destroy());
-            socket.on('error', () => client.destroy());
+            const cleanup = () => {
+              if (client.localPort) {
+                gatewayPeerMap.delete(client.localPort);
+              }
+            };
+
+            client.on('error', () => {
+              cleanup();
+              socket.destroy();
+            });
+            socket.on('error', () => {
+              cleanup();
+              client.destroy();
+            });
+            client.on('close', cleanup);
+            socket.on('close', cleanup);
           });
         });
 

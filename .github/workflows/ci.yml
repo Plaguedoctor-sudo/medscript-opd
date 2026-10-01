@@ -37,5 +37,19 @@ jobs:
       - name: Automated Unit Tests
         run: npm test
 
+      - name: Dependency Security Gate (OWASP/NIST SSDF SCA)
+        run: npm run audit:ci
+
       - name: Next.js Production Build
         run: npm run build
+
+      - name: Generate Software Bill of Materials (SBOM)
+        run: npm run sbom
+
+      - name: Upload SBOM Artifact
+        uses: actions/upload-artifact@v4
+        if: matrix.node-version == '22.x'
+        with:
+          name: cyclonedx-sbom
+          path: bom.json
+          retention-days: 30

@@ -241,7 +241,10 @@ export type Permission =
   // ICU & IPD Medical Device Telemetry
   | 'device:view'
   | 'device:manage'
-  | 'device:telemetry';
+  | 'device:telemetry'
+  // Hospital CCTV Surveillance & Security Monitoring
+  | 'cctv:view'
+  | 'cctv:manage';
 
 /**
  * Declarative permission matrix.
@@ -261,6 +264,7 @@ export const ROLE_PERMISSIONS: Record<Exclude<UserRole, 'admin_doctor'>, Permiss
     'settings:view_own_pin', 'settings:clinic', 'settings:staff_management',
     'certificate:issue', 'document:upload', 'template:manage',
     'device:view', 'device:manage', 'device:telemetry',
+    'cctv:view',
   ],
   nurse: [
     'prescription:view',
@@ -272,6 +276,7 @@ export const ROLE_PERMISSIONS: Record<Exclude<UserRole, 'admin_doctor'>, Permiss
     'settings:view_own_pin',
     'document:upload',
     'device:view', 'device:manage', 'device:telemetry',
+    'cctv:view',
   ],
   receptionist: [
     'prescription:view',
@@ -282,12 +287,14 @@ export const ROLE_PERMISSIONS: Record<Exclude<UserRole, 'admin_doctor'>, Permiss
     'inventory:view',
     'settings:view_own_pin',
     'document:upload',
+    'cctv:view',
   ],
   lab_technician: [
     'prescription:view',
     'patient:view',
     'lab:view', 'lab:order', 'lab:manage',
     'settings:view_own_pin',
+    'cctv:view',
   ],
   pharmacist: [
     'prescription:view',
@@ -297,6 +304,7 @@ export const ROLE_PERMISSIONS: Record<Exclude<UserRole, 'admin_doctor'>, Permiss
     'inventory:manage',
     'pharmacy:dispense',
     'settings:view_own_pin',
+    'cctv:view',
   ],
   manager: [
     'inventory:view',
@@ -306,6 +314,8 @@ export const ROLE_PERMISSIONS: Record<Exclude<UserRole, 'admin_doctor'>, Permiss
     'manager:purchase',
     'manager:dispatch',
     'settings:view_own_pin',
+    'cctv:view',
+    'cctv:manage',
   ],
 };
 

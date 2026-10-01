@@ -734,7 +734,7 @@ export async function loginWithCredentials(
     return { success: false, error: 'Please enter both your Login ID and Password.' };
   }
 
-  // 1. Check rate limit
+  // 1. Check rate limit on both Client IP and Target Account (Anti-Distributed Brute Force)
   const rateLimitStatus = checkPinRateLimit(clientIp);
   if (!rateLimitStatus.allowed) {
     await logAuditEvent({
@@ -746,6 +746,21 @@ export async function loginWithCredentials(
     return {
       success: false,
       error: `Access temporarily locked due to repeated incorrect attempts. Please retry in ${rateLimitStatus.retryAfterSeconds} seconds.`,
+    };
+  }
+
+  const accountKey = `user:${cleanLoginId}`;
+  const accountRateLimit = checkPinRateLimit(accountKey);
+  if (!accountRateLimit.allowed) {
+    await logAuditEvent({
+      action: 'AUTH_LOCKOUT',
+      details: `Account rate limit triggered: Account '${cleanLoginId}' locked out for ${accountRateLimit.retryAfterSeconds}s`,
+      status: 'WARNING',
+      ipAddress: clientIp,
+    });
+    return {
+      success: false,
+      error: `This account has been temporarily locked due to repeated incorrect attempts. Please retry in ${accountRateLimit.retryAfterSeconds} seconds.`,
     };
   }
 
@@ -775,6 +790,7 @@ export async function loginWithCredentials(
     verifyPinHash(cleanPassword, DUMMY_SCRYPT_HASH);
 
     const failedResult = recordFailedPinAttempt(clientIp);
+    recordFailedPinAttempt(accountKey);
     await logAuditEvent({
       action: 'AUTH_LOGIN_FAILURE',
       details: `Failed login attempt for unknown Login ID '${cleanLoginId}'. Remaining attempts: ${failedResult.remainingAttempts}`,
@@ -802,9 +818,46 @@ export async function loginWithCredentials(
     };
   }
 
+  // 2b. Block un-provisioned accounts and banned default passwords (CWE-798 compliance)
+  if (!user.password_hash) {
+    return {
+      success: false,
+      error: 'This account has not been provisioned with a secure password. Please contact your Administrator.',
+    };
+  }
+
+  const BANNED_DEFAULT_PASSWORDS = [
+    'admin123',
+    'doctor123',
+    'nurse123',
+    'reception123',
+    'lab123',
+    'pharmacy123',
+    'pharm123',
+    'manager123',
+    'password123',
+    'admin1234',
+    '12345678',
+  ];
+
+  if (BANNED_DEFAULT_PASSWORDS.includes(cleanPassword.toLowerCase())) {
+    await logAuditEvent({
+      action: 'SECURITY_ALERT_TRIGGERED',
+      actorRole: 'ANONYMOUS',
+      details: `Authentication blocked: Attempt to log in with decommissioned default password on account '${cleanLoginId}'`,
+      status: 'FAILURE',
+      ipAddress: clientIp,
+    });
+    return {
+      success: false,
+      error: 'Default passwords are permanently prohibited by system security policy. Please use your custom private credentials.',
+    };
+  }
+
   // 3. Verify password
   if (!verifyPinHash(cleanPassword, user.password_hash)) {
     const failedResult = recordFailedPinAttempt(clientIp);
+    recordFailedPinAttempt(accountKey);
     await logAuditEvent({
       action: 'AUTH_LOGIN_FAILURE',
       details: `Failed password attempt for '${user.name}' (${cleanLoginId}). Remaining attempts: ${failedResult.remainingAttempts}`,
@@ -827,22 +880,8 @@ export async function loginWithCredentials(
 
   // 4. Success: reset rate limit & update last login
   resetPinRateLimit(clientIp);
+  resetPinRateLimit(accountKey);
   sqlite.prepare('UPDATE staff_users SET last_login_at = ? WHERE id = ?').run(Date.now(), user.id);
-
-  // Detect un-rotated default seed password
-  const isDefaultPassword =
-    !user.password_updated_at ||
-    ['admin123', 'doctor123', 'nurse123', 'reception123', 'lab123'].includes(cleanPassword);
-
-  if (isDefaultPassword) {
-    await logAuditEvent({
-      action: 'SECURITY_ALERT_TRIGGERED',
-      actorRole: user.role.toUpperCase(),
-      details: `Staff member '${user.name}' authenticated using un-rotated default password. Prompting password rotation.`,
-      status: 'WARNING',
-      ipAddress: clientIp,
-    });
-  }
 
   // 5. Create and set cryptographic session token
   const sessionToken = createSessionToken(user.role, user.id);
@@ -883,7 +922,7 @@ export async function loginWithCredentials(
     redirectUrl: targetRedirect || '/',
     role: user.role,
     user: safeUser,
-    isDefaultPassword,
+    isDefaultPassword: false,
   };
 }
 
@@ -950,6 +989,204 @@ export async function getStaffUsers(): Promise<SafeStaffUser[]> {
     return [];
   }
 }
+
+/**
+ * Public/sanitized persona lookup for the login screen.
+ * Strips all contact and sensitive information (phone, email, regNumber, timestamps, audit info)
+ * and returns only active staff names, departments, and roles for persona quick-selection.
+ */
+export async function getActiveStaffUsersForLogin(): Promise<SafeStaffUser[]> {
+  try {
+    const rows = sqlite
+      .prepare(
+        "SELECT id, login_id as loginId, name, role, sub_role as subRole, department FROM staff_users WHERE is_active = 1 AND password_hash NOT LIKE 'DISABLED:%' AND password_hash IS NOT NULL ORDER BY role = 'admin_doctor' DESC, id ASC"
+      )
+      .all() as {
+        id: number;
+        loginId: string;
+        name: string;
+        role: UserRole;
+        subRole?: string | null;
+        department?: string | null;
+      }[];
+
+    return rows.map((r) => ({
+      id: r.id,
+      loginId: r.loginId,
+      name: r.name,
+      role: r.role,
+      subRole: r.subRole || null,
+      department: r.department || null,
+      phone: null,
+      email: null,
+      qualifications: null,
+      regNumber: null,
+      isActive: true,
+      passwordUpdatedAt: null,
+      lastLoginAt: null,
+      createdAt: null,
+    }));
+  } catch (err) {
+    console.error('Failed to get active staff users for login:', err);
+    return [];
+  }
+}
+
+/**
+ * Checks whether the clinic system requires initial sovereign administrator provisioning.
+ * Returns true if no staff accounts exist, or if the primary admin has no password configured.
+ */
+export async function getSetupStatus(): Promise<{ setupRequired: boolean; doctorName: string }> {
+  try {
+    const adminUser = sqlite
+      .prepare("SELECT id, name, login_id, password_hash FROM staff_users WHERE role = 'admin_doctor' AND is_active = 1 LIMIT 1")
+      .get() as { id: number; name: string; login_id: string; password_hash: string | null } | undefined;
+
+    const clinic = sqlite
+      .prepare('SELECT doctor_name FROM clinic_settings WHERE id = 1')
+      .get() as { doctor_name?: string } | undefined;
+
+    const doctorName = clinic?.doctor_name || 'Dr. Nitin Hiralal Sonare';
+
+    if (!adminUser || !adminUser.password_hash || adminUser.password_hash.startsWith('DISABLED:')) {
+      return { setupRequired: true, doctorName };
+    }
+
+    return { setupRequired: false, doctorName };
+  } catch {
+    return { setupRequired: true, doctorName: 'Doctor' };
+  }
+}
+
+/**
+ * Initializes the Sovereign Administrator (CMO) account with custom credentials.
+ * Only callable when no active administrator password exists (CWE-306 protection).
+ * Hardened: completely blocks default passwords (CWE-798 compliance).
+ */
+export async function setupInitialAdminAccount(
+  loginId: string,
+  password: string,
+  confirmPassword: string,
+  doctorName?: string
+): Promise<{ success: boolean; error?: string; redirectUrl?: string }> {
+  const clientIp = await getClientIp();
+
+  // 1. Verify that setup is required
+  const { setupRequired } = await getSetupStatus();
+  if (!setupRequired) {
+    await logAuditEvent({
+      action: 'SECURITY_ALERT_TRIGGERED',
+      actorRole: 'ANONYMOUS',
+      details: 'Rejected attempt to call initial admin setup when admin account is already provisioned',
+      status: 'FAILURE',
+      ipAddress: clientIp,
+    });
+    return { success: false, error: 'System administrator account is already provisioned.' };
+  }
+
+  const cleanLoginId = loginId.trim().toLowerCase();
+  const cleanPassword = password.trim();
+
+  // 2. Validate Login ID
+  if (!cleanLoginId || cleanLoginId.length < 3) {
+    return { success: false, error: 'Login ID must be at least 3 characters long.' };
+  }
+  if (!/^[a-zA-Z0-9_.-]+$/.test(cleanLoginId)) {
+    return { success: false, error: 'Login ID can only contain letters, numbers, hyphens, and underscores.' };
+  }
+
+  // 3. Reject confirm mismatch
+  if (cleanPassword !== confirmPassword.trim()) {
+    return { success: false, error: 'Password and Confirm Password do not match.' };
+  }
+
+  // 4. Validate credential complexity policy
+  const policy = validateCredentialPolicy(cleanPassword, { minLength: 8, requireComplexity: true });
+  if (!policy.valid) {
+    return { success: false, error: policy.reason || 'Password does not meet security criteria.' };
+  }
+
+  // 5. Explicitly reject any factory defaults
+  const BANNED_DEFAULT_PASSWORDS = [
+    'admin123',
+    'doctor123',
+    'nurse123',
+    'reception123',
+    'lab123',
+    'pharmacy123',
+    'pharm123',
+    'manager123',
+    'password123',
+    'admin1234',
+    '12345678',
+  ];
+  if (BANNED_DEFAULT_PASSWORDS.includes(cleanPassword.toLowerCase()) || cleanPassword.toLowerCase() === `${cleanLoginId}123`) {
+    return {
+      success: false,
+      error: 'Cannot use a factory default or predictable password. Please choose a strong private passphrase.',
+    };
+  }
+
+  const passwordHash = hashPin(cleanPassword);
+  const now = Date.now();
+  const effectiveName = (doctorName || '').trim() || 'Dr. Nitin Hiralal Sonare';
+
+  try {
+    const existingAdmin = sqlite
+      .prepare("SELECT id FROM staff_users WHERE role = 'admin_doctor' LIMIT 1")
+      .get() as { id: number } | undefined;
+
+    let adminId: number;
+
+    if (existingAdmin) {
+      sqlite
+        .prepare(`
+          UPDATE staff_users
+          SET login_id = ?, password_hash = ?, name = ?, password_updated_at = ?, is_active = 1
+          WHERE id = ?
+        `)
+        .run(cleanLoginId, passwordHash, effectiveName, now, existingAdmin.id);
+      adminId = existingAdmin.id;
+    } else {
+      const info = sqlite
+        .prepare(`
+          INSERT INTO staff_users (login_id, password_hash, name, role, sub_role, department, is_active, password_updated_at, created_at)
+          VALUES (?, ?, ?, 'admin_doctor', 'Chief Medical Officer & Hospital Admin', 'Administration & OPD', 1, ?, ?)
+        `)
+        .run(cleanLoginId, passwordHash, effectiveName, now, now);
+      adminId = Number(info.lastInsertRowid);
+    }
+
+    try {
+      sqlite.prepare('UPDATE clinic_settings SET doctor_name = ? WHERE id = 1').run(effectiveName);
+    } catch {}
+
+    await logAuditEvent({
+      action: 'SECURITY_SETTINGS_UPDATED',
+      actorRole: 'ADMIN_DOCTOR',
+      details: `Primary Administrator account '${cleanLoginId}' successfully provisioned with custom credentials. Default credentials eliminated.`,
+      status: 'SUCCESS',
+      ipAddress: clientIp,
+    });
+
+    const sessionToken = createSessionToken('admin_doctor', adminId);
+    const cookieStore = await cookies();
+    cookieStore.set(SESSION_COOKIE_NAME, sessionToken, {
+      httpOnly: true,
+      secure: await isSecureConnection(),
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 12 * 60 * 60,
+    });
+
+    return { success: true, redirectUrl: '/' };
+  } catch (err) {
+    console.error('Failed to setup admin account:', err);
+    return { success: false, error: 'Failed to configure administrator account. Please check server logs.' };
+  }
+}
+
+
 
 /**
  * Creates a new staff member profile with dedicated Login ID & Password

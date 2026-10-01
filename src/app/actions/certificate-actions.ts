@@ -33,7 +33,7 @@ export async function issueMedicalCertificateAction(params: {
 }): Promise<{ success: boolean; certificate?: MedicalCertificate; error?: string }> {
   await requirePermission('certificate:issue');
   const user = await getCurrentUser();
-  const doctorAuthorized = !user || isDoctor(user.role);
+  const doctorAuthorized = Boolean(user && isDoctor(user.role));
   if (!doctorAuthorized) {
     return { success: false, error: 'Only registered medical practitioners can issue medical certificates.' };
   }

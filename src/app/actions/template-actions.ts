@@ -30,7 +30,7 @@ export async function createPrescriptionTemplateAction(params: {
 }): Promise<{ success: boolean; id?: number; error?: string }> {
   await requirePermission('template:manage');
   const user = await getCurrentUser();
-  const doctorAuthorized = !user || isDoctor(user.role);
+  const doctorAuthorized = Boolean(user && isDoctor(user.role));
   if (!doctorAuthorized) {
     return { success: false, error: 'Only doctors can save clinical prescription templates.' };
   }
@@ -83,7 +83,7 @@ export async function createPrescriptionTemplateAction(params: {
 export async function deletePrescriptionTemplateAction(id: number): Promise<{ success: boolean; error?: string }> {
   await requirePermission('template:manage');
   const user = await getCurrentUser();
-  const doctorAuthorized = !user || isDoctor(user.role);
+  const doctorAuthorized = Boolean(user && isDoctor(user.role));
   if (!doctorAuthorized) {
     return { success: false, error: 'Only doctors can delete prescription templates.' };
   }

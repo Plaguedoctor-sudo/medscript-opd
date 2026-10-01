@@ -772,3 +772,61 @@ export interface ThreatHuntingReport {
   findings: ThreatHuntingFinding[];
 }
 
+// ── Hospital CCTV & Facility Surveillance ──────────────────────────────────
+export type CctvZone =
+  | 'ICU'
+  | 'EMERGENCY'
+  | 'OT'
+  | 'IPD_WARD'
+  | 'PHARMACY'
+  | 'OPD_RECEPTION'
+  | 'STORES_ASSETS'
+  | 'PERIMETER';
+
+export type CctvCameraStatus = 'ONLINE' | 'OFFLINE' | 'MAINTENANCE';
+
+export interface CctvCamera {
+  id: number;
+  name: string;
+  zone: CctvZone;
+  location: string;
+  streamUrl: string;
+  status: CctvCameraStatus;
+  resolution: string;
+  fps: number;
+  hasPtz: boolean;
+  privacyMasking: boolean;
+  motionDetectionEnabled: boolean;
+  ipAddress?: string | null;
+  lastPingAt?: Date | null;
+  createdAt: Date | null;
+  updatedAt: Date | null;
+}
+
+export type CctvIncidentType =
+  | 'PATIENT_FALL_RISK'
+  | 'UNAUTHORIZED_ENTRY'
+  | 'AFTER_HOURS_MOTION'
+  | 'QUEUE_OVERFLOW'
+  | 'EQUIPMENT_TAMPER'
+  | 'MANUAL_SECURITY_FLAG';
+
+export type CctvIncidentSeverity = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+
+export interface CctvIncident {
+  id: number;
+  cameraId?: number | null;
+  cameraName: string;
+  zone: CctvZone | string;
+  incidentType: CctvIncidentType;
+  severity: CctvIncidentSeverity;
+  description: string;
+  snapshotUrl?: string | null;
+  acknowledged: boolean;
+  acknowledgedBy?: string | null;
+  acknowledgedAt?: Date | null;
+  notes?: string | null;
+  createdAt: Date | null;
+}
+
+

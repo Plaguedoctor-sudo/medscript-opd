@@ -88,6 +88,18 @@ describe('Staff Credential Hardening & Password Rotation Policy', () => {
     expect(strong.valid).toBe(true);
   });
 
+  it('rejects predictable seasonal spray passwords (e.g. Fall2019!)', () => {
+    const seasonal = validateCredentialPolicy('Fall2019!', { minLength: 8, requireComplexity: true });
+    expect(seasonal.valid).toBe(false);
+    expect(seasonal.reason).toContain('predictable seasonal');
+
+    const spring = validateCredentialPolicy('Spring2025', { minLength: 8, requireComplexity: true });
+    expect(spring.valid).toBe(false);
+
+    const genericSpray = validateCredentialPolicy('clinic1234', { minLength: 8, requireComplexity: true });
+    expect(genericSpray.valid).toBe(false);
+  });
+
   it('enforces immediate session revocation when password is changed', () => {
     const testLogin = 'test_rotation_nurse';
     sqlite.prepare('DELETE FROM staff_users WHERE login_id = ?').run(testLogin);

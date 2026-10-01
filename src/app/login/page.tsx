@@ -1,7 +1,7 @@
 import { getSecurityConfig, isAuthenticated } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { LoginForm } from './LoginForm';
-import { getStaffUsers } from './actions';
+import { getActiveStaffUsersForLogin, getSetupStatus } from './actions';
 
 export default async function LoginPage({
   searchParams,
@@ -19,14 +19,18 @@ export default async function LoginPage({
     redirect(redirectTarget);
   }
 
-  const staffUsers = await getStaffUsers();
+  const [staffUsers, setupStatus] = await Promise.all([
+    getActiveStaffUsersForLogin(),
+    getSetupStatus(),
+  ]);
 
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col justify-center items-center p-4">
       <LoginForm
-        doctorName={doctorName}
+        doctorName={setupStatus.doctorName || doctorName}
         clinicName={clinicName}
         initialStaffUsers={staffUsers}
+        setupRequired={setupStatus.setupRequired}
       />
       <div className="mt-6 text-center text-xs text-slate-400">
         MedScript OPD • Multi-Role Sovereign Hospital Information Management System

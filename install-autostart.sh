@@ -55,6 +55,13 @@ Environment=HOSTNAME=0.0.0.0
 StandardOutput=journal
 StandardError=journal
 
+# Linux Privilege Escalation & Sandboxing Defenses (Anti-SUID / Anti-GTFOBins / CWE-250)
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectControlGroups=true
+ProtectKernelModules=true
+
 [Install]
 WantedBy=default.target
 EOF

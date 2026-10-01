@@ -498,7 +498,7 @@ export async function getCurrentUser(): Promise<SafeStaffUser | null> {
 
   if (!parsed.valid) {
     const { securityEnabled } = await getSecurityConfig();
-    if (!securityEnabled) {
+    if (!securityEnabled && (await isLocalHostRequest())) {
       try {
         const defaultAdmin = sqlite
           .prepare(
@@ -562,13 +562,11 @@ export async function getCurrentUser(): Promise<SafeStaffUser | null> {
 async function isLocalHostRequest(): Promise<boolean> {
   try {
     const headerList = await headers();
-    const host = headerList.get('host') || '';
-    if (host.startsWith('localhost') || host.startsWith('127.0.0.1') || host.startsWith('[::1]')) {
-      return true;
-    }
-    const realIp = headerList.get('x-real-ip');
-    if (realIp && (realIp === '127.0.0.1' || realIp === '::1' || realIp === '::ffff:127.0.0.1')) {
-      return true;
+    // CWE-290 Hardened: Never trust user-controlled Host headers to grant loopback bypass
+    const verifiedIp = headerList.get('x-medscript-verified-ip') || headerList.get('x-real-ip');
+    if (verifiedIp) {
+      const clean = verifiedIp.trim().replace(/^::ffff:/, '');
+      return clean === '127.0.0.1' || clean === '::1' || clean === 'localhost';
     }
     return false;
   } catch {

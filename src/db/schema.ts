@@ -946,3 +946,45 @@ export const hospitalDepartmentDispatchesRelations = relations(hospitalDepartmen
     references: [hospitalAssets.id],
   }),
 }));
+
+export const hospitalCctvCameras = sqliteTable("hospital_cctv_cameras", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull(),
+  zone: text("zone").notNull(), // 'ICU' | 'EMERGENCY' | 'OT' | 'IPD_WARD' | 'PHARMACY' | 'OPD_RECEPTION' | 'STORES_ASSETS' | 'PERIMETER'
+  location: text("location"),
+  streamUrl: text("stream_url").notNull().default("simulated:icu"),
+  status: text("status").notNull().default("ONLINE"), // 'ONLINE' | 'OFFLINE' | 'MAINTENANCE'
+  resolution: text("resolution").notNull().default("1080p"), // '1080p' | '4K' | '720p'
+  fps: integer("fps").notNull().default(25),
+  hasPtz: integer("has_ptz").notNull().default(0), // 0 or 1
+  privacyMasking: integer("privacy_masking").notNull().default(0), // 0 or 1
+  motionDetectionEnabled: integer("motion_detection_enabled").notNull().default(1),
+  ipAddress: text("ip_address"),
+  lastPingAt: integer("last_ping_at", { mode: "timestamp" }),
+  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+});
+
+export const hospitalCctvIncidents = sqliteTable("hospital_cctv_incidents", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  cameraId: integer("camera_id").references(() => hospitalCctvCameras.id),
+  cameraName: text("camera_name").notNull(),
+  zone: text("zone").notNull(),
+  incidentType: text("incident_type").notNull(), // 'PATIENT_FALL_RISK' | 'UNAUTHORIZED_ENTRY' | 'AFTER_HOURS_MOTION' | 'QUEUE_OVERFLOW' | 'EQUIPMENT_TAMPER' | 'MANUAL_SECURITY_FLAG'
+  severity: text("severity").notNull().default("MEDIUM"), // 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
+  description: text("description").notNull(),
+  snapshotUrl: text("snapshot_url"),
+  acknowledged: integer("acknowledged").notNull().default(0), // 0 or 1
+  acknowledgedBy: text("acknowledged_by"),
+  acknowledgedAt: integer("acknowledged_at", { mode: "timestamp" }),
+  notes: text("notes"),
+  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+});
+
+export const hospitalCctvIncidentsRelations = relations(hospitalCctvIncidents, ({ one }) => ({
+  camera: one(hospitalCctvCameras, {
+    fields: [hospitalCctvIncidents.cameraId],
+    references: [hospitalCctvCameras.id],
+  }),
+}));
+

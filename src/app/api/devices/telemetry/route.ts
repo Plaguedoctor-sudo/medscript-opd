@@ -6,6 +6,8 @@ import {
   ingestDeviceTelemetryAction,
 } from '@/app/ipd/device-actions';
 import { parseHl7Pcd01Telemetry } from '@/lib/device-telemetry-engine';
+import { getSessionSecret, parseSessionToken, SESSION_COOKIE_NAME, canDo, safeCompare } from '@/lib/auth';
+import { logAuditEvent } from '@/lib/audit';
 
 /**
  * Standard Medical Device Telemetry Ingest API Route
@@ -14,10 +16,25 @@ import { parseHl7Pcd01Telemetry } from '@/lib/device-telemetry-engine';
  * Headers:
  *   Content-Type: application/json OR text/plain (HL7)
  *   X-Device-Id: DEV-ICU-MON-01 (or inside JSON body)
- *   X-Device-Secret: optional authorization key
+ *   X-Device-Secret: authorization key (or Authorization: Bearer <secret>)
  */
 export async function POST(req: NextRequest) {
   try {
+    // 1. Authenticate Request:
+    // Option A: Active staff session with 'device:telemetry' or 'device:manage'
+    // Option B: Valid machine-to-machine Pre-Shared Key via X-Device-Secret or Bearer token
+    const sessionCookie = req.cookies.get(SESSION_COOKIE_NAME)?.value;
+    const parsedSession = parseSessionToken(sessionCookie);
+    const hasSessionAuth = parsedSession.valid && canDo(parsedSession.role, 'device:telemetry');
+
+    const headerSecret = req.headers.get('x-device-secret') || '';
+    const authHeader = req.headers.get('authorization') || '';
+    const bearerSecret = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
+    const candidateSecret = (headerSecret || bearerSecret).trim();
+
+    const expectedGlobalSecret = process.env.DEVICE_INGEST_SECRET || getSessionSecret();
+    const hasGlobalSecretAuth = candidateSecret ? safeCompare(candidateSecret, expectedGlobalSecret) : false;
+
     const contentType = req.headers.get('content-type') || '';
     const headerDeviceId = req.headers.get('x-device-id');
 
@@ -54,6 +71,30 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { error: `Device ${payload.deviceId} is not registered in MedScript` },
         { status: 404 }
+      );
+    }
+
+    // Check device-specific pre-shared key if configured in device config
+    let hasDeviceSpecificAuth = false;
+    if (device.config && candidateSecret) {
+      try {
+        const conf = JSON.parse(device.config);
+        if (conf.deviceSecret && typeof conf.deviceSecret === 'string') {
+          hasDeviceSpecificAuth = safeCompare(candidateSecret, conf.deviceSecret);
+        }
+      } catch {}
+    }
+
+    if (!hasSessionAuth && !hasGlobalSecretAuth && !hasDeviceSpecificAuth) {
+      await logAuditEvent({
+        action: 'SECURITY_ALERT_TRIGGERED',
+        actorRole: 'ANONYMOUS',
+        details: `Unauthorized telemetry injection attempt blocked for device ${payload.deviceId}: invalid or missing device secret`,
+        status: 'FAILURE',
+      });
+      return NextResponse.json(
+        { error: 'Unauthorized: Valid X-Device-Secret, Bearer token, or clinical session required.' },
+        { status: 401 }
       );
     }
 

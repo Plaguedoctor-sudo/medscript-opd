@@ -26,6 +26,7 @@ import {
   UserPlus,
   Activity,
   Wrench,
+  Cctv,
 } from "lucide-react";
 import { DashboardSearch } from "@/components/DashboardSearch";
 import { formatDate } from "@/lib/utils";
@@ -37,6 +38,7 @@ import { SecurityAlertBell } from "@/components/SecurityAlertBell";
 import { DoctorSecurityBanner } from "@/components/DoctorSecurityBanner";
 import { LockdownBanner } from "@/components/LockdownBanner";
 import { getSecurityAlerts, getLockdownStatus } from "@/lib/security-engine";
+import { getCctvStats } from "@/app/cctv/actions";
 
 interface ConsultationRow {
   id: number;
@@ -108,7 +110,7 @@ export default async function DashboardPage({
 
   const todayStr = new Date().toISOString().split('T')[0];
 
-  const [totalPatients, totalPrescriptions, activeIpdAdmissions, totalLabReports, todayAppointments, inventoryItems, settings] = await Promise.all([
+  const [totalPatients, totalPrescriptions, activeIpdAdmissions, totalLabReports, todayAppointments, inventoryItems, settings, cctvStats] = await Promise.all([
     db.select({ id: patients.id }).from(patients),
     db.select({ id: prescriptions.id }).from(prescriptions),
     db.select({ id: ipdAdmissions.id }).from(ipdAdmissions).where(eq(ipdAdmissions.status, 'ADMITTED')),
@@ -116,6 +118,7 @@ export default async function DashboardPage({
     db.select({ id: appointments.id, status: appointments.status }).from(appointments).where(eq(appointments.appointmentDate, todayStr)),
     db.select({ id: pharmacyInventory.id, currentStock: pharmacyInventory.quantityInStock, minStockLevel: pharmacyInventory.minThreshold }).from(pharmacyInventory),
     db.query.clinicSettings.findFirst(),
+    getCctvStats(),
   ]);
 
   const waitingQueueCount = todayAppointments.filter((a) => a.status === 'WAITING' || a.status === 'BOOKED').length;
@@ -150,6 +153,19 @@ export default async function DashboardPage({
             <UserProfileMenu user={currentUser} role={role} securityEnabled={securityEnabled} />
             <PrivacyShield />
             <SecurityAlertBell initialStats={securityAlertsData} />
+            
+            {/* Prominent CCTV Live Button (always visible across screen sizes) */}
+            <Link href="/cctv" title="Live Hospital CCTV Surveillance Command Station">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 px-2 sm:px-2.5 gap-1.5 text-xs border-indigo-200 bg-indigo-50/80 text-indigo-700 hover:bg-indigo-100 hover:text-indigo-800 transition-colors font-medium shadow-2xs"
+              >
+                <Cctv className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                <span>CCTV</span>
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse hidden sm:inline-block" />
+              </Button>
+            </Link>
             
             {/* Desktop module links (hidden on mobile; accessible via bottom nav and drawer) */}
             <div className="hidden lg:flex items-center gap-1">
@@ -233,6 +249,12 @@ export default async function DashboardPage({
                   </Button>
                 </Link>
               )}
+              {/* CCTV Live Surveillance — doctors, admin, manager, nurse */}
+              <Link href="/cctv">
+                <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-indigo-700 hover:text-indigo-800 hover:bg-indigo-50">
+                  <Cctv className="w-4 h-4 text-indigo-600" /> CCTV
+                </Button>
+              </Link>
               {/* Settings — admin and doctor only */}
               {(role === 'admin_doctor' || role === 'doctor') && (
                 <Link href="/settings">
@@ -357,7 +379,7 @@ export default async function DashboardPage({
         )}
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 xl:grid-cols-8 gap-3.5 mb-8">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-9 gap-3.5 mb-8">
           <Link href="/appointments" className="block group">
             <Card className="hover:border-blue-400 hover:shadow-md transition-all cursor-pointer h-full border-slate-200">
               <CardContent className="pt-4 pb-4 px-3 flex flex-col justify-between h-full">
@@ -493,6 +515,36 @@ export default async function DashboardPage({
             </Card>
           </Link>
 
+          {/* CCTV Live Surveillance Card */}
+          <Link href="/cctv" className="block group">
+            <Card className="hover:border-indigo-400 hover:shadow-md transition-all cursor-pointer h-full border-slate-200">
+              <CardContent className="pt-4 pb-4 px-3 flex flex-col justify-between h-full">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="p-2 bg-indigo-100 rounded-lg text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-colors">
+                    <Cctv className="w-4 h-4" />
+                  </div>
+                  <span className="text-[10px] text-indigo-600 font-medium">Station &rarr;</span>
+                </div>
+                <div>
+                  <p className="text-[11px] font-medium text-slate-500">CCTV Safety</p>
+                  <div className="flex items-baseline gap-1.5">
+                    <h3 className="text-xl font-bold text-indigo-700">{cctvStats.onlineCameras} Live</h3>
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse" />
+                  </div>
+                  {cctvStats.criticalAlerts > 0 ? (
+                    <span className="text-[10px] font-semibold text-rose-600 bg-rose-50 px-1 rounded mt-0.5 inline-block">
+                      {cctvStats.criticalAlerts} alerts
+                    </span>
+                  ) : (
+                    <span className="text-[10px] text-slate-400 mt-0.5 inline-block">
+                      {cctvStats.totalCameras} cameras
+                    </span>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+
           {(role === 'admin_doctor' || role === 'doctor') ? (
             <Link href="/prescription/new" className="block col-span-2 sm:col-span-1 h-full">
               <Card className="bg-gradient-to-r from-blue-600 to-blue-700 text-white cursor-pointer hover:from-blue-700 hover:to-blue-800 transition-all shadow-xs h-full border-transparent">
@@ -532,7 +584,7 @@ export default async function DashboardPage({
 
         {/* Receptionist Workspace — shown only for receptionist role */}
         {role === 'receptionist' && (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
             <Link href="/patients/register" className="block group">
               <Card className="border-amber-200 bg-amber-50 hover:border-amber-400 hover:shadow-md transition-all cursor-pointer h-full">
                 <CardContent className="pt-5 pb-5 px-5 flex items-center gap-4">
@@ -568,6 +620,19 @@ export default async function DashboardPage({
                   <div>
                     <p className="font-bold text-emerald-900 text-sm">Billing</p>
                     <p className="text-xs text-emerald-700 mt-0.5">Create & manage invoices</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+            <Link href="/cctv" className="block group">
+              <Card className="border-indigo-200 bg-indigo-50 hover:border-indigo-400 hover:shadow-md transition-all cursor-pointer h-full">
+                <CardContent className="pt-5 pb-5 px-5 flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-indigo-600 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                    <Cctv className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <p className="font-bold text-indigo-900 text-sm">CCTV Command Station</p>
+                    <p className="text-xs text-indigo-700 mt-0.5">{cctvStats.onlineCameras} live feeds · Facility safety</p>
                   </div>
                 </CardContent>
               </Card>

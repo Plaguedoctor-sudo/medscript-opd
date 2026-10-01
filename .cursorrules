@@ -1,0 +1,13 @@
+# MedScript OPD: Cursor & AI Developer Rules
+
+Refer to and strictly enforce:
+1. `AGENTS.md`
+2. `security/SECURITY-PROTOCOLS.md`
+
+All code generation and modifications MUST comply with:
+- Zero-trust RBAC on all Server Actions (`requirePermission` / `isDoctor`)
+- CWE-290 immunity (never trust user Host/IP headers)
+- NIST SP 800-88 storage zeroization (`PRAGMA secure_delete = ON`)
+- Anti-password spraying policies
+- Strict CSP without 'unsafe-eval'
+- Mandatory test passing (`npm test`, `npm run typecheck`, `npm run audit:ci`)
