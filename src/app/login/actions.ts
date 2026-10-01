@@ -106,7 +106,7 @@ export async function loginWithPin(
   let userRole: UserRole | null = null;
 
   if (verifyPinHash(trimmedPin, settings.pinHash)) {
-    userRole = 'doctor';
+    userRole = 'admin_doctor';
     if (!settings.pinHash.startsWith('scrypt:v1:')) {
       try {
         const upgraded = hashPin(trimmedPin);
@@ -147,7 +147,7 @@ export async function loginWithPin(
   }
 
   // 2b. If Doctor and Multi-Factor Authentication (MFA) is enabled, verify 2nd factor
-  if (userRole === 'doctor' && settings.mfaEnabled && settings.mfaSecret) {
+  if (isDoctor(userRole) && settings.mfaEnabled && settings.mfaSecret) {
     const trimmedMfa = mfaCode ? mfaCode.trim() : '';
 
     if (!trimmedMfa) {
@@ -155,7 +155,7 @@ export async function loginWithPin(
       return {
         success: false,
         requiresMfa: true,
-        role: 'doctor',
+        role: userRole,
       };
     }
 
@@ -213,8 +213,8 @@ export async function loginWithPin(
 
   await logAuditEvent({
     action: 'AUTH_LOGIN_SUCCESS',
-    actorRole: userRole === 'doctor' ? 'DOCTOR' : 'RECEPTIONIST',
-    details: userRole === 'doctor'
+    actorRole: isDoctor(userRole) ? 'DOCTOR' : 'RECEPTIONIST',
+    details: isDoctor(userRole)
       ? 'Doctor authenticated with full clinical prescribing authority'
       : 'Front desk staff authenticated with triage and patient intake role',
     status: 'SUCCESS',
@@ -959,8 +959,8 @@ export async function createStaffUser(
   input: CreateStaffUserInput
 ): Promise<{ success: boolean; error?: string; userId?: number }> {
   const currentRole = await getCurrentUserRole();
-  if (currentRole !== 'admin_doctor') {
-    return { success: false, error: 'Unauthorized: Only an Admin Doctor can create new staff profiles.' };
+  if (currentRole !== 'admin_doctor' && currentRole !== 'doctor') {
+    return { success: false, error: 'Unauthorized: Only an Admin or Doctor can create new staff profiles.' };
   }
 
   const cleanLoginId = input.loginId.trim().toLowerCase();
@@ -1021,7 +1021,7 @@ export async function createStaffUser(
 
     await logAuditEvent({
       action: 'STAFF_USER_CREATED',
-      actorRole: 'ADMIN_DOCTOR',
+      actorRole: currentRole === 'admin_doctor' ? 'ADMIN_DOCTOR' : 'DOCTOR',
       details: `Created new staff user '${input.name.trim()}' with role ${input.role} (${cleanLoginId})`,
       status: 'SUCCESS',
     });
@@ -1035,19 +1035,33 @@ export async function createStaffUser(
 
 /**
  * Updates staff member details or resets their password
- * Protected: Admin Doctor authority required
+ * Protected: Admin Doctor or Doctor authority required
  */
 export async function updateStaffUser(
   id: number,
   input: UpdateStaffUserInput
 ): Promise<{ success: boolean; error?: string }> {
   const currentRole = await getCurrentUserRole();
-  if (currentRole !== 'admin_doctor') {
-    return { success: false, error: 'Unauthorized: Only an Admin Doctor can update staff profiles.' };
+  if (currentRole !== 'admin_doctor' && currentRole !== 'doctor') {
+    return { success: false, error: 'Unauthorized: Only an Admin or Doctor can update staff profiles.' };
   }
 
   try {
     const now = Date.now();
+
+    // Prevent demoting the sole active Admin Doctor
+    if (input.role !== 'admin_doctor') {
+      const targetUser = sqlite.prepare('SELECT role FROM staff_users WHERE id = ?').get(id) as { role: string } | undefined;
+      if (targetUser?.role === 'admin_doctor') {
+        const adminCount = sqlite
+          .prepare("SELECT COUNT(*) as count FROM staff_users WHERE role = 'admin_doctor' AND is_active = 1")
+          .get() as { count: number };
+        if (adminCount.count <= 1) {
+          return { success: false, error: 'Cannot demote the sole active Admin Doctor account. Assign another Admin Doctor first.' };
+        }
+      }
+    }
+
     if (input.newPassword && input.newPassword.trim().length > 0) {
       const trimmedPwd = input.newPassword.trim();
       const policy = validateCredentialPolicy(trimmedPwd, { minLength: 8, requireComplexity: true });
@@ -1087,7 +1101,7 @@ export async function updateStaffUser(
       sqlite
         .prepare(`
           UPDATE staff_users
-          SET name = ?, role = ?, sub_role = ?, department = ?, phone = ?, email = ?, qualifications = ?, reg_number = ?, password_updated_at = ?
+          SET name = ?, role = ?, sub_role = ?, department = ?, phone = ?, email = ?, qualifications = ?, reg_number = ?
           WHERE id = ?
         `)
         .run(
@@ -1099,14 +1113,13 @@ export async function updateStaffUser(
           input.email?.trim() || null,
           input.qualifications?.trim() || null,
           input.regNumber?.trim() || null,
-          now,
           id
         );
     }
 
     await logAuditEvent({
       action: 'STAFF_USER_UPDATED',
-      actorRole: 'ADMIN_DOCTOR',
+      actorRole: currentRole === 'admin_doctor' ? 'ADMIN_DOCTOR' : 'DOCTOR',
       details: `Updated staff profile id=${id} ('${input.name.trim()}', role: ${input.role})`,
       status: 'SUCCESS',
     });
@@ -1235,8 +1248,8 @@ export async function toggleStaffUserStatus(
   isActive: boolean
 ): Promise<{ success: boolean; error?: string }> {
   const currentRole = await getCurrentUserRole();
-  if (currentRole !== 'admin_doctor') {
-    return { success: false, error: 'Unauthorized: Only an Admin Doctor can change account status.' };
+  if (currentRole !== 'admin_doctor' && currentRole !== 'doctor') {
+    return { success: false, error: 'Unauthorized: Only an Admin or Doctor can change account status.' };
   }
 
   // Prevent disabling the last admin doctor
@@ -1251,11 +1264,10 @@ export async function toggleStaffUserStatus(
   }
 
   try {
-    const now = Date.now();
-    sqlite.prepare('UPDATE staff_users SET is_active = ?, password_updated_at = ? WHERE id = ?').run(isActive ? 1 : 0, now, id);
+    sqlite.prepare('UPDATE staff_users SET is_active = ? WHERE id = ?').run(isActive ? 1 : 0, id);
     await logAuditEvent({
       action: 'STAFF_USER_UPDATED',
-      actorRole: 'ADMIN_DOCTOR',
+      actorRole: currentRole === 'admin_doctor' ? 'ADMIN_DOCTOR' : 'DOCTOR',
       details: `Changed staff account id=${id} status to ${isActive ? 'ACTIVE' : 'DEACTIVATED'}`,
       status: 'SUCCESS',
     });
@@ -1268,12 +1280,12 @@ export async function toggleStaffUserStatus(
 
 /**
  * Permanently removes a staff member profile
- * Protected: Admin Doctor authority required
+ * Protected: Admin Doctor or Doctor authority required
  */
 export async function deleteStaffUser(id: number): Promise<{ success: boolean; error?: string }> {
   const currentRole = await getCurrentUserRole();
-  if (currentRole !== 'admin_doctor') {
-    return { success: false, error: 'Unauthorized: Only an Admin Doctor can delete staff accounts.' };
+  if (currentRole !== 'admin_doctor' && currentRole !== 'doctor') {
+    return { success: false, error: 'Unauthorized: Only an Admin or Doctor can delete staff accounts.' };
   }
 
   const target = sqlite.prepare('SELECT role, name FROM staff_users WHERE id = ?').get(id) as { role: string; name: string } | undefined;
@@ -1294,7 +1306,7 @@ export async function deleteStaffUser(id: number): Promise<{ success: boolean; e
     sqlite.prepare('DELETE FROM staff_users WHERE id = ?').run(id);
     await logAuditEvent({
       action: 'STAFF_USER_DELETED',
-      actorRole: 'ADMIN_DOCTOR',
+      actorRole: currentRole === 'admin_doctor' ? 'ADMIN_DOCTOR' : 'DOCTOR',
       details: `Deleted staff profile id=${id} (${target.name})`,
       status: 'SUCCESS',
     });
@@ -1310,14 +1322,14 @@ export async function deleteStaffUser(id: number): Promise<{ success: boolean; e
  */
 export async function revokeStaffSessionAction(userId: number): Promise<{ success: boolean; error?: string }> {
   const currentRole = await getCurrentUserRole();
-  if (currentRole !== 'admin_doctor') {
-    return { success: false, error: 'Unauthorized: Only an Admin Doctor can revoke staff sessions.' };
+  if (currentRole !== 'admin_doctor' && currentRole !== 'doctor') {
+    return { success: false, error: 'Unauthorized: Only an Admin or Doctor can revoke staff sessions.' };
   }
   const { revokeStaffSessions } = await import('@/lib/auth');
   revokeStaffSessions(userId);
   await logAuditEvent({
     action: 'SECURITY_ALERT_TRIGGERED',
-    actorRole: 'ADMIN_DOCTOR',
+    actorRole: currentRole === 'admin_doctor' ? 'ADMIN_DOCTOR' : 'DOCTOR',
     details: `Targeted session revocation executed for staff user id=${userId}`,
     status: 'WARNING',
   });

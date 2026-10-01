@@ -79,7 +79,7 @@ export function StaffManagementSection({
   const [editRegNumber, setEditRegNumber] = useState('');
   const [editNewPassword, setEditNewPassword] = useState('');
 
-  const isAdmin = currentRole === 'admin_doctor';
+  const isAdmin = currentRole === 'admin_doctor' || currentRole === 'doctor';
 
   const resetNewForm = () => {
     setNewLoginId('');
@@ -174,6 +174,23 @@ export function StaffManagementSection({
           description: `Details for ${editName} have been saved.`,
           type: 'success',
         });
+        setUsers((prev) =>
+          prev.map((u) =>
+            u.id === editingUser.id
+              ? {
+                  ...u,
+                  name: editName,
+                  role: editRole,
+                  subRole: editSubRole || undefined,
+                  department: editDepartment || undefined,
+                  phone: editPhone || undefined,
+                  email: editEmail || undefined,
+                  qualifications: editQualifications || undefined,
+                  regNumber: editRegNumber || undefined,
+                }
+              : u
+          )
+        );
         setEditingUser(null);
         window.location.reload();
       } else {

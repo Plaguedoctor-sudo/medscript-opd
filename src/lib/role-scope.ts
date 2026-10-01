@@ -258,7 +258,7 @@ export const ROLE_PERMISSIONS: Record<Exclude<UserRole, 'admin_doctor'>, Permiss
     'inventory:view', 'inventory:manage',
     'pharmacy:dispense',
     'reports:view', 'reports:idsp',
-    'settings:view_own_pin', 'settings:clinic',
+    'settings:view_own_pin', 'settings:clinic', 'settings:staff_management',
     'certificate:issue', 'document:upload', 'template:manage',
     'device:view', 'device:manage', 'device:telemetry',
   ],

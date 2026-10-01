@@ -111,4 +111,20 @@ describe('Pharmacist & Hospital Manager Roles and Permissions (RBAC)', () => {
       expect(isHospitalManager('admin_doctor')).toBe(true);
     });
   });
+
+  describe('Admin Doctor & Doctor Staff Management Authority', () => {
+    it('ensures admin_doctor and doctor can manage staff profiles', () => {
+      expect(canDo('admin_doctor', 'settings:staff_management')).toBe(true);
+      expect(canDo('doctor', 'settings:staff_management')).toBe(true);
+      expect(isDoctor('admin_doctor')).toBe(true);
+      expect(isDoctor('doctor')).toBe(true);
+    });
+
+    it('denies nurse, receptionist, and pharmacist from managing staff profiles', () => {
+      expect(canDo('nurse', 'settings:staff_management')).toBe(false);
+      expect(canDo('receptionist', 'settings:staff_management')).toBe(false);
+      expect(canDo('pharmacist', 'settings:staff_management')).toBe(false);
+      expect(canDo('manager', 'settings:staff_management')).toBe(false);
+    });
+  });
 });
