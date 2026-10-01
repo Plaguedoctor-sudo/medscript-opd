@@ -39,7 +39,10 @@
     "db:seed": "node scripts/seed.js",
     "db:backup": "node scripts/backup.js",
     "package:release": "bash scripts/package-release.sh",
-    "package:flatpak": "bash scripts/build-flatpak.sh"
+    "package:secured": "bash scripts/package-secured-appliance.sh",
+    "package:flatpak": "bash scripts/build-flatpak.sh",
+    "code:lock": "sudo bash scripts/lock-local-development.sh",
+    "code:unlock": "sudo bash scripts/unlock-local-development.sh"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",
