@@ -109,6 +109,10 @@ export function UserProfileMenu({ user, role, securityEnabled = true }: UserProf
       ? 'Nurse'
       : role === 'lab_technician'
       ? 'Lab Tech'
+      : role === 'pharmacist'
+      ? 'Pharmacist'
+      : role === 'manager'
+      ? 'Hospital Manager'
       : 'Front Desk');
   const displaySubRole =
     user?.subRole ||
@@ -120,6 +124,10 @@ export function UserProfileMenu({ user, role, securityEnabled = true }: UserProf
       ? 'Staff Nurse'
       : role === 'lab_technician'
       ? 'Pathology Technologist'
+      : role === 'pharmacist'
+      ? 'Dispensing Pharmacist'
+      : role === 'manager'
+      ? 'Materials & Facility Manager'
       : 'Receptionist');
 
   const isDefaultPassword = Boolean(user && !user.passwordUpdatedAt);

@@ -101,11 +101,27 @@ export type AuditAction =
   | 'DEVICE_REGISTERED'
   | 'DEVICE_THRESHOLDS_UPDATED'
   | 'TELEMETRY_SYNCED_TO_CHART'
-  | 'SYSTEM_CONFIG_UPDATED';
+  | 'SYSTEM_CONFIG_UPDATED'
+  | 'MEDICATION_DISPENSED_PHARMACY'
+  | 'HOSPITAL_ASSET_ADDED'
+  | 'HOSPITAL_ASSET_UPDATED'
+  | 'HOSPITAL_SERVICE_LOGGED'
+  | 'PROCUREMENT_ORDER_CREATED'
+  | 'PROCUREMENT_ORDER_RECEIVED'
+  | 'DEPARTMENT_DISPATCH_RECORDED';
 
 export type AuditStatus = 'SUCCESS' | 'FAILURE' | 'WARNING';
 
-export type ActorRole = 'ADMIN_DOCTOR' | 'DOCTOR' | 'NURSE' | 'RECEPTIONIST' | 'LAB_TECHNICIAN' | 'SYSTEM' | string;
+export type ActorRole =
+  | 'ADMIN_DOCTOR'
+  | 'DOCTOR'
+  | 'NURSE'
+  | 'RECEPTIONIST'
+  | 'LAB_TECHNICIAN'
+  | 'PHARMACIST'
+  | 'MANAGER'
+  | 'SYSTEM'
+  | string;
 
 export interface AuditLogItem {
   id: number;
@@ -130,6 +146,10 @@ export function formatActorRole(role?: string | null): ActorRole {
       return 'RECEPTIONIST';
     case 'lab_technician':
       return 'LAB_TECHNICIAN';
+    case 'pharmacist':
+      return 'PHARMACIST';
+    case 'manager':
+      return 'MANAGER';
     default:
       return role.toUpperCase();
   }

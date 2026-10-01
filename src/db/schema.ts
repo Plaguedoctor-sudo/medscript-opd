@@ -825,6 +825,124 @@ export const deviceAlertsRelations = relations(deviceAlerts, ({ one }) => ({
   }),
 }));
 
+// ===========================================================================
+// PHARMACIST DRUG DISPENSATION MODULE
+// ===========================================================================
+export const prescriptionDispensations = sqliteTable("prescription_dispensations", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  prescriptionId: integer("prescription_id").references(() => prescriptions.id),
+  admissionId: integer("admission_id").references(() => ipdAdmissions.id),
+  patientId: integer("patient_id").references(() => patients.id),
+  dispensationType: text("dispensation_type").notNull().default("OPD_PRESCRIPTION"), // 'OPD_PRESCRIPTION' | 'IPD_ROUND_MEDICATION'
+  dispensedBy: text("dispensed_by").notNull(),
+  dispensedByUserId: integer("dispensed_by_user_id").references(() => staffUsers.id),
+  itemsJson: text("items_json").notNull(), // JSON string of DispensedItem[]
+  status: text("status").notNull().default("DISPENSED"), // 'DISPENSED' | 'PARTIALLY_DISPENSED' | 'READY_FOR_PICKUP'
+  remarks: text("remarks"),
+  dispensedAt: integer("dispensed_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+});
 
+export const prescriptionDispensationsRelations = relations(prescriptionDispensations, ({ one }) => ({
+  prescription: one(prescriptions, {
+    fields: [prescriptionDispensations.prescriptionId],
+    references: [prescriptions.id],
+  }),
+  admission: one(ipdAdmissions, {
+    fields: [prescriptionDispensations.admissionId],
+    references: [ipdAdmissions.id],
+  }),
+  patient: one(patients, {
+    fields: [prescriptionDispensations.patientId],
+    references: [patients.id],
+  }),
+  dispensedByUser: one(staffUsers, {
+    fields: [prescriptionDispensations.dispensedByUserId],
+    references: [staffUsers.id],
+  }),
+}));
 
+// ===========================================================================
+// HOSPITAL MANAGER: SURGICAL INSTRUMENTS, CONSUMABLES, SERVICING & PROCUREMENT
+// ===========================================================================
+export const hospitalAssets = sqliteTable("hospital_assets", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull(),
+  category: text("category").notNull(), // 'SURGICAL_INSTRUMENT' | 'CLEANING_AGENT' | 'TOILETRIES' | 'LINEN_BEDSHEET' | 'GENERAL_CONSUMABLE'
+  specification: text("specification"),
+  quantityInStock: integer("quantity_in_stock").notNull().default(0),
+  unit: text("unit").notNull().default("units"), // sets, pieces, liters, bottles, packs, boxes
+  minThreshold: integer("min_threshold").notNull().default(5),
+  location: text("location"), // e.g. "Central Store", "OT Sterile Room", "Linen Wardrobe", "Housekeeping Store"
+  purchaseCost: real("purchase_cost").notNull().default(0),
+  supplierName: text("supplier_name"),
+  maintenanceStatus: text("maintenance_status").notNull().default("OPERATIONAL"), // 'OPERATIONAL' | 'UNDER_MAINTENANCE' | 'CALIBRATION_DUE' | 'OUT_OF_SERVICE' | 'NOT_APPLICABLE'
+  lastServiceDate: text("last_service_date"), // YYYY-MM-DD
+  nextServiceDue: text("next_service_due"), // YYYY-MM-DD
+  serviceVendor: text("service_vendor"),
+  serviceVendorPhone: text("service_vendor_phone"),
+  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+});
 
+export const hospitalServiceLogs = sqliteTable("hospital_service_logs", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  assetId: integer("asset_id").notNull().references(() => hospitalAssets.id),
+  serviceDate: text("service_date").notNull(), // YYYY-MM-DD
+  serviceType: text("service_type").notNull(), // 'PREVENTIVE' | 'BREAKDOWN' | 'CALIBRATION' | 'AMC_VISIT' | 'SHARPENING'
+  technicianName: text("technician_name"),
+  vendorName: text("vendor_name"),
+  cost: real("cost").notNull().default(0),
+  workDescription: text("work_description").notNull(),
+  partsReplaced: text("parts_replaced"),
+  nextDueDate: text("next_due_date"), // YYYY-MM-DD
+  status: text("status").notNull().default("COMPLETED"), // 'COMPLETED' | 'PENDING_PARTS' | 'SCHEDULED'
+  loggedBy: text("logged_by"),
+  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+});
+
+export const hospitalServiceLogsRelations = relations(hospitalServiceLogs, ({ one }) => ({
+  asset: one(hospitalAssets, {
+    fields: [hospitalServiceLogs.assetId],
+    references: [hospitalAssets.id],
+  }),
+}));
+
+export const hospitalProcurementOrders = sqliteTable("hospital_procurement_orders", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  orderNo: text("order_no").notNull(), // PO-YYYY-NNNN
+  vendorName: text("vendor_name").notNull(),
+  category: text("category").notNull(), // 'SURGICAL_INSTRUMENT' | 'CLEANING_AGENT' | 'TOILETRIES' | 'LINEN_BEDSHEET' | 'GENERAL_CONSUMABLE'
+  itemsJson: text("items_json").notNull(), // JSON string of ProcurementOrderItem[]
+  totalAmount: real("total_amount").notNull().default(0),
+  orderDate: text("order_date").notNull(), // YYYY-MM-DD
+  expectedDeliveryDate: text("expected_delivery_date"),
+  receivedDate: text("received_date"),
+  status: text("status").notNull().default("ORDERED"), // 'DRAFT' | 'ORDERED' | 'RECEIVED' | 'CANCELLED'
+  orderedBy: text("ordered_by"),
+  notes: text("notes"),
+  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+});
+
+export const hospitalDepartmentDispatches = sqliteTable("hospital_department_dispatches", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  dispatchNo: text("dispatch_no").notNull(), // DSP-YYYY-NNNN
+  assetId: integer("asset_id").references(() => hospitalAssets.id),
+  assetName: text("asset_name").notNull(),
+  category: text("category").notNull(),
+  quantity: integer("quantity").notNull(),
+  unit: text("unit").notNull(),
+  targetDepartment: text("target_department").notNull(), // 'OPERATION_THEATRE' | 'ICU' | 'IPD_WARD' | 'OPD' | 'EMERGENCY' | 'LAB' | 'DIALYSIS' | 'GENERAL'
+  recipientStaff: text("recipient_staff").notNull(),
+  dispatchedBy: text("dispatched_by").notNull(),
+  dispatchDate: text("dispatch_date").notNull(), // YYYY-MM-DD
+  remarks: text("remarks"),
+  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+});
+
+export const hospitalDepartmentDispatchesRelations = relations(hospitalDepartmentDispatches, ({ one }) => ({
+  asset: one(hospitalAssets, {
+    fields: [hospitalDepartmentDispatches.assetId],
+    references: [hospitalAssets.id],
+  }),
+}));

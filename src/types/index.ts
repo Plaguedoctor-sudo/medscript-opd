@@ -254,7 +254,14 @@ export interface LabReportWithPatient extends LabReport {
   admission?: IpdAdmission | null;
 }
 
-export type UserRole = 'admin_doctor' | 'doctor' | 'nurse' | 'receptionist' | 'lab_technician';
+export type UserRole =
+  | 'admin_doctor'
+  | 'doctor'
+  | 'nurse'
+  | 'receptionist'
+  | 'lab_technician'
+  | 'pharmacist'
+  | 'manager';
 
 export interface StaffUser {
   id: number;
@@ -304,6 +311,137 @@ export interface PharmacyTransaction {
   patientId?: number | null;
   prescriptionId?: number | null;
   admissionId?: number | null;
+  remarks?: string | null;
+  createdAt: Date | null;
+}
+
+// Pharmacist Dispensation Records
+export interface DispensedItem {
+  medicationName: string;
+  strength?: string;
+  dosage?: string;
+  duration?: string;
+  quantityDispensed: number;
+  batchNo?: string;
+  instructions?: string;
+}
+
+export interface PrescriptionDispensation {
+  id: number;
+  prescriptionId?: number | null;
+  admissionId?: number | null;
+  patientId?: number | null;
+  dispensationType: 'OPD_PRESCRIPTION' | 'IPD_ROUND_MEDICATION';
+  dispensedBy: string;
+  dispensedByUserId?: number | null;
+  items: DispensedItem[];
+  status: 'DISPENSED' | 'PARTIALLY_DISPENSED' | 'READY_FOR_PICKUP';
+  remarks?: string | null;
+  dispensedAt: Date;
+  createdAt?: Date | null;
+}
+
+// Hospital Manager: Assets, Consumables, Servicing, Procurement & Department Dispatch
+export type HospitalAssetCategory =
+  | 'SURGICAL_INSTRUMENT'
+  | 'CLEANING_AGENT'
+  | 'TOILETRIES'
+  | 'LINEN_BEDSHEET'
+  | 'GENERAL_CONSUMABLE';
+
+export type AssetMaintenanceStatus =
+  | 'OPERATIONAL'
+  | 'UNDER_MAINTENANCE'
+  | 'CALIBRATION_DUE'
+  | 'OUT_OF_SERVICE'
+  | 'NOT_APPLICABLE';
+
+export interface HospitalAssetItem {
+  id: number;
+  name: string;
+  category: HospitalAssetCategory;
+  specification?: string | null;
+  quantityInStock: number;
+  unit: string; // e.g. "sets", "pieces", "liters", "bottles", "packs", "boxes"
+  minThreshold: number;
+  location?: string | null;
+  purchaseCost: number;
+  supplierName?: string | null;
+  maintenanceStatus: AssetMaintenanceStatus;
+  lastServiceDate?: string | null; // YYYY-MM-DD
+  nextServiceDue?: string | null; // YYYY-MM-DD
+  serviceVendor?: string | null;
+  serviceVendorPhone?: string | null;
+  createdAt: Date | null;
+  updatedAt?: Date | null;
+}
+
+export type AssetServiceType = 'PREVENTIVE' | 'BREAKDOWN' | 'CALIBRATION' | 'AMC_VISIT' | 'SHARPENING';
+
+export interface HospitalServiceLog {
+  id: number;
+  assetId: number;
+  assetName?: string;
+  serviceDate: string; // YYYY-MM-DD
+  serviceType: AssetServiceType;
+  technicianName?: string | null;
+  vendorName?: string | null;
+  cost: number;
+  workDescription: string;
+  partsReplaced?: string | null;
+  nextDueDate?: string | null;
+  status: 'COMPLETED' | 'PENDING_PARTS' | 'SCHEDULED';
+  loggedBy?: string | null;
+  createdAt: Date | null;
+}
+
+export interface ProcurementOrderItem {
+  name: string;
+  category: HospitalAssetCategory | string;
+  quantity: number;
+  unit: string;
+  unitPrice: number;
+  total: number;
+}
+
+export interface HospitalProcurementOrder {
+  id: number;
+  orderNo: string;
+  vendorName: string;
+  category: HospitalAssetCategory | string;
+  items: ProcurementOrderItem[];
+  totalAmount: number;
+  orderDate: string;
+  expectedDeliveryDate?: string | null;
+  receivedDate?: string | null;
+  status: 'DRAFT' | 'ORDERED' | 'RECEIVED' | 'CANCELLED';
+  orderedBy?: string | null;
+  notes?: string | null;
+  createdAt: Date | null;
+}
+
+export type HospitalTargetDepartment =
+  | 'OPERATION_THEATRE'
+  | 'ICU'
+  | 'IPD_WARD'
+  | 'OPD'
+  | 'EMERGENCY'
+  | 'LAB'
+  | 'DIALYSIS'
+  | 'GENERAL';
+
+export interface HospitalDepartmentDispatch {
+  id: number;
+  dispatchNo: string;
+  assetId?: number | null;
+  assetName: string;
+  category: HospitalAssetCategory | string;
+  quantity: number;
+  unit: string;
+  targetDepartment: HospitalTargetDepartment | string;
+  recipientStaff: string;
+  dispatchedBy: string;
+  dispatchDate: string;
   remarks?: string | null;
   createdAt: Date | null;
 }

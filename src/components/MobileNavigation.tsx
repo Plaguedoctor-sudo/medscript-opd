@@ -23,6 +23,7 @@ import {
   ChevronRight,
   ShieldAlert,
   Activity,
+  Wrench,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { canDo, ROLE_PERMISSIONS } from '@/lib/role-scope';
@@ -111,6 +112,8 @@ export function MobileNavigation({
   const showLabs = canDo(userRole as any, 'lab:view');
   const showBilling = canDo(userRole as any, 'billing:view');
   const showInventory = canDo(userRole as any, 'inventory:view');
+  const showPharmacy = canDo(userRole as any, 'pharmacy:dispense');
+  const showManager = canDo(userRole as any, 'manager:assets');
   const showReports = canDo(userRole as any, 'reports:view');
   const showSettings = canDo(userRole as any, 'settings:clinic');
   const canPrescribe = canDo(userRole as any, 'prescription:create');
@@ -359,6 +362,32 @@ export function MobileNavigation({
                     <div className="flex items-center gap-3">
                       <Pill className="w-4 h-4 text-emerald-600" />
                       <span>Pharmacy Inventory</span>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-slate-400" />
+                  </Link>
+                )}
+
+                {showPharmacy && (
+                  <Link
+                    href="/pharmacy"
+                    className="flex items-center justify-between p-2.5 rounded-lg text-slate-800 hover:bg-emerald-50 font-medium transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <Pill className="w-4 h-4 text-emerald-600" />
+                      <span>Pharmacy Dispensing Station</span>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-slate-400" />
+                  </Link>
+                )}
+
+                {showManager && (
+                  <Link
+                    href="/manager"
+                    className="flex items-center justify-between p-2.5 rounded-lg text-slate-800 hover:bg-blue-50 font-medium transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <Wrench className="w-4 h-4 text-blue-600" />
+                      <span>Facility, Stores & Assets</span>
                     </div>
                     <ChevronRight className="w-4 h-4 text-slate-400" />
                   </Link>

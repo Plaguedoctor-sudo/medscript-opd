@@ -25,6 +25,7 @@ import {
   ShieldCheck,
   UserPlus,
   Activity,
+  Wrench,
 } from "lucide-react";
 import { DashboardSearch } from "@/components/DashboardSearch";
 import { formatDate } from "@/lib/utils";
@@ -152,27 +153,43 @@ export default async function DashboardPage({
             
             {/* Desktop module links (hidden on mobile; accessible via bottom nav and drawer) */}
             <div className="hidden lg:flex items-center gap-1">
-              {/* Appointments — all roles except lab_technician */}
-              {role !== 'lab_technician' && (
+              {/* Appointments — all roles except lab_technician & manager */}
+              {role !== 'lab_technician' && role !== 'manager' && (
                 <Link href="/appointments">
                   <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
                     <CalendarCheck className="w-4 h-4 text-blue-600" /> Queue
                   </Button>
                 </Link>
               )}
-              {/* Patients — all roles except lab_technician */}
-              {role !== 'lab_technician' && (
+              {/* Patients — all roles except lab_technician & manager */}
+              {role !== 'lab_technician' && role !== 'manager' && (
                 <Link href="/patients">
                   <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
                     <Users className="w-4 h-4" /> Patients
                   </Button>
                 </Link>
               )}
-              {/* Pharmacy — doctors, nurses, receptionist, admin */}
+              {/* Pharmacy Inventory */}
               {role !== 'lab_technician' && (
                 <Link href="/inventory">
                   <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-slate-600">
                     <Pill className="w-4 h-4 text-emerald-600" /> Pharmacy
+                  </Button>
+                </Link>
+              )}
+              {/* Pharmacy Dispense — pharmacist, doctors, admin */}
+              {(role === 'admin_doctor' || role === 'doctor' || role === 'pharmacist') && (
+                <Link href="/pharmacy">
+                  <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-emerald-700 hover:bg-emerald-50">
+                    <Pill className="w-4 h-4 text-emerald-600" /> Dispense Drugs
+                  </Button>
+                </Link>
+              )}
+              {/* Hospital Stores & Assets — manager, admin */}
+              {(role === 'admin_doctor' || role === 'manager') && (
+                <Link href="/manager">
+                  <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-blue-700 hover:bg-blue-50">
+                    <Wrench className="w-4 h-4 text-blue-600" /> Stores &amp; Assets
                   </Button>
                 </Link>
               )}
@@ -231,6 +248,18 @@ export default async function DashboardPage({
               <Link href="/prescription/new">
                 <Button size="sm" className="gap-1.5 text-xs shadow-xs">
                   <PlusCircle className="w-4 h-4" /> <span className="hidden sm:inline">New Consultation</span><span className="sm:hidden">New Rx</span>
+                </Button>
+              </Link>
+            ) : role === 'pharmacist' ? (
+              <Link href="/pharmacy">
+                <Button size="sm" variant="outline" className="gap-1.5 text-xs text-emerald-800 border-emerald-300 bg-emerald-50 hover:bg-emerald-100 font-bold shadow-xs">
+                  <Pill className="w-4 h-4 text-emerald-600" /> <span className="hidden sm:inline">Pharmacy Dispense</span><span className="sm:hidden">Dispense</span>
+                </Button>
+              </Link>
+            ) : role === 'manager' ? (
+              <Link href="/manager">
+                <Button size="sm" variant="outline" className="gap-1.5 text-xs text-blue-800 border-blue-300 bg-blue-50 hover:bg-blue-100 font-bold shadow-xs">
+                  <Wrench className="w-4 h-4 text-blue-600" /> <span className="hidden sm:inline">Stores &amp; Assets</span><span className="sm:hidden">Stores</span>
                 </Button>
               </Link>
             ) : role === 'nurse' ? (

@@ -20,6 +20,8 @@ import {
   ShieldAlert,
   Loader2,
   Sparkles,
+  Pill,
+  Wrench,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -63,6 +65,8 @@ export function LoginForm({ doctorName, clinicName, initialStaffUsers = [] }: Lo
     if (categoryFilter === 'ALL') return true;
     if (categoryFilter === 'DOCTOR') return u.role === 'admin_doctor' || u.role === 'doctor';
     if (categoryFilter === 'NURSE') return u.role === 'nurse';
+    if (categoryFilter === 'PHARMACIST') return u.role === 'pharmacist';
+    if (categoryFilter === 'MANAGER') return u.role === 'manager';
     if (categoryFilter === 'RECEPTIONIST') return u.role === 'receptionist';
     if (categoryFilter === 'LAB_TECHNICIAN') return u.role === 'lab_technician';
     return true;
@@ -125,6 +129,10 @@ export function LoginForm({ doctorName, clinicName, initialStaffUsers = [] }: Lo
         return <HeartPulse className="w-4 h-4 text-rose-600" />;
       case 'lab_technician':
         return <FlaskConical className="w-4 h-4 text-cyan-600" />;
+      case 'pharmacist':
+        return <Pill className="w-4 h-4 text-emerald-600" />;
+      case 'manager':
+        return <Wrench className="w-4 h-4 text-blue-600" />;
       case 'receptionist':
       default:
         return <ClipboardList className="w-4 h-4 text-amber-600" />;
@@ -141,6 +149,10 @@ export function LoginForm({ doctorName, clinicName, initialStaffUsers = [] }: Lo
         return 'bg-rose-100 text-rose-800 border-rose-200';
       case 'lab_technician':
         return 'bg-cyan-100 text-cyan-800 border-cyan-200';
+      case 'pharmacist':
+        return 'bg-emerald-100 text-emerald-800 border-emerald-200';
+      case 'manager':
+        return 'bg-blue-100 text-blue-800 border-blue-200';
       case 'receptionist':
       default:
         return 'bg-amber-100 text-amber-800 border-amber-200';
@@ -157,6 +169,10 @@ export function LoginForm({ doctorName, clinicName, initialStaffUsers = [] }: Lo
         return 'Nurse • Inpatient Care';
       case 'lab_technician':
         return 'Lab Technician • Pathology';
+      case 'pharmacist':
+        return 'Pharmacist • Dispensing';
+      case 'manager':
+        return 'Hospital Manager • Stores & Assets';
       case 'receptionist':
       default:
         return 'Receptionist • Front Desk';
@@ -318,6 +334,20 @@ export function LoginForm({ doctorName, clinicName, initialStaffUsers = [] }: Lo
                   className={`px-3 py-1.5 rounded-lg transition-all ${categoryFilter === 'NURSE' ? 'bg-white text-rose-700 shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
                 >
                   Nursing
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCategoryFilter('PHARMACIST')}
+                  className={`px-3 py-1.5 rounded-lg transition-all ${categoryFilter === 'PHARMACIST' ? 'bg-white text-emerald-800 shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
+                >
+                  Pharmacy
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCategoryFilter('MANAGER')}
+                  className={`px-3 py-1.5 rounded-lg transition-all ${categoryFilter === 'MANAGER' ? 'bg-white text-blue-800 shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
+                >
+                  Store / Manager
                 </button>
                 <button
                   type="button"

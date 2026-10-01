@@ -37,6 +37,8 @@ import {
   CheckCircle2,
   XCircle,
   Loader2,
+  Pill,
+  Wrench,
 } from 'lucide-react';
 import { UserRoleBadge } from '@/components/UserRoleBadge';
 
@@ -241,6 +243,10 @@ export function StaffManagementSection({
         return <HeartPulse className="w-4 h-4 text-rose-600" />;
       case 'lab_technician':
         return <FlaskConical className="w-4 h-4 text-cyan-600" />;
+      case 'pharmacist':
+        return <Pill className="w-4 h-4 text-emerald-600" />;
+      case 'manager':
+        return <Wrench className="w-4 h-4 text-blue-600" />;
       case 'receptionist':
       default:
         return <ClipboardList className="w-4 h-4 text-amber-600" />;
@@ -255,7 +261,7 @@ export function StaffManagementSection({
             <Users className="w-5 h-5 text-indigo-600" /> Staff Profiles & Individual Logins
           </CardTitle>
           <CardDescription className="text-xs text-slate-500 mt-0.5">
-            Manage individual accounts for Doctors, Nurses, Receptionists, and Lab Technicians with role-based access authorities.
+            Manage individual accounts for Doctors, Nurses, Pharmacists, Managers, Receptionists, and Lab Technicians with role-based access authorities.
           </CardDescription>
         </div>
 
@@ -302,6 +308,8 @@ export function StaffManagementSection({
                         <option value="admin_doctor">Admin Doctor (Full Authorities)</option>
                         <option value="doctor">Doctor (Consulting Physician)</option>
                         <option value="nurse">Nurse (Inpatient Care & Vitals)</option>
+                        <option value="pharmacist">Pharmacist (Drug Dispensing & Verification)</option>
+                        <option value="manager">Hospital Manager (Stores, Assets & Facility)</option>
                         <option value="receptionist">Receptionist (Front Desk & Billing)</option>
                         <option value="lab_technician">Lab Technician (Pathology & Diagnostics)</option>
                       </select>
@@ -553,6 +561,8 @@ export function StaffManagementSection({
                         <option value="admin_doctor">Admin Doctor (Full Authorities)</option>
                         <option value="doctor">Doctor (Consulting Physician)</option>
                         <option value="nurse">Nurse (Inpatient Care & Vitals)</option>
+                        <option value="pharmacist">Pharmacist (Drug Dispensing & Verification)</option>
+                        <option value="manager">Hospital Manager (Stores, Assets & Facility)</option>
                         <option value="receptionist">Receptionist (Front Desk & Billing)</option>
                         <option value="lab_technician">Lab Technician (Pathology & Diagnostics)</option>
                       </select>

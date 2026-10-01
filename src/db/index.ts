@@ -447,6 +447,108 @@ sqlite.exec(`
   CREATE INDEX IF NOT EXISTS idx_device_alerts_device ON device_alerts(device_id);
   CREATE INDEX IF NOT EXISTS idx_device_alerts_admission ON device_alerts(admission_id);
   CREATE INDEX IF NOT EXISTS idx_device_alerts_ack ON device_alerts(is_acknowledged);
+
+  -- Pharmacist Drug Dispensation Records
+  CREATE TABLE IF NOT EXISTS prescription_dispensations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    prescription_id INTEGER REFERENCES prescriptions(id),
+    admission_id INTEGER REFERENCES ipd_admissions(id),
+    patient_id INTEGER REFERENCES patients(id),
+    dispensation_type TEXT NOT NULL DEFAULT 'OPD_PRESCRIPTION',
+    dispensed_by TEXT NOT NULL,
+    dispensed_by_user_id INTEGER REFERENCES staff_users(id),
+    items_json TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'DISPENSED',
+    remarks TEXT,
+    dispensed_at INTEGER,
+    created_at INTEGER
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_dispensations_rx ON prescription_dispensations(prescription_id);
+  CREATE INDEX IF NOT EXISTS idx_dispensations_admission ON prescription_dispensations(admission_id);
+  CREATE INDEX IF NOT EXISTS idx_dispensations_patient ON prescription_dispensations(patient_id);
+
+  -- Hospital Assets (Surgical Instruments, Cleaning Agents, Toiletries, Bedsheets)
+  CREATE TABLE IF NOT EXISTS hospital_assets (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    category TEXT NOT NULL,
+    specification TEXT,
+    quantity_in_stock INTEGER NOT NULL DEFAULT 0,
+    unit TEXT NOT NULL DEFAULT 'units',
+    min_threshold INTEGER NOT NULL DEFAULT 5,
+    location TEXT,
+    purchase_cost REAL NOT NULL DEFAULT 0,
+    supplier_name TEXT,
+    maintenance_status TEXT NOT NULL DEFAULT 'OPERATIONAL',
+    last_service_date TEXT,
+    next_service_due TEXT,
+    service_vendor TEXT,
+    service_vendor_phone TEXT,
+    created_at INTEGER,
+    updated_at INTEGER
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_hospital_assets_category ON hospital_assets(category);
+  CREATE INDEX IF NOT EXISTS idx_hospital_assets_status ON hospital_assets(maintenance_status);
+
+  -- Biomedical Instrument Maintenance & Calibration Logs
+  CREATE TABLE IF NOT EXISTS hospital_service_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    asset_id INTEGER NOT NULL REFERENCES hospital_assets(id),
+    service_date TEXT NOT NULL,
+    service_type TEXT NOT NULL,
+    technician_name TEXT,
+    vendor_name TEXT,
+    cost REAL NOT NULL DEFAULT 0,
+    work_description TEXT NOT NULL,
+    parts_replaced TEXT,
+    next_due_date TEXT,
+    status TEXT NOT NULL DEFAULT 'COMPLETED',
+    logged_by TEXT,
+    created_at INTEGER
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_service_logs_asset ON hospital_service_logs(asset_id);
+
+  -- Hospital Procurement Purchase Orders
+  CREATE TABLE IF NOT EXISTS hospital_procurement_orders (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    order_no TEXT NOT NULL,
+    vendor_name TEXT NOT NULL,
+    category TEXT NOT NULL,
+    items_json TEXT NOT NULL,
+    total_amount REAL NOT NULL DEFAULT 0,
+    order_date TEXT NOT NULL,
+    expected_delivery_date TEXT,
+    received_date TEXT,
+    status TEXT NOT NULL DEFAULT 'ORDERED',
+    ordered_by TEXT,
+    notes TEXT,
+    created_at INTEGER
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_procurement_order_no ON hospital_procurement_orders(order_no);
+  CREATE INDEX IF NOT EXISTS idx_procurement_status ON hospital_procurement_orders(status);
+
+  -- Internal Department Supplies & Instrument Dispatch
+  CREATE TABLE IF NOT EXISTS hospital_department_dispatches (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    dispatch_no TEXT NOT NULL,
+    asset_id INTEGER REFERENCES hospital_assets(id),
+    asset_name TEXT NOT NULL,
+    category TEXT NOT NULL,
+    quantity INTEGER NOT NULL,
+    unit TEXT NOT NULL,
+    target_department TEXT NOT NULL,
+    recipient_staff TEXT NOT NULL,
+    dispatched_by TEXT NOT NULL,
+    dispatch_date TEXT NOT NULL,
+    remarks TEXT,
+    created_at INTEGER
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_department_dispatches_dept ON hospital_department_dispatches(target_department);
 `);
 
 // Auto-seed default staff profiles across all major roles and subcategories
@@ -545,9 +647,126 @@ try {
       'MLT-LAB-559',
       now
     );
+
+    // 6. Pharmacist (Hospital Dispensing Pharmacist)
+    insertStaff.run(
+      'pharmacist',
+      hashDefaultPassword('pharmacy123'),
+      'Suresh Patel',
+      'pharmacist',
+      'Dispensing Pharmacist / Pharmacy Officer',
+      'Hospital Pharmacy & Drug Dispensing',
+      '+91 98765 43215',
+      'pharmacy@medscript.clinic',
+      'B.Pharm, R.Ph',
+      'PCI-PHARM-4102',
+      now
+    );
+
+    // 7. Hospital Manager (Facility, Materials & Stores Manager)
+    insertStaff.run(
+      'manager',
+      hashDefaultPassword('manager123'),
+      'Anil Deshmukh',
+      'manager',
+      'Hospital Materials & Operations Manager',
+      'Store, Facility & Asset Management',
+      '+91 98765 43216',
+      'manager@medscript.clinic',
+      'MHA (Hospital Administration), B.E.',
+      'MGR-OPS-901',
+      now
+    );
+  } else {
+    // Ensure Pharmacist and Manager accounts exist if database was already initialized
+    const hashDefaultPassword = (pwd: string): string => {
+      const salt = crypto.randomBytes(16).toString('hex');
+      const derived = crypto.scryptSync(pwd, salt, 32, {
+        N: 16384,
+        r: 8,
+        p: 1,
+        maxmem: 32 * 1024 * 1024,
+      });
+      return `scrypt:v1:${salt}:${derived.toString('hex')}`;
+    };
+
+    const insertStaff = sqlite.prepare(`
+      INSERT OR IGNORE INTO staff_users (login_id, password_hash, name, role, sub_role, department, phone, email, qualifications, reg_number, is_active, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
+    `);
+    const now = Date.now();
+
+    const existingPharmacist = sqlite.prepare("SELECT id FROM staff_users WHERE login_id = 'pharmacist' OR role = 'pharmacist'").get();
+    if (!existingPharmacist) {
+      insertStaff.run(
+        'pharmacist',
+        hashDefaultPassword('pharmacy123'),
+        'Suresh Patel',
+        'pharmacist',
+        'Dispensing Pharmacist / Pharmacy Officer',
+        'Hospital Pharmacy & Drug Dispensing',
+        '+91 98765 43215',
+        'pharmacy@medscript.clinic',
+        'B.Pharm, R.Ph',
+        'PCI-PHARM-4102',
+        now
+      );
+    }
+
+    const existingManager = sqlite.prepare("SELECT id FROM staff_users WHERE login_id = 'manager' OR role = 'manager'").get();
+    if (!existingManager) {
+      insertStaff.run(
+        'manager',
+        hashDefaultPassword('manager123'),
+        'Anil Deshmukh',
+        'manager',
+        'Hospital Materials & Operations Manager',
+        'Store, Facility & Asset Management',
+        '+91 98765 43216',
+        'manager@medscript.clinic',
+        'MHA (Hospital Administration), B.E.',
+        'MGR-OPS-901',
+        now
+      );
+    }
   }
 } catch (seedErr) {
   console.error('Failed to seed default staff users:', seedErr);
+}
+
+// Auto-seed default hospital assets (surgical instruments, cleaning agents, toiletries, bedsheets)
+try {
+  const assetCount = sqlite.prepare('SELECT COUNT(*) as count FROM hospital_assets').get() as { count: number } | undefined;
+  if (!assetCount || assetCount.count === 0) {
+    const insertAsset = sqlite.prepare(`
+      INSERT INTO hospital_assets (name, category, specification, quantity_in_stock, unit, min_threshold, location, purchase_cost, supplier_name, maintenance_status, last_service_date, next_service_due, service_vendor, service_vendor_phone, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    const now = Date.now();
+    // 1. Surgical Instruments
+    insertAsset.run('Major Laparotomy Instrument Set', 'SURGICAL_INSTRUMENT', 'Grade 316 Stainless Steel (28 pcs: Scalpel handles, Artery forceps, Metzenbaum scissors, Retractors)', 6, 'sets', 2, 'OT Sterile Room - Rack S-1', 45000, 'Apollo Surgico Instruments Ltd', 'OPERATIONAL', '2026-09-15', '2026-11-15', 'Apex MedTech Servicing', '+91 98220 11223', now, now);
+    insertAsset.run('Autoclaved Minor Surgery Kit', 'SURGICAL_INSTRUMENT', 'Standard stainless steel suture set (Needle holder, Toothed dissecting forceps, Stitch scissors)', 14, 'kits', 5, 'Emergency & OPD Dressing Room', 3500, 'National Surgical Supplies', 'OPERATIONAL', '2026-09-20', '2026-12-20', 'Apex MedTech Servicing', '+91 98220 11223', now, now);
+    insertAsset.run('Heavy Duty Autoclave Sterilizer 50L', 'SURGICAL_INSTRUMENT', 'Vertical High-Pressure Steam Autoclave with digital timer and dual safety valve', 2, 'units', 1, 'Central Sterile Services Dept (CSSD)', 125000, 'Zenith Biomedical Technologies', 'OPERATIONAL', '2026-08-10', '2026-10-15', 'Zenith Biomedical AMC', '+91 98220 44556', now, now);
+    insertAsset.run('Electrical Surgical Suction Machine', 'SURGICAL_INSTRUMENT', 'Twin jar 2x2.5L high vacuum surgical aspirator', 4, 'units', 2, 'Operation Theatre 1 & 2', 28000, 'Meditronix Devices', 'CALIBRATION_DUE', '2026-07-01', '2026-10-01', 'Meditronix Care Line', '+91 98220 77889', now, now);
+
+    // 2. Cleaning Agents
+    insertAsset.run('Sodium Hypochlorite 5% Disinfectant', 'CLEANING_AGENT', 'Hospital-grade viral and bacterial surface disinfectant (5L Carboy)', 18, 'cans (5L)', 5, 'Housekeeping Chemical Store', 450, 'CleanSafe Chemicals Ltd', 'NOT_APPLICABLE', null, null, null, null, now, now);
+    insertAsset.run('Hospital Surface Floor Cleaner & Sanitizer', 'CLEANING_AGENT', 'Floral fragrance bactericidal surface cleanser concentrate (5L)', 24, 'cans (5L)', 8, 'Housekeeping Chemical Store', 380, 'CleanSafe Chemicals Ltd', 'NOT_APPLICABLE', null, null, null, null, now, now);
+    insertAsset.run('Autoclave Sterilization Indicator Tape', 'CLEANING_AGENT', 'Lead-free steam sterilization indicator strips (Roll of 50m)', 12, 'rolls', 3, 'CSSD Store', 280, 'Steris Health', 'NOT_APPLICABLE', null, null, null, null, now, now);
+
+    // 3. Toiletries
+    insertAsset.run('Chlorhexidine 4% Antiseptic Hand Wash 500ml', 'TOILETRIES', 'Surgical hand scrub with pump dispenser', 35, 'bottles', 10, 'Central Store - Bay T-2', 190, 'Medshield Pharma', 'NOT_APPLICABLE', null, null, null, null, now, now);
+    insertAsset.run('Alcohol Hand Sanitizer Dispenser Gel (5L)', 'TOILETRIES', '75% Isopropanol hospital-grade sanitizing liquid bulk refiller', 15, 'cans (5L)', 4, 'Central Store - Bay T-2', 750, 'Medshield Pharma', 'NOT_APPLICABLE', null, null, null, null, now, now);
+    insertAsset.run('Hospital Multi-fold Paper Hand Towels (Box of 200)', 'TOILETRIES', 'Virgin pulp absorbent hand drying tissues', 40, 'boxes', 10, 'General Stationery Store', 120, 'KleenCare Hygiene', 'NOT_APPLICABLE', null, null, null, null, now, now);
+
+    // 4. Linen & Bedsheets
+    insertAsset.run('Hospital Patient Bed Sheet (White Cotton)', 'LINEN_BEDSHEET', '100% Cotton, 200 TC, Bleached White, 60x90 inches, autoclave-safe', 85, 'pieces', 25, 'Central Linen Store - Wardrobe A', 320, 'Raymond Healthcare Fabrics', 'NOT_APPLICABLE', null, null, null, null, now, now);
+    insertAsset.run('Hospital Pillow Covers (Sterile Cotton)', 'LINEN_BEDSHEET', 'Bleached cotton pillow slip 18x27 inches with hospital emblem', 110, 'pieces', 30, 'Central Linen Store - Wardrobe B', 85, 'Raymond Healthcare Fabrics', 'NOT_APPLICABLE', null, null, null, null, now, now);
+    insertAsset.run('Warm Thermal Hospital Blanket', 'LINEN_BEDSHEET', 'Anti-static, washable hospital cellular blanket (Navy Blue)', 32, 'pieces', 10, 'Central Linen Store - Wardrobe C', 650, 'Raymond Healthcare Fabrics', 'NOT_APPLICABLE', null, null, null, null, now, now);
+    insertAsset.run('Waterproof Surgeon & Patient OT Gown Set', 'LINEN_BEDSHEET', 'Reinforced sterile fluid-resistant reusable surgical gown with ties', 28, 'sets', 8, 'OT Linen Room', 520, 'Raymond Healthcare Fabrics', 'NOT_APPLICABLE', null, null, null, null, now, now);
+  }
+} catch (assetSeedErr) {
+  console.error('Failed to seed default hospital assets:', assetSeedErr);
 }
 
 // Auto-seed default ICU and IPD devices if table is empty
@@ -759,7 +978,7 @@ try {
       SELECT RAISE(FAIL, 'MITRE T1070: Audit logs cannot be altered retroactively.');
     END;
   `);
-} catch (e) {
+} catch {
   // Triggers already exist or error
 }
 

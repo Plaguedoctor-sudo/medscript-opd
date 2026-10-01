@@ -16,10 +16,25 @@ import { SafeStaffUser } from '@/types';
 export const SESSION_COOKIE_NAME = 'medscript_session';
 const SESSION_DURATION_MS = 12 * 60 * 60 * 1000; // 12 hours max shift lifetime
 
-export type UserRole = 'admin_doctor' | 'doctor' | 'nurse' | 'receptionist' | 'lab_technician';
+export type UserRole =
+  | 'admin_doctor'
+  | 'doctor'
+  | 'nurse'
+  | 'receptionist'
+  | 'lab_technician'
+  | 'pharmacist'
+  | 'manager';
 
 export function isValidUserRole(role: string): role is UserRole {
-  return ['admin_doctor', 'doctor', 'nurse', 'receptionist', 'lab_technician'].includes(role);
+  return [
+    'admin_doctor',
+    'doctor',
+    'nurse',
+    'receptionist',
+    'lab_technician',
+    'pharmacist',
+    'manager',
+  ].includes(role);
 }
 
 let cachedSessionSecret: string | null = null;
@@ -655,6 +670,14 @@ export function isReceptionist(role: UserRole): boolean {
 
 export function isLabTech(role: UserRole): boolean {
   return role === 'admin_doctor' || role === 'lab_technician';
+}
+
+export function isPharmacist(role: UserRole): boolean {
+  return role === 'admin_doctor' || role === 'pharmacist';
+}
+
+export function isHospitalManager(role: UserRole): boolean {
+  return role === 'admin_doctor' || role === 'manager';
 }
 
 // ── Granular Permissions & Role Scope ──────────────────────────────────────────

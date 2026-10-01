@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { UserRole } from '@/lib/auth';
-import { Stethoscope, ClipboardList, ShieldCheck, HeartPulse, FlaskConical, ShieldAlert } from 'lucide-react';
+import { Stethoscope, ClipboardList, ShieldCheck, HeartPulse, FlaskConical, ShieldAlert, Pill, Wrench } from 'lucide-react';
 
 interface UserRoleBadgeProps {
   role: UserRole;
@@ -69,6 +69,32 @@ export function UserRoleBadge({ role, securityEnabled = true, userName, subRole 
         <FlaskConical className="w-3.5 h-3.5 text-cyan-600" />
         <span className="font-bold">{userName || 'Lab Technician'}</span>
         <span className="hidden xl:inline text-[10px] text-cyan-600 font-normal">• Pathology</span>
+      </span>
+    );
+  }
+
+  if (role === 'pharmacist') {
+    return (
+      <span
+        title={`Active Role: Pharmacist - Drug Dispensing & Stock Verification${subRole ? ` (${subRole})` : ''}`}
+        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200 shadow-2xs"
+      >
+        <Pill className="w-3.5 h-3.5 text-emerald-600" />
+        <span className="font-bold">{userName || 'Pharmacist'}</span>
+        <span className="hidden xl:inline text-[10px] text-emerald-600 font-normal">• Dispensing</span>
+      </span>
+    );
+  }
+
+  if (role === 'manager') {
+    return (
+      <span
+        title={`Active Role: Hospital Manager - Facility, Instruments & Procurement${subRole ? ` (${subRole})` : ''}`}
+        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-blue-50 text-blue-800 border border-blue-200 shadow-2xs"
+      >
+        <Wrench className="w-3.5 h-3.5 text-blue-600" />
+        <span className="font-bold">{userName || 'Hospital Manager'}</span>
+        <span className="hidden xl:inline text-[10px] text-blue-600 font-normal">• Stores & Assets</span>
       </span>
     );
   }

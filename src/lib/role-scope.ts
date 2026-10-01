@@ -118,6 +118,57 @@ export function getRoleScope(role: UserRole): RoleScope {
           'Front-desk patient intake and OPD billing receipt management',
         ],
       };
+    case 'pharmacist':
+      return {
+        role: 'pharmacist',
+        title: 'Dispensing Pharmacist / Pharmacy Officer',
+        department: 'Hospital Pharmacy & Drug Dispensing',
+        allowedWork: [
+          'View doctor outpatient prescriptions & active medication orders',
+          'View inpatient round medication charts & eMAR drug schedules',
+          'Dispense and dispatch prescribed medications with batch number & expiry verification',
+          'Track drug stock, batch numbers, MRP, and low-stock alerts',
+          'Log medication dispensation timestamps and dispenser audit trails',
+          'Print medication dispensing slips and dosage instructions',
+          'Manage own security PIN & credentials',
+        ],
+        restrictedWork: [
+          'CANNOT create new clinical prescriptions or diagnoses (Doctor exclusive)',
+          'CANNOT edit doctor prescriptions or alter medication regimens',
+          'CANNOT conduct inpatient clinical rounds or enter doctor notes',
+          'CANNOT order or enter laboratory investigation results',
+          'CANNOT admit or discharge hospital patients',
+          'CANNOT modify hospital billing ledgers or administrative clinic settings',
+        ],
+        exclusiveWork: [
+          'Dispensing medications against doctor prescriptions, verifying batch/expiry, and updating drug inventory',
+        ],
+      };
+    case 'manager':
+      return {
+        role: 'manager',
+        title: 'Hospital Materials & Operations Manager',
+        department: 'Store, Facility & Asset Management',
+        allowedWork: [
+          'Maintain inventory of medical and surgical instruments (sets, forceps, autoclaved kits)',
+          'Maintain hospital daily consumable stock (cleaning agents, toiletries, bedsheets, linen, patient gowns)',
+          'Schedule and record biomedical instrument maintenance, servicing, and calibration',
+          'Create hospital procurement purchase orders for medical supplies, linen, and cleaning stock',
+          'Dispatch stock and instruments to hospital departments (OT, ICU, IPD, OPD, Emergency)',
+          'Track vendor contacts, AMC contracts, service due dates, and minimum threshold alerts',
+          'Manage own security PIN & credentials',
+        ],
+        restrictedWork: [
+          'CANNOT create or edit clinical prescriptions (Doctor exclusive)',
+          'CANNOT diagnose patients or conduct inpatient rounds',
+          'CANNOT administer bedside medications or perform nursing interventions',
+          'CANNOT enter or edit diagnostic laboratory results',
+          'CANNOT alter hospital-wide security lockdown or clinical master keys',
+        ],
+        exclusiveWork: [
+          'Hospital procurement orders, surgical instrument asset tracking, biomedical maintenance servicing, and internal department supplies dispatch',
+        ],
+      };
     case 'admin_doctor':
     default:
       return {
@@ -167,6 +218,13 @@ export type Permission =
   // Pharmacy / Inventory
   | 'inventory:view'
   | 'inventory:manage'
+  // Pharmacy Dispensation
+  | 'pharmacy:dispense'
+  // Hospital Assets, Maintenance, Procurement & Internal Dispatch
+  | 'manager:assets'
+  | 'manager:maintenance'
+  | 'manager:purchase'
+  | 'manager:dispatch'
   // Reports & Analytics
   | 'reports:view'
   | 'reports:idsp'
@@ -198,6 +256,7 @@ export const ROLE_PERMISSIONS: Record<Exclude<UserRole, 'admin_doctor'>, Permiss
     'lab:view', 'lab:order',
     'billing:view', 'billing:manage',
     'inventory:view', 'inventory:manage',
+    'pharmacy:dispense',
     'reports:view', 'reports:idsp',
     'settings:view_own_pin', 'settings:clinic',
     'certificate:issue', 'document:upload', 'template:manage',
@@ -228,6 +287,24 @@ export const ROLE_PERMISSIONS: Record<Exclude<UserRole, 'admin_doctor'>, Permiss
     'prescription:view',
     'patient:view',
     'lab:view', 'lab:order', 'lab:manage',
+    'settings:view_own_pin',
+  ],
+  pharmacist: [
+    'prescription:view',
+    'patient:view',
+    'ipd:view',
+    'inventory:view',
+    'inventory:manage',
+    'pharmacy:dispense',
+    'settings:view_own_pin',
+  ],
+  manager: [
+    'inventory:view',
+    'inventory:manage',
+    'manager:assets',
+    'manager:maintenance',
+    'manager:purchase',
+    'manager:dispatch',
     'settings:view_own_pin',
   ],
 };
