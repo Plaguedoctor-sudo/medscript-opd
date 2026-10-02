@@ -616,6 +616,31 @@ sqlite.exec(`
 
   CREATE INDEX IF NOT EXISTS idx_cctv_incidents_cam ON hospital_cctv_incidents(camera_id);
   CREATE INDEX IF NOT EXISTS idx_cctv_incidents_ack ON hospital_cctv_incidents(acknowledged);
+
+  CREATE TABLE IF NOT EXISTS hospital_cctv_recordings (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    camera_id INTEGER NOT NULL REFERENCES hospital_cctv_cameras(id),
+    camera_name TEXT NOT NULL,
+    zone TEXT NOT NULL,
+    filename TEXT NOT NULL,
+    file_path TEXT NOT NULL,
+    file_size_bytes INTEGER NOT NULL DEFAULT 0,
+    duration_seconds INTEGER NOT NULL DEFAULT 0,
+    start_time INTEGER NOT NULL,
+    end_time INTEGER NOT NULL,
+    trigger_type TEXT NOT NULL DEFAULT 'CONTINUOUS',
+    incident_id INTEGER REFERENCES hospital_cctv_incidents(id),
+    is_locked INTEGER NOT NULL DEFAULT 0,
+    lock_reason TEXT,
+    checksum_sha256 TEXT NOT NULL,
+    thumbnail_data TEXT,
+    created_at INTEGER
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_cctv_recordings_camera ON hospital_cctv_recordings(camera_id);
+  CREATE INDEX IF NOT EXISTS idx_cctv_recordings_zone ON hospital_cctv_recordings(zone);
+  CREATE INDEX IF NOT EXISTS idx_cctv_recordings_start ON hospital_cctv_recordings(start_time);
+  CREATE INDEX IF NOT EXISTS idx_cctv_recordings_locked ON hospital_cctv_recordings(is_locked);
 `);
 
 // Note: Hardcoded default staff accounts and demo passwords have been permanently eliminated (CWE-798 / CWE-1188 compliance).
@@ -983,6 +1008,10 @@ try {
   if (!sCols.has("lan_mirror_last_sync_status")) sqlite.prepare("ALTER TABLE clinic_settings ADD COLUMN lan_mirror_last_sync_status TEXT DEFAULT 'IDLE'").run();
   if (!sCols.has("lan_mirror_last_sync_hash")) sqlite.prepare("ALTER TABLE clinic_settings ADD COLUMN lan_mirror_last_sync_hash TEXT").run();
   if (!sCols.has("lan_mirror_heartbeat_interval_sec")) sqlite.prepare("ALTER TABLE clinic_settings ADD COLUMN lan_mirror_heartbeat_interval_sec INTEGER DEFAULT 15").run();
+  if (!sCols.has("cctv_storage_path")) sqlite.prepare("ALTER TABLE clinic_settings ADD COLUMN cctv_storage_path TEXT DEFAULT 'cctv_recordings'").run();
+  if (!sCols.has("cctv_retention_days")) sqlite.prepare("ALTER TABLE clinic_settings ADD COLUMN cctv_retention_days INTEGER DEFAULT 30").run();
+  if (!sCols.has("cctv_max_storage_gb")) sqlite.prepare("ALTER TABLE clinic_settings ADD COLUMN cctv_max_storage_gb INTEGER DEFAULT 50").run();
+  if (!sCols.has("cctv_auto_purge_enabled")) sqlite.prepare("ALTER TABLE clinic_settings ADD COLUMN cctv_auto_purge_enabled INTEGER DEFAULT 1").run();
 
   sqlite.exec(`
     CREATE TABLE IF NOT EXISTS lan_mirror_audit (

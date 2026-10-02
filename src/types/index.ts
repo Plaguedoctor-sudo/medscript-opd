@@ -829,4 +829,43 @@ export interface CctvIncident {
   createdAt: Date | null;
 }
 
+export type CctvTriggerType = 'CONTINUOUS' | 'MOTION' | 'INCIDENT' | 'MANUAL';
+
+export interface CctvRecording {
+  id: number;
+  cameraId: number;
+  cameraName: string;
+  zone: CctvZone;
+  filename: string;
+  filePath: string;
+  fileSizeBytes: number;
+  durationSeconds: number;
+  startTime: Date;
+  endTime: Date;
+  triggerType: CctvTriggerType;
+  incidentId?: number | null;
+  isLocked: boolean;
+  lockReason?: string | null;
+  checksumSha256: string;
+  thumbnailData?: string | null;
+  createdAt: Date | null;
+}
+
+export interface CctvStorageStats {
+  totalRecordings: number;
+  totalSizeBytes: number;
+  totalSizeFormatted: string;
+  maxStorageGb: number;
+  usedPercentage: number;
+  retentionDays: number;
+  oldestRecordingAt?: Date | null;
+  newestRecordingAt?: Date | null;
+  lockedRecordingsCount: number;
+  lockedRecordingsSizeFormatted: string;
+  autoPurgeEnabled: boolean;
+  zoneBreakdown: Record<string, { count: number; sizeBytes: number; sizeFormatted: string }>;
+  triggerBreakdown: Record<CctvTriggerType, number>;
+}
+
+
 

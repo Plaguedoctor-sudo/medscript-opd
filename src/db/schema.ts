@@ -142,6 +142,11 @@ export const clinicSettings = sqliteTable("clinic_settings", {
   lanMirrorLastSyncStatus: text("lan_mirror_last_sync_status").default("IDLE"),
   lanMirrorLastSyncHash: text("lan_mirror_last_sync_hash"),
   lanMirrorHeartbeatIntervalSec: integer("lan_mirror_heartbeat_interval_sec").default(15),
+  // CCTV Feed Storage & NVR Retention Policy
+  cctvStoragePath: text("cctv_storage_path").default("cctv_recordings"),
+  cctvRetentionDays: integer("cctv_retention_days").default(30),
+  cctvMaxStorageGb: integer("cctv_max_storage_gb").default(50),
+  cctvAutoPurgeEnabled: integer("cctv_auto_purge_enabled", { mode: "boolean" }).$defaultFn(() => true),
 });
 
 export const lanMirrorAudit = sqliteTable("lan_mirror_audit", {
@@ -1009,4 +1014,36 @@ export const hospitalCctvIncidentsRelations = relations(hospitalCctvIncidents, (
     references: [hospitalCctvCameras.id],
   }),
 }));
+
+export const hospitalCctvRecordings = sqliteTable("hospital_cctv_recordings", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  cameraId: integer("camera_id").references(() => hospitalCctvCameras.id).notNull(),
+  cameraName: text("camera_name").notNull(),
+  zone: text("zone").notNull(),
+  filename: text("filename").notNull(),
+  filePath: text("file_path").notNull(),
+  fileSizeBytes: integer("file_size_bytes").notNull().default(0),
+  durationSeconds: integer("duration_seconds").notNull().default(0),
+  startTime: integer("start_time", { mode: "timestamp" }).notNull(),
+  endTime: integer("end_time", { mode: "timestamp" }).notNull(),
+  triggerType: text("trigger_type").notNull().default("CONTINUOUS"), // 'CONTINUOUS' | 'MOTION' | 'INCIDENT' | 'MANUAL'
+  incidentId: integer("incident_id").references(() => hospitalCctvIncidents.id),
+  isLocked: integer("is_locked", { mode: "boolean" }).notNull().$defaultFn(() => false),
+  lockReason: text("lock_reason"),
+  checksumSha256: text("checksum_sha256").notNull(), // Tamper-evident Section 65B forensic seal
+  thumbnailData: text("thumbnail_data"),
+  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+});
+
+export const hospitalCctvRecordingsRelations = relations(hospitalCctvRecordings, ({ one }) => ({
+  camera: one(hospitalCctvCameras, {
+    fields: [hospitalCctvRecordings.cameraId],
+    references: [hospitalCctvCameras.id],
+  }),
+  incident: one(hospitalCctvIncidents, {
+    fields: [hospitalCctvRecordings.incidentId],
+    references: [hospitalCctvIncidents.id],
+  }),
+}));
+
 

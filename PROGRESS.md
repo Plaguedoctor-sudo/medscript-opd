@@ -9,9 +9,9 @@
 
 ## Current State
 
-**Version:** `1.1.6` | **Branch:** `main`
-**Build:** ✅ 0 errors | **Tests:** ✅ 170/170 passing across 16 test suites
-**Status:** LAN Peer Mirroring Active · Native CCTV RTSP Bridge · ABDM & PM-JAY Sandbox Certified
+**Version:** `1.1.7` | **Branch:** `main`
+**Build:** ✅ 0 errors | **Tests:** ✅ 176/176 passing across 17 test suites
+**Status:** CCTV NVR Footage Vault & Retention Subsystem Active · Section 65B Forensic Admissibility · LAN Peer Mirroring · Native RTSP Bridge
 
 ```
 Next.js 16.3.8 (Turbopack) · SQLite (Drizzle ORM) · High-Availability Clustering · Offline-First PWA · Android Native APK
@@ -162,8 +162,15 @@ Next.js 16.3.8 (Turbopack) · SQLite (Drizzle ORM) · High-Availability Clusteri
 
 ### CI / Quality
 - [x] **GitHub Actions CI** — lint + type-check + test on every push (`.github/workflows/ci.yml`)
-- [x] **Vitest** — 14 tests across allergy checker, DDI, vitals, crypto
+- [x] **Vitest** — 176 tests across 17 test suites
 - [x] **ESLint** — configured for Next.js (`eslint.config.mjs`)
+
+### Hospital CCTV Surveillance & NVR Vault
+- [x] **Multi-Zone Command Center** (`/cctv`) — Live surveillance grid (1x1, 2x2, 3x3, Wall) for ICU, Emergency, OT, Pharmacy, IPD Wards, Reception, and Stores with PTZ optical controls and HIPAA/DISHA patient dignity masking.
+- [x] **Native RTSP Bridge & ONVIF Discovery** (`src/lib/cctv/rtsp-bridge.ts`) — Media gateway integration (go2rtc / MediaMTX) and local subnet WS-Discovery auto-scanner.
+- [x] **NVR Storage Engine & Retention Manager** (`src/lib/cctv/cctv-storage-engine.ts`) — Automated rolling purge according to configurable retention windows (7 to 180 days, default 30 days NABH standard) and disk quota (GB) with NIST SP 800-88 cryptographic zeroization.
+- [x] **Section 65B Medico-Legal Evidence Preservation** — Permanent evidence locking (`is_locked = 1`) exempt from auto-purge, tamper-evident SHA-256 digital seals with constant-time verification, and exportable Certificates of Electronic Evidence under Section 65B Indian Evidence Act / Section 63 Bharatiya Sakshya Adhiniyam.
+- [x] **Interactive Footage Library UI** (`CctvStorageManager.tsx`) — Storage capacity gauge, zone & trigger filtering, clip playback simulator, live hash integrity test, evidence locking dialog, and Section 65B electronic certificate export.
 
 ---
 
@@ -241,6 +248,8 @@ Next.js 16.3.8 (Turbopack) · SQLite (Drizzle ORM) · High-Availability Clusteri
 ## 🗓 Session Log
 
 | Date | What was done |
+|---|---|
+| 2026-10-02 | **Hospital CCTV Feed Storage, NVR Archive & Medico-Legal Evidence Preservation Subsystem (v1.1.7)** — (1) **Database Schema & Migrations**: Added `hospital_cctv_recordings` table with indexing on `camera_id`, `zone`, `start_time`, and `is_locked`, plus clinic settings configuration fields for `cctv_storage_path`, `cctv_retention_days`, `cctv_max_storage_gb`, and `cctv_auto_purge_enabled`; (2) **Storage & Retention Engine (`src/lib/cctv/cctv-storage-engine.ts`)**: Configurable retention windows (7, 15, 30, 60, 90, 180 days) matching NABH recommendations and disk quotas (GB); automated rolling purge enforcing NIST SP 800-88 cryptographic zeroization before unlinking; strict evidence lock protection ensuring `is_locked = 1` files are permanently exempt from purge or unauthorized deletion; (3) **Section 65B Indian Evidence Act / Section 63 BSA Forensic Admissibility**: SHA-256 digital seals generated per video segment with POSIX 0600 file modes; constant-time `crypto.timingSafeEqual` hash verification detecting any disk bit modification or tampering; exportable Section 65B electronic evidence certificates; (4) **Server Actions (`src/app/cctv/storage-actions.ts`)**: `getCctvStorageDataAction`, `updateCctvStorageConfigAction`, `toggleLockRecordingAction`, `verifyRecordingIntegrityAction`, `deleteRecordingAction`, and `triggerStoragePruneAction` secured with `requirePermission('cctv:view')` and `requirePermission('cctv:manage')`; (5) **Interactive UI (`CctvStorageManager.tsx` & `HospitalCctvCommandCenter.tsx`)**: Storage capacity gauge with utilization progress bar, zone & trigger filters, clip playback inspector modal with Section 65B certificate generator, evidence locking dialog with case custody notes, and manual rolling purge trigger; (6) **Test Suite (`cctv-feed-storage.test.ts`)**: 6 comprehensive unit tests validating segment saving, SHA-256 integrity, tamper detection, evidence locking preventing deletion, selective prune preserving locked evidence, and storage statistics. Build ✅ Typecheck ✅ Tests ✅ 176/176 passing across 17 test suites, 0 errors. |
 |---|---|
 | 2026-10-02 | **High Availability LAN Mirroring, Native CCTV RTSP Bridge, and ABDM/PM-JAY Sandbox Certification** — (1) **Automated LAN Peer Mirroring (Zero Data Loss)**: High Availability SQLite cluster engine (`src/lib/lan-mirroring.ts`) with SHA-256 database seals, constant-time cluster PSK verification (`crypto.timingSafeEqual`), signed replication snapshot packages, heartbeat monitoring endpoints (`/api/lan-mirror/heartbeat`, `/api/lan-mirror/sync`), emergency failover promotion (`promoteToPrimary`), and interactive UI (`LanMirroringCard.tsx`) on `/settings`; (2) **Native Hospital CCTV RTSP Bridge & ONVIF Discovery**: Integrated RTSP bridge engine (`src/lib/cctv/rtsp-bridge.ts`) supporting local go2rtc/MediaMTX gateways, ONVIF Profile S/T WS-Discovery camera scanner, TCP port stream probe with latency diagnostics, production `go2rtc.yaml` and `mediamtx.yml` configuration generators, and UI integration with test connection button in `HospitalCctvCommandCenter.tsx`; (3) **ABDM & PM-JAY Sandbox Compliance Validator**: NHA compliance engine (`src/lib/abdm/abdm-sandbox-validator.ts`) covering M1 (ABHA creation & verification), M2 (HIP care context linking), and M3 (NRCES FHIR R4 Document Bundle with Entry[0] Composition and Practitioner attribution), plus Ayushman Bharat PM-JAY HBP 2.2 pre-authorization and claim readiness auditor (`runAbdmSandboxValidationAction`); (4) **Test Suites**: Added 34 unit tests across `lan-peer-mirroring.test.ts` (10 tests), `cctv-rtsp-bridge.test.ts` (14 tests), and `abdm-sandbox-validation.test.ts` (10 tests). Build ✅ Typecheck ✅ Tests ✅ 170/170 passing across 16 test suites, 0 errors. |
 |---|---|

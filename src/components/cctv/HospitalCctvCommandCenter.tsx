@@ -65,7 +65,9 @@ import {
   Download,
   Wifi,
   Check,
+  HardDrive,
 } from 'lucide-react';
+import { CctvStorageManager } from './CctvStorageManager';
 
 interface HospitalCctvCommandCenterProps {
   initialCameras: CctvCamera[];
@@ -87,7 +89,7 @@ export function HospitalCctvCommandCenter({
   const [stats, setStats] = useState<CctvStats>(initialStats);
   const [selectedZone, setSelectedZone] = useState<string>('ALL');
   const [gridLayout, setGridLayout] = useState<'1x1' | '2x2' | '3x3' | 'ALL'>('2x2');
-  const [activeTab, setActiveTab] = useState<'live' | 'incidents' | 'settings'>('live');
+  const [activeTab, setActiveTab] = useState<'live' | 'incidents' | 'storage' | 'settings'>('live');
 
   // PTZ & Focus Modal
   const [focusedCamera, setFocusedCamera] = useState<CctvCamera | null>(null);
@@ -532,8 +534,25 @@ export function HospitalCctvCommandCenter({
             <Button
               size="sm"
               variant="outline"
+              onClick={() => setActiveTab(activeTab === 'storage' ? 'live' : 'storage')}
+              className={`gap-1.5 text-xs font-semibold ${
+                activeTab === 'storage'
+                  ? 'bg-indigo-600 hover:bg-indigo-700 text-white border-indigo-500 shadow-md'
+                  : 'bg-slate-900 hover:bg-slate-800 text-white border-slate-700'
+              }`}
+            >
+              <HardDrive className="w-3.5 h-3.5 text-indigo-400" />
+              NVR Storage & Archive
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
               onClick={() => setActiveTab(activeTab === 'incidents' ? 'live' : 'incidents')}
-              className="gap-1.5 bg-slate-900 hover:bg-slate-800 text-white border-slate-700 text-xs relative"
+              className={`gap-1.5 text-xs relative ${
+                activeTab === 'incidents'
+                  ? 'bg-amber-600 hover:bg-amber-700 text-white border-amber-500 shadow-md'
+                  : 'bg-slate-900 hover:bg-slate-800 text-white border-slate-700'
+              }`}
             >
               <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
               Incidents
@@ -599,83 +618,85 @@ export function HospitalCctvCommandCenter({
         </div>
       )}
 
-      {/* Control Strip: Layout Selector & Zone Chips */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="text-xs font-bold text-slate-500 mr-1 flex items-center gap-1">
-            <Radio className="w-3.5 h-3.5" /> Zone:
-          </span>
-          {[
-            { id: 'ALL', label: 'All Zones' },
-            { id: 'ICU', label: 'ICU & Critical' },
-            { id: 'EMERGENCY', label: 'Emergency' },
-            { id: 'OT', label: 'OT Complex' },
-            { id: 'IPD_WARD', label: 'IPD Wards' },
-            { id: 'PHARMACY', label: 'Pharmacy Vault' },
-            { id: 'OPD_RECEPTION', label: 'Reception & Queue' },
-            { id: 'STORES_ASSETS', label: 'Stores' },
-          ].map((z) => (
-            <button
-              key={z.id}
-              onClick={() => setSelectedZone(z.id)}
-              className={`px-3 py-1 rounded-xl text-xs font-bold transition-all ${
-                selectedZone === z.id
-                  ? 'bg-slate-900 text-white shadow-xs'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-              }`}
-            >
-              {z.label}
-            </button>
-          ))}
-        </div>
-
-        <div className="flex items-center gap-2 self-end sm:self-center">
-          <span className="text-xs font-bold text-slate-500 flex items-center gap-1">
-            <LayoutGrid className="w-3.5 h-3.5" /> Layout:
-          </span>
-          <div className="flex items-center bg-slate-100 p-0.5 rounded-xl border border-slate-200">
-            <button
-              onClick={() => setGridLayout('1x1')}
-              className={`px-2.5 py-1 rounded-lg text-xs font-bold ${
-                gridLayout === '1x1' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
-              }`}
-              title="1x1 Solo Focus"
-            >
-              1×1
-            </button>
-            <button
-              onClick={() => setGridLayout('2x2')}
-              className={`px-2.5 py-1 rounded-lg text-xs font-bold ${
-                gridLayout === '2x2' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
-              }`}
-              title="2x2 Quad View"
-            >
-              2×2
-            </button>
-            <button
-              onClick={() => setGridLayout('3x3')}
-              className={`px-2.5 py-1 rounded-lg text-xs font-bold ${
-                gridLayout === '3x3' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
-              }`}
-              title="3x3 Multi-View"
-            >
-              3×3
-            </button>
-            <button
-              onClick={() => setGridLayout('ALL')}
-              className={`px-2.5 py-1 rounded-lg text-xs font-bold ${
-                gridLayout === 'ALL' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
-              }`}
-              title="All Feeds Wall"
-            >
-              Wall
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Live Stream Surveillance Grid */}
+      {/* Live Stream Surveillance Grid & Control Strip */}
       {activeTab === 'live' && (
+        <div className="space-y-6">
+          {/* Control Strip: Layout Selector & Zone Chips */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-xs font-bold text-slate-500 mr-1 flex items-center gap-1">
+                <Radio className="w-3.5 h-3.5" /> Zone:
+              </span>
+              {[
+                { id: 'ALL', label: 'All Zones' },
+                { id: 'ICU', label: 'ICU & Critical' },
+                { id: 'EMERGENCY', label: 'Emergency' },
+                { id: 'OT', label: 'OT Complex' },
+                { id: 'IPD_WARD', label: 'IPD Wards' },
+                { id: 'PHARMACY', label: 'Pharmacy Vault' },
+                { id: 'OPD_RECEPTION', label: 'Reception & Queue' },
+                { id: 'STORES_ASSETS', label: 'Stores' },
+              ].map((z) => (
+                <button
+                  key={z.id}
+                  onClick={() => setSelectedZone(z.id)}
+                  className={`px-3 py-1 rounded-xl text-xs font-bold transition-all ${
+                    selectedZone === z.id
+                      ? 'bg-slate-900 text-white shadow-xs'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  {z.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex items-center gap-2 self-end sm:self-center">
+              <span className="text-xs font-bold text-slate-500 flex items-center gap-1">
+                <LayoutGrid className="w-3.5 h-3.5" /> Layout:
+              </span>
+              <div className="flex items-center bg-slate-100 p-0.5 rounded-xl border border-slate-200">
+                <button
+                  onClick={() => setGridLayout('1x1')}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold ${
+                    gridLayout === '1x1' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                  title="1x1 Solo Focus"
+                >
+                  1×1
+                </button>
+                <button
+                  onClick={() => setGridLayout('2x2')}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold ${
+                    gridLayout === '2x2' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                  title="2x2 Quad View"
+                >
+                  2×2
+                </button>
+                <button
+                  onClick={() => setGridLayout('3x3')}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold ${
+                    gridLayout === '3x3' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                  title="3x3 Multi-View"
+                >
+                  3×3
+                </button>
+                <button
+                  onClick={() => setGridLayout('ALL')}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold ${
+                    gridLayout === 'ALL' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                  title="All Feeds Wall"
+                >
+                  Wall
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Camera Grid Tiles */}
         <div>
           {filteredCameras.length === 0 ? (
             <div className="bg-slate-900 rounded-3xl p-12 text-center text-slate-400 border border-slate-800">
@@ -711,6 +732,7 @@ export function HospitalCctvCommandCenter({
               ))}
             </div>
           )}
+        </div>
         </div>
       )}
 
@@ -810,6 +832,27 @@ export function HospitalCctvCommandCenter({
               ))
             )}
           </div>
+        </div>
+      )}
+
+      {/* NVR Storage, Footage Archive & Evidence Vault Tab */}
+      {activeTab === 'storage' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setActiveTab('live')}
+              className="text-xs gap-1.5 bg-slate-900 hover:bg-slate-800 text-slate-200 border-slate-700"
+            >
+              <Tv className="w-3.5 h-3.5" /> Return to Live Camera Grid
+            </Button>
+          </div>
+          <CctvStorageManager
+            currentUserRole={currentUserRole}
+            currentUserName={currentUserName}
+            getZoneBadgeColor={getZoneBadgeColor}
+          />
         </div>
       )}
 
