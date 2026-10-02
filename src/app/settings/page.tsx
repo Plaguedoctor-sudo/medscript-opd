@@ -16,12 +16,16 @@ import { getGoogleDriveConfigAction } from "./actions";
 import { GoogleDriveBackupCard } from "@/components/GoogleDriveBackupCard";
 import { MilitarySecurityCommandCenter } from "@/components/MilitarySecurityCommandCenter";
 import { getMilitarySecurityDataAction } from "./military-actions";
+import { LanMirroringCard } from "@/components/LanMirroringCard";
+import { getLanMirrorStatusAction } from "./lan-mirror-actions";
+import { getLanMirrorConfig } from "@/lib/lan-mirroring";
+import { isDoctor } from "@/lib/auth";
 
 export const dynamic = 'force-dynamic';
 
 export default async function SettingsPage() {
   await requirePermission('settings:clinic', '/settings');
-  const [settings, securityConfig, backupSnapshots, recentAuditLogs, role, currentUser, staffUsers, gdriveConfig, militaryData] = await Promise.all([
+  const [settings, securityConfig, backupSnapshots, recentAuditLogs, role, currentUser, staffUsers, gdriveConfig, militaryData, lanMirrorStatus, lanMirrorConfig] = await Promise.all([
     getSettings(),
     getSecurityConfig(),
     getLocalBackupSnapshots(),
@@ -31,6 +35,8 @@ export default async function SettingsPage() {
     getStaffUsers(),
     getGoogleDriveConfigAction(),
     getMilitarySecurityDataAction(),
+    getLanMirrorStatusAction(),
+    Promise.resolve(getLanMirrorConfig()),
   ]);
 
   return (
@@ -107,6 +113,11 @@ export default async function SettingsPage() {
         />
         <GoogleDriveBackupCard
           initialConfig={gdriveConfig}
+        />
+        <LanMirroringCard
+          initialStatus={lanMirrorStatus}
+          initialConfig={lanMirrorConfig}
+          isDoctor={isDoctor(role)}
         />
         <SettingsForm
           settings={settings}

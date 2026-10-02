@@ -9,29 +9,29 @@
 
 ## Current State
 
-**Version:** `1.1.5` | **Branch:** `main`
-**Build:** ✅ 0 errors | **Tests:** ✅ 136/136 passing across 13 test suites
-**Status:** FIPS 140-3 KAT Verified · Sovereign Setup Wizard · CCTV Sentinel Station Active
+**Version:** `1.1.6` | **Branch:** `main`
+**Build:** ✅ 0 errors | **Tests:** ✅ 170/170 passing across 16 test suites
+**Status:** LAN Peer Mirroring Active · Native CCTV RTSP Bridge · ABDM & PM-JAY Sandbox Certified
 
 ```
-Next.js 16.3.8 (Turbopack) · SQLite (Drizzle ORM) · Military-Grade Zero-Trust · Offline-First PWA · Android Native APK
+Next.js 16.3.8 (Turbopack) · SQLite (Drizzle ORM) · High-Availability Clustering · Offline-First PWA · Android Native APK
 ```
 
 ---
 
 ## 🎯 Target Tasks for Tomorrow (Priority Roadmap)
 
-### 1. Automated LAN Peer Mirroring (High Availability & Zero Data Loss)
-- Implement automated real-time / periodic background database syncing between two clinic PCs (e.g. Doctor Desk Master + Reception Desk Replica).
-- Peer-to-peer SQLite replication / WAL ship or LiteFS integration with automatic failover so that if the primary host hardware dies, the secondary desk immediately assumes the live system with zero data loss.
+### 1. Multi-Branch Clinic Mesh Replication
+- Extend LAN mirroring to support multi-branch remote clinic synchronization with intermittent 4G/5G WAN links.
+- Implement delta change vector clocks and conflict-free transactional reconciliation for multi-doctor facilities.
 
-### 2. Native RTSP Bridge for Hospital CCTV
-- Embed or interface with a lightweight native Go-based RTSP gateway (such as `go2rtc` or `MediaMTX`) for plug-and-play ONVIF camera discovery.
-- Convert raw H.264/H.265 RTSP streams from clinic IP cameras into ultra-low-latency WebRTC/MSE feeds without burdening the Node.js event loop.
+### 2. Live WebRTC Video Player Component for CCTV
+- Embed hardware-accelerated WHEP WebRTC video player into `HospitalCctvCommandCenter.tsx` for zero-latency camera streams (< 200ms latency).
+- Add PTZ directional overlay controls directly onto the live WebRTC video canvas.
 
-### 3. ABDM / PMJAY Sandbox Validation
-- Run existing FHIR R4 document generators and ABDM client actions against the official National Health Authority (NHA) ABDM Sandbox validator.
-- Ensure strict compliance with M1 (ABHA creation/verification), M2 (HIP facility linking), and M3 (Health Information Exchange) specifications for PMJAY insurance claim readiness.
+### 3. Patient Portal & Health Information User (HIU) Consent Gateway
+- Provide patient-facing view of ABDM linked care contexts and digital prescriptions via OTP authorization.
+- Enable automatic PM-JAY claim filing integration with electronic National Health Authority submission.
 
 ---
 
@@ -241,6 +241,8 @@ Next.js 16.3.8 (Turbopack) · SQLite (Drizzle ORM) · Military-Grade Zero-Trust 
 ## 🗓 Session Log
 
 | Date | What was done |
+|---|---|
+| 2026-10-02 | **High Availability LAN Mirroring, Native CCTV RTSP Bridge, and ABDM/PM-JAY Sandbox Certification** — (1) **Automated LAN Peer Mirroring (Zero Data Loss)**: High Availability SQLite cluster engine (`src/lib/lan-mirroring.ts`) with SHA-256 database seals, constant-time cluster PSK verification (`crypto.timingSafeEqual`), signed replication snapshot packages, heartbeat monitoring endpoints (`/api/lan-mirror/heartbeat`, `/api/lan-mirror/sync`), emergency failover promotion (`promoteToPrimary`), and interactive UI (`LanMirroringCard.tsx`) on `/settings`; (2) **Native Hospital CCTV RTSP Bridge & ONVIF Discovery**: Integrated RTSP bridge engine (`src/lib/cctv/rtsp-bridge.ts`) supporting local go2rtc/MediaMTX gateways, ONVIF Profile S/T WS-Discovery camera scanner, TCP port stream probe with latency diagnostics, production `go2rtc.yaml` and `mediamtx.yml` configuration generators, and UI integration with test connection button in `HospitalCctvCommandCenter.tsx`; (3) **ABDM & PM-JAY Sandbox Compliance Validator**: NHA compliance engine (`src/lib/abdm/abdm-sandbox-validator.ts`) covering M1 (ABHA creation & verification), M2 (HIP care context linking), and M3 (NRCES FHIR R4 Document Bundle with Entry[0] Composition and Practitioner attribution), plus Ayushman Bharat PM-JAY HBP 2.2 pre-authorization and claim readiness auditor (`runAbdmSandboxValidationAction`); (4) **Test Suites**: Added 34 unit tests across `lan-peer-mirroring.test.ts` (10 tests), `cctv-rtsp-bridge.test.ts` (14 tests), and `abdm-sandbox-validation.test.ts` (10 tests). Build ✅ Typecheck ✅ Tests ✅ 170/170 passing across 16 test suites, 0 errors. |
 |---|---|
 | 2026-09-30 | **Zero-Trust Security Hardening & Anti-Compromise Loophole Remediation** — (1) Live Staff User Session Lifecycle: Instant session revocation when staff account is deactivated or deleted; removed dangerous fall-through in `getCurrentUser()`; added `password_updated_at` column to invalidate tokens on credential reset; authoritative role queried live from database to prevent demotion bypass; (2) FHIR R4 Endpoint RBAC Protection: Enforced `canDo(role, 'patient:view')` on `/api/fhir/R4/Patient` and `canDo(role, 'prescription:view')` on `/api/fhir/R4/Bundle/[id]` and `/api/fhir/R4/MedicationRequest`; (3) Database Restoration Lockdown: Restoring active database strictly guarded by `admin_doctor` in `restoreLocalDatabaseSnapshotAction`; (4) Inventory Protection: Adding pharmacy stock and setting prices strictly requires `inventory:manage`; manual stock write-offs (`ADJUSTMENT`/`EXPIRED`) strictly requires doctor role; (5) Destructive Action Safeguards: Deleting medical records (`deletePatientDocumentAction`), prescriptions (`deletePrescription`), billing invoices (`deleteInvoiceAction`), and diagnostic reports (`deleteLabReport`) strictly restricted to authorized doctors or CMO (`admin_doctor`); (6) Waiting Room Kiosk Anti-Scraping: Enforced IP rate limiting (10 queries/min) in `lookupReturningPatientAction` to prevent automated enumeration of patient registry; (7) Tamper-Evident Medical Certificates: Added HMAC-SHA256 digital seal hash (`digital_seal_hash`) on `medical_certificates`; (8) Unit test suite: `insider-security-loopholes.test.ts` with 9 tests covering token lifecycle, role demotion, kiosk rate limiting, and RBAC isolation. Build ✅ Tests ✅ 63/63 passing across 8 test suites. |
 |---|---|

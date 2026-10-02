@@ -15,8 +15,13 @@ import {
   acknowledgeCctvIncident,
   togglePrivacyMask,
   sendPtzCommand,
+  getRtspBridgeStatusAction,
+  scanOnvifCamerasAction,
+  testRtspStreamAction,
+  exportBridgeConfigAction,
   CctvStats,
 } from '@/app/cctv/actions';
+import { OnvifDiscoveredDevice, RtspBridgeStatus, RtspStreamProbeResult } from '@/lib/cctv/rtsp-bridge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -56,6 +61,10 @@ import {
   Edit,
   Loader2,
   Sparkles,
+  Network,
+  Download,
+  Wifi,
+  Check,
 } from 'lucide-react';
 
 interface HospitalCctvCommandCenterProps {
@@ -105,7 +114,71 @@ export function HospitalCctvCommandCenter({
   const [isPending, startTransition] = useTransition();
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
+  // RTSP Bridge & ONVIF Modal
+  const [isBridgeModalOpen, setIsBridgeModalOpen] = useState(false);
+  const [bridgeStatus, setBridgeStatus] = useState<RtspBridgeStatus | null>(null);
+  const [discoveredDevices, setDiscoveredDevices] = useState<OnvifDiscoveredDevice[]>([]);
+  const [isScanningOnvif, setIsScanningOnvif] = useState(false);
+  const [probeResult, setProbeResult] = useState<RtspStreamProbeResult | null>(null);
+  const [isProbingStream, setIsProbingStream] = useState(false);
+
   const canManage = currentUserRole === 'admin_doctor' || currentUserRole === 'doctor' || currentUserRole === 'manager';
+
+  const handleOpenBridgeModal = () => {
+    setIsBridgeModalOpen(true);
+    startTransition(async () => {
+      const status = await getRtspBridgeStatusAction();
+      setBridgeStatus(status);
+    });
+  };
+
+  const handleScanOnvif = () => {
+    setIsScanningOnvif(true);
+    startTransition(async () => {
+      const res = await scanOnvifCamerasAction();
+      if (res.success) {
+        setDiscoveredDevices(res.devices);
+      }
+      setIsScanningOnvif(false);
+    });
+  };
+
+  const handleSelectDiscoveredCamera = (device: OnvifDiscoveredDevice) => {
+    setEditingCamera(null);
+    setCamName(device.name || `Camera @ ${device.ip}`);
+    setCamZone(device.suggestedZone || 'IPD_WARD');
+    setCamLocation(`LAN Host ${device.ip}`);
+    setCamStreamUrl(device.suggestedStreamUrl);
+    setCamIp(device.ip);
+    setCamStatus('ONLINE');
+    setCamResolution('1080p');
+    setCamFps(25);
+    setCamHasPtz(true);
+    setCamPrivacy(false);
+    setIsBridgeModalOpen(false);
+    setIsCameraModalOpen(true);
+  };
+
+  const handleTestStream = (url: string) => {
+    setIsProbingStream(true);
+    setProbeResult(null);
+    startTransition(async () => {
+      const res = await testRtspStreamAction(url);
+      setProbeResult(res);
+      setIsProbingStream(false);
+    });
+  };
+
+  const handleDownloadBridgeConfig = async (type: 'go2rtc' | 'mediamtx') => {
+    const res = await exportBridgeConfigAction(type);
+    const blob = new Blob([res.content], { type: res.contentType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = res.filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   // Filter cameras by zone
   const filteredCameras = cameras.filter((cam) => {
@@ -437,13 +510,24 @@ export function HospitalCctvCommandCenter({
 
           <div className="flex items-center gap-2.5 flex-wrap">
             {canManage && (
-              <Button
-                size="sm"
-                onClick={handleOpenAddCamera}
-                className="gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs"
-              >
-                <Plus className="w-3.5 h-3.5" /> Add IP Camera
-              </Button>
+              <>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleOpenBridgeModal}
+                  className="gap-1.5 bg-slate-900 hover:bg-slate-800 text-slate-200 border-slate-700 text-xs font-semibold"
+                >
+                  <Network className="w-3.5 h-3.5 text-indigo-400" />
+                  ONVIF & RTSP Bridge
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={handleOpenAddCamera}
+                  className="gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Add IP Camera
+                </Button>
+              </>
             )}
             <Button
               size="sm"
@@ -978,13 +1062,41 @@ export function HospitalCctvCommandCenter({
                 </div>
 
                 <div className="space-y-1">
-                  <Label className="text-xs font-semibold">Stream Protocol / Endpoint</Label>
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-semibold">Stream Protocol / Endpoint</Label>
+                    <button
+                      type="button"
+                      onClick={() => handleTestStream(camStreamUrl)}
+                      disabled={isProbingStream || !camStreamUrl}
+                      className="text-[11px] text-indigo-600 hover:text-indigo-800 font-semibold flex items-center gap-1"
+                    >
+                      {isProbingStream ? <Loader2 className="w-3 h-3 animate-spin" /> : <Radio className="w-3 h-3" />}
+                      Test RTSP Connection
+                    </button>
+                  </div>
                   <Input
                     value={camStreamUrl}
-                    onChange={(e) => setCamStreamUrl(e.target.value)}
+                    onChange={(e) => {
+                      setCamStreamUrl(e.target.value);
+                      setProbeResult(null);
+                    }}
                     placeholder="rtsp://... or simulated:icu"
                     className="h-8 text-xs font-mono"
                   />
+                  {probeResult && (
+                    <div className={`p-2 rounded text-[11px] font-medium flex items-center justify-between ${
+                      probeResult.reachable
+                        ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                        : 'bg-red-50 text-red-800 border border-red-200'
+                    }`}>
+                      <span>
+                        {probeResult.reachable
+                          ? `✓ Stream Reachable (${probeResult.latencyMs}ms)`
+                          : `✗ Failed: ${probeResult.error || 'Connection refused'}`}
+                      </span>
+                      <span className="font-mono text-[10px] text-slate-500">{probeResult.sanitizedUrl}</span>
+                    </div>
+                  )}
                   <p className="text-[10px] text-slate-500">
                     Use `simulated:icu`, `simulated:ot`, `simulated:emergency`, or real RTSP/HLS URL.
                   </p>
@@ -1064,6 +1176,165 @@ export function HospitalCctvCommandCenter({
                 </Button>
               </DialogFooter>
             </form>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* RTSP Bridge & ONVIF Gateway Dialog */}
+      {isBridgeModalOpen && (
+        <Dialog open={isBridgeModalOpen} onOpenChange={setIsBridgeModalOpen}>
+          <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="text-base font-bold flex items-center gap-2">
+                <Network className="w-5 h-5 text-indigo-600" />
+                Hospital RTSP Bridge & ONVIF Discovery
+              </DialogTitle>
+              <DialogDescription className="text-xs text-slate-500">
+                Lightweight native RTSP gateway integration (go2rtc / MediaMTX) and local subnet camera discovery.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-5 py-2">
+              {/* Bridge Gateway Status */}
+              <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className={`w-3 h-3 rounded-full ${bridgeStatus?.online ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
+                    <span className="text-xs font-bold text-slate-800">
+                      Gateway Engine:{' '}
+                      <span className="uppercase text-indigo-600 font-mono">
+                        {bridgeStatus?.gatewayType || 'Detecting...'}
+                      </span>
+                    </span>
+                  </div>
+                  <span className={`px-2 py-0.5 rounded text-[11px] font-bold ${
+                    bridgeStatus?.online
+                      ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                      : 'bg-amber-100 text-amber-800 border border-amber-300'
+                  }`}>
+                    {bridgeStatus?.online ? 'ACTIVE & STREAMING' : 'OFFLINE SIMULATION'}
+                  </span>
+                </div>
+
+                <div className="text-xs text-slate-600 space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-500">Bridge API Endpoint:</span>
+                    <span className="font-mono text-[11px] text-slate-700 bg-white px-2 py-0.5 rounded border border-slate-200">
+                      {bridgeStatus?.bridgeUrl || 'http://127.0.0.1:1984'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-500">WebRTC Port:</span>
+                    <span className="font-mono text-[11px] text-slate-700 bg-white px-2 py-0.5 rounded border border-slate-200">
+                      UDP/TCP {bridgeStatus?.webrtcPort || 8555}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Configuration Exporters */}
+                <div className="pt-2 border-t border-slate-200/80 flex items-center justify-between gap-2 flex-wrap">
+                  <span className="text-[11px] text-slate-500">Auto-Generated Bridge Configs:</span>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDownloadBridgeConfig('go2rtc')}
+                      className="text-xs gap-1.5 h-7 text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50"
+                    >
+                      <Download className="w-3 h-3" /> go2rtc.yaml
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDownloadBridgeConfig('mediamtx')}
+                      className="text-xs gap-1.5 h-7 text-slate-700 hover:bg-slate-100"
+                    >
+                      <Download className="w-3 h-3" /> mediamtx.yml
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              {/* ONVIF LAN Scanner */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                      <Wifi className="w-3.5 h-3.5 text-indigo-600" />
+                      ONVIF Auto-Discovery (Hospital LAN)
+                    </h4>
+                    <p className="text-[11px] text-slate-500">
+                      Probes local subnet via WS-Discovery for IP cameras and RTSP streams.
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={handleScanOnvif}
+                    disabled={isScanningOnvif}
+                    className="text-xs gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold h-8"
+                  >
+                    {isScanningOnvif ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Radio className="w-3.5 h-3.5" />
+                    )}
+                    {isScanningOnvif ? 'Scanning Subnet...' : 'Scan Subnet Now'}
+                  </Button>
+                </div>
+
+                {discoveredDevices.length > 0 ? (
+                  <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                    {discoveredDevices.map((dev, idx) => (
+                      <div
+                        key={idx}
+                        className="p-3 rounded-xl border border-slate-200 bg-white hover:border-indigo-300 transition-colors flex items-center justify-between gap-3 text-xs"
+                      >
+                        <div className="space-y-0.5 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-slate-900 truncate">
+                              {dev.name}
+                            </span>
+                            {dev.suggestedZone && (
+                              <span className={`px-2 py-0.2 rounded-full text-[10px] font-bold border ${getZoneBadgeColor(dev.suggestedZone)}`}>
+                                {dev.suggestedZone}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-slate-500 truncate">
+                            {dev.hardware} • IP: <span className="font-mono text-slate-700">{dev.ip}:{dev.port}</span>
+                          </p>
+                          <p className="font-mono text-[10px] text-indigo-600 truncate">
+                            {dev.suggestedStreamUrl}
+                          </p>
+                        </div>
+
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={() => handleSelectDiscoveredCamera(dev)}
+                          className="shrink-0 text-xs bg-slate-900 hover:bg-indigo-600 text-white font-semibold h-7"
+                        >
+                          <Plus className="w-3 h-3 mr-1" /> Add to Station
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-6 rounded-xl border border-dashed border-slate-300 text-center text-xs text-slate-500 bg-slate-50/50">
+                    Click <strong>&quot;Scan Subnet Now&quot;</strong> to discover hospital cameras on your clinic LAN.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <DialogFooter className="pt-2">
+              <Button type="button" variant="outline" size="sm" onClick={() => setIsBridgeModalOpen(false)}>
+                Close
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       )}

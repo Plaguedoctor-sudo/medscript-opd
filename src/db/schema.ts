@@ -132,6 +132,28 @@ export const clinicSettings = sqliteTable("clinic_settings", {
   ipQuarantineEnabled: integer("ip_quarantine_enabled", { mode: "boolean" }).$defaultFn(() => true),
   lastIntegritySweepAt: integer("last_integrity_sweep_at", { mode: "timestamp" }),
   lastIntegrityStatus: text("last_integrity_status"),
+  // High-Availability LAN Peer Mirroring & Zero-Data-Loss Replication
+  lanMirrorRole: text("lan_mirror_role").default("STANDALONE"), // 'PRIMARY_MASTER' | 'STANDBY_REPLICA' | 'STANDALONE'
+  lanMirrorPeerUrl: text("lan_mirror_peer_url"), // e.g. "https://192.168.1.150:3000"
+  lanMirrorClusterSecret: text("lan_mirror_cluster_secret"), // Pre-shared HMAC cluster replication secret
+  lanMirrorNodeName: text("lan_mirror_node_name").default("Doctor Desk (Primary)"),
+  lanMirrorAutoFailover: integer("lan_mirror_auto_failover", { mode: "boolean" }).$defaultFn(() => false),
+  lanMirrorLastSyncAt: integer("lan_mirror_last_sync_at", { mode: "timestamp" }),
+  lanMirrorLastSyncStatus: text("lan_mirror_last_sync_status").default("IDLE"),
+  lanMirrorLastSyncHash: text("lan_mirror_last_sync_hash"),
+  lanMirrorHeartbeatIntervalSec: integer("lan_mirror_heartbeat_interval_sec").default(15),
+});
+
+export const lanMirrorAudit = sqliteTable("lan_mirror_audit", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  timestamp: integer("timestamp", { mode: "timestamp" }).$defaultFn(() => new Date()),
+  eventType: text("event_type").notNull(), // 'HEARTBEAT' | 'SNAPSHOT_PULL' | 'SNAPSHOT_PUSH' | 'FAILOVER_PROMOTION' | 'PEER_DISCOVERY'
+  peerUrl: text("peer_url"),
+  direction: text("direction"), // 'INBOUND' | 'OUTBOUND'
+  status: text("status").notNull(), // 'SUCCESS' | 'FAILURE' | 'LAGGING'
+  bytesTransferred: integer("bytes_transferred").default(0),
+  checksum: text("checksum"),
+  errorMessage: text("error_message"),
 });
 
 export const auditLogs = sqliteTable("audit_logs", {

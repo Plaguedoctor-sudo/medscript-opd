@@ -974,6 +974,30 @@ try {
   if (!sCols.has("cloud_sync_provider")) sqlite.prepare("ALTER TABLE clinic_settings ADD COLUMN cloud_sync_provider TEXT DEFAULT 'disabled'").run();
   if (!sCols.has("cloud_sync_endpoint")) sqlite.prepare("ALTER TABLE clinic_settings ADD COLUMN cloud_sync_endpoint TEXT").run();
   if (!sCols.has("cloud_sync_api_key")) sqlite.prepare("ALTER TABLE clinic_settings ADD COLUMN cloud_sync_api_key TEXT").run();
+  if (!sCols.has("lan_mirror_role")) sqlite.prepare("ALTER TABLE clinic_settings ADD COLUMN lan_mirror_role TEXT DEFAULT 'STANDALONE'").run();
+  if (!sCols.has("lan_mirror_peer_url")) sqlite.prepare("ALTER TABLE clinic_settings ADD COLUMN lan_mirror_peer_url TEXT").run();
+  if (!sCols.has("lan_mirror_cluster_secret")) sqlite.prepare("ALTER TABLE clinic_settings ADD COLUMN lan_mirror_cluster_secret TEXT").run();
+  if (!sCols.has("lan_mirror_node_name")) sqlite.prepare("ALTER TABLE clinic_settings ADD COLUMN lan_mirror_node_name TEXT DEFAULT 'Doctor Desk (Primary)'").run();
+  if (!sCols.has("lan_mirror_auto_failover")) sqlite.prepare("ALTER TABLE clinic_settings ADD COLUMN lan_mirror_auto_failover INTEGER DEFAULT 0").run();
+  if (!sCols.has("lan_mirror_last_sync_at")) sqlite.prepare("ALTER TABLE clinic_settings ADD COLUMN lan_mirror_last_sync_at INTEGER").run();
+  if (!sCols.has("lan_mirror_last_sync_status")) sqlite.prepare("ALTER TABLE clinic_settings ADD COLUMN lan_mirror_last_sync_status TEXT DEFAULT 'IDLE'").run();
+  if (!sCols.has("lan_mirror_last_sync_hash")) sqlite.prepare("ALTER TABLE clinic_settings ADD COLUMN lan_mirror_last_sync_hash TEXT").run();
+  if (!sCols.has("lan_mirror_heartbeat_interval_sec")) sqlite.prepare("ALTER TABLE clinic_settings ADD COLUMN lan_mirror_heartbeat_interval_sec INTEGER DEFAULT 15").run();
+
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS lan_mirror_audit (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      timestamp INTEGER,
+      event_type TEXT NOT NULL,
+      peer_url TEXT,
+      direction TEXT,
+      status TEXT NOT NULL,
+      bytes_transferred INTEGER DEFAULT 0,
+      checksum TEXT,
+      error_message TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_lan_mirror_timestamp ON lan_mirror_audit(timestamp);
+  `);
 
   const invoiceColumns = sqlite.prepare("PRAGMA table_info(invoices)").all() as { name: string }[];
   const invCols = new Set(invoiceColumns.map((c) => c.name));

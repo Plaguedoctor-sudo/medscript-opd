@@ -436,3 +436,55 @@ export async function sendPtzCommand(
     return { success: false, message: 'Failed to dispatch PTZ command.' };
   }
 }
+
+/**
+ * Checks the status and available endpoints of the local RTSP Bridge (go2rtc / MediaMTX).
+ */
+export async function getRtspBridgeStatusAction() {
+  await requirePermission('cctv:view', '/cctv');
+  const { checkRtspBridgeHealth } = await import('@/lib/cctv/rtsp-bridge');
+  return checkRtspBridgeHealth();
+}
+
+/**
+ * Scans the clinic LAN for ONVIF IP Cameras using WS-Discovery.
+ */
+export async function scanOnvifCamerasAction() {
+  await requirePermission('cctv:manage', '/cctv');
+  const { discoverOnvifCameras } = await import('@/lib/cctv/rtsp-bridge');
+  const devices = await discoverOnvifCameras();
+  return { success: true, devices };
+}
+
+/**
+ * Validates and probes connectivity to an RTSP camera stream URL.
+ */
+export async function testRtspStreamAction(streamUrl: string) {
+  await requirePermission('cctv:manage', '/cctv');
+  const { probeRtspStream } = await import('@/lib/cctv/rtsp-bridge');
+  return probeRtspStream(streamUrl);
+}
+
+/**
+ * Generates and exports configuration files (go2rtc.yaml or mediamtx.yml) for all registered cameras.
+ */
+export async function exportBridgeConfigAction(gatewayType: 'go2rtc' | 'mediamtx' = 'go2rtc') {
+  await requirePermission('cctv:manage', '/cctv');
+  const { generateGo2rtcYaml, generateMediaMtxYml } = await import('@/lib/cctv/rtsp-bridge');
+  const cameras = await getCctvCameras();
+
+  if (gatewayType === 'mediamtx') {
+    return {
+      filename: 'mediamtx.yml',
+      content: generateMediaMtxYml(cameras),
+      contentType: 'text/yaml',
+    };
+  }
+
+  return {
+    filename: 'go2rtc.yaml',
+    content: generateGo2rtcYaml(cameras),
+    contentType: 'text/yaml',
+  };
+}
+

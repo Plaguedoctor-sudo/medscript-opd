@@ -6,7 +6,7 @@
  * - Milestone 3 (M3): Health Information User / Provider FHIR Health Data Exchange
  */
 
-import { patientToFhir, prescriptionToFhirBundle, FhirBundle } from '@/lib/fhir/fhir-converter';
+import { patientToFhir, prescriptionToFhirBundle, prescriptionToAbdmDocumentBundle, FhirBundle } from '@/lib/fhir/fhir-converter';
 import { maskAbhaId, maskPhoneNumber } from '@/lib/phi-sanitizer';
 
 export interface AbhaValidationResult {
@@ -196,12 +196,5 @@ export function generateAbdmPrescriptionDocument(data: {
     regNumber?: string | null;
   } | null;
 }): FhirBundle {
-  const bundle = prescriptionToFhirBundle(data);
-  // Mark bundle as a document for ABDM health information exchange
-  bundle.type = 'document';
-  bundle.meta = {
-    ...bundle.meta,
-    lastUpdated: new Date().toISOString(),
-  };
-  return bundle;
+  return prescriptionToAbdmDocumentBundle(data);
 }
