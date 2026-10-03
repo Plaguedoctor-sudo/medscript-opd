@@ -1046,4 +1046,57 @@ export const hospitalCctvRecordingsRelations = relations(hospitalCctvRecordings,
   }),
 }));
 
+// ========================================================
+// Multi-Branch Clinic Mesh Replication & Vector Clock Log
+// ========================================================
+
+export const meshNodes = sqliteTable("mesh_nodes", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  nodeId: text("node_id").notNull().unique(), // e.g. 'branch_mumbai_central', 'branch_pune_rural'
+  name: text("name").notNull(),
+  branchType: text("branch_type").notNull().default("SATELLITE"), // 'HUB' | 'SATELLITE' | 'MOBILE_CAMP'
+  endpointUrl: text("endpoint_url").notNull(),
+  clusterSecret: text("cluster_secret").notNull(),
+  status: text("status").notNull().default("ACTIVE"), // 'ACTIVE' | 'OFFLINE' | 'SYNCING' | 'DEGRADED' | 'SUSPENDED'
+  vectorClock: text("vector_clock").notNull().default("{}"), // JSON stringified VectorClock
+  lastSeenAt: integer("last_seen_at", { mode: "timestamp" }),
+  lastSyncAt: integer("last_sync_at", { mode: "timestamp" }),
+  lastSyncStatus: text("last_sync_status").default("IDLE"),
+  latencyMs: integer("latency_ms").default(0),
+  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+});
+
+export const meshDeltaLog = sqliteTable("mesh_delta_log", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  deltaId: text("delta_id").notNull().unique(), // Deterministic UUID/hash
+  originNodeId: text("origin_node_id").notNull(),
+  targetTable: text("target_table").notNull(), // 'patients' | 'prescriptions' | 'ipd_admissions' etc.
+  recordKey: text("record_key").notNull(), // Natural business key e.g. phone/regNo/id
+  operation: text("operation").notNull(), // 'INSERT' | 'UPDATE' | 'DELETE'
+  payload: text("payload").notNull(), // JSON stringified mutation data
+  vectorClock: text("vector_clock").notNull(), // JSON stringified vector clock at mutation time
+  changeTimestamp: integer("change_timestamp").notNull(), // UTC millisecond epoch for LWW
+  checksumSha256: text("checksum_sha256").notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+});
+
+export const meshOutboxQueue = sqliteTable("mesh_outbox_queue", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  targetNodeId: text("target_node_id").notNull(),
+  deltaId: text("delta_id").notNull().references(() => meshDeltaLog.deltaId),
+  retryCount: integer("retry_count").notNull().default(0),
+  nextRetryAt: integer("next_retry_at", { mode: "timestamp" }),
+  status: text("status").notNull().default("PENDING"), // 'PENDING' | 'IN_FLIGHT' | 'ACKNOWLEDGED' | 'FAILED'
+  lastError: text("last_error"),
+  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+});
+
+export const meshOutboxQueueRelations = relations(meshOutboxQueue, ({ one }) => ({
+  delta: one(meshDeltaLog, {
+    fields: [meshOutboxQueue.deltaId],
+    references: [meshDeltaLog.deltaId],
+  }),
+}));
+
 

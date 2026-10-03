@@ -19,13 +19,15 @@ import { getMilitarySecurityDataAction } from "./military-actions";
 import { LanMirroringCard } from "@/components/LanMirroringCard";
 import { getLanMirrorStatusAction } from "./lan-mirror-actions";
 import { getLanMirrorConfig } from "@/lib/lan-mirroring";
+import { MeshReplicationCard } from "@/components/MeshReplicationCard";
+import { getMeshClusterOverview } from "@/lib/mesh-replication";
 import { isDoctor } from "@/lib/auth";
 
 export const dynamic = 'force-dynamic';
 
 export default async function SettingsPage() {
   await requirePermission('settings:clinic', '/settings');
-  const [settings, securityConfig, backupSnapshots, recentAuditLogs, role, currentUser, staffUsers, gdriveConfig, militaryData, lanMirrorStatus, lanMirrorConfig] = await Promise.all([
+  const [settings, securityConfig, backupSnapshots, recentAuditLogs, role, currentUser, staffUsers, gdriveConfig, militaryData, lanMirrorStatus, lanMirrorConfig, meshOverview] = await Promise.all([
     getSettings(),
     getSecurityConfig(),
     getLocalBackupSnapshots(),
@@ -37,6 +39,7 @@ export default async function SettingsPage() {
     getMilitarySecurityDataAction(),
     getLanMirrorStatusAction(),
     Promise.resolve(getLanMirrorConfig()),
+    Promise.resolve(getMeshClusterOverview()),
   ]);
 
   return (
@@ -117,6 +120,10 @@ export default async function SettingsPage() {
         <LanMirroringCard
           initialStatus={lanMirrorStatus}
           initialConfig={lanMirrorConfig}
+          isDoctor={isDoctor(role)}
+        />
+        <MeshReplicationCard
+          initialOverview={meshOverview}
           isDoctor={isDoctor(role)}
         />
         <SettingsForm

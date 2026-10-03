@@ -641,6 +641,58 @@ sqlite.exec(`
   CREATE INDEX IF NOT EXISTS idx_cctv_recordings_zone ON hospital_cctv_recordings(zone);
   CREATE INDEX IF NOT EXISTS idx_cctv_recordings_start ON hospital_cctv_recordings(start_time);
   CREATE INDEX IF NOT EXISTS idx_cctv_recordings_locked ON hospital_cctv_recordings(is_locked);
+
+  -- Multi-Branch Clinic Mesh Replication & Vector Clock Log
+  CREATE TABLE IF NOT EXISTS mesh_nodes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    node_id TEXT UNIQUE NOT NULL,
+    name TEXT NOT NULL,
+    branch_type TEXT NOT NULL DEFAULT 'SATELLITE',
+    endpoint_url TEXT NOT NULL,
+    cluster_secret TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'ACTIVE',
+    vector_clock TEXT NOT NULL DEFAULT '{}',
+    last_seen_at INTEGER,
+    last_sync_at INTEGER,
+    last_sync_status TEXT DEFAULT 'IDLE',
+    latency_ms INTEGER DEFAULT 0,
+    created_at INTEGER,
+    updated_at INTEGER
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_mesh_nodes_status ON mesh_nodes(status);
+  CREATE INDEX IF NOT EXISTS idx_mesh_nodes_node_id ON mesh_nodes(node_id);
+
+  CREATE TABLE IF NOT EXISTS mesh_delta_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    delta_id TEXT UNIQUE NOT NULL,
+    origin_node_id TEXT NOT NULL,
+    target_table TEXT NOT NULL,
+    record_key TEXT NOT NULL,
+    operation TEXT NOT NULL,
+    payload TEXT NOT NULL,
+    vector_clock TEXT NOT NULL,
+    change_timestamp INTEGER NOT NULL,
+    checksum_sha256 TEXT NOT NULL,
+    created_at INTEGER
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_mesh_delta_target ON mesh_delta_log(target_table, record_key);
+  CREATE INDEX IF NOT EXISTS idx_mesh_delta_origin ON mesh_delta_log(origin_node_id);
+  CREATE INDEX IF NOT EXISTS idx_mesh_delta_timestamp ON mesh_delta_log(change_timestamp);
+
+  CREATE TABLE IF NOT EXISTS mesh_outbox_queue (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    target_node_id TEXT NOT NULL,
+    delta_id TEXT NOT NULL REFERENCES mesh_delta_log(delta_id),
+    retry_count INTEGER NOT NULL DEFAULT 0,
+    next_retry_at INTEGER,
+    status TEXT NOT NULL DEFAULT 'PENDING',
+    last_error TEXT,
+    created_at INTEGER
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_mesh_outbox_target_status ON mesh_outbox_queue(target_node_id, status);
 `);
 
 // Note: Hardcoded default staff accounts and demo passwords have been permanently eliminated (CWE-798 / CWE-1188 compliance).

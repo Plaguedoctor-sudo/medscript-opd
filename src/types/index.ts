@@ -900,5 +900,79 @@ export interface CctvPtzState {
   presetName?: string;
 }
 
+// ==========================================
+// Multi-Branch Clinic Mesh Replication Types
+// ==========================================
 
+export type MeshNodeBranchType = 'HUB' | 'SATELLITE' | 'MOBILE_CAMP';
+export type MeshNodeStatus = 'ACTIVE' | 'OFFLINE' | 'SYNCING' | 'DEGRADED' | 'SUSPENDED';
+export type MeshCausalRelation = 'BEFORE' | 'AFTER' | 'CONCURRENT' | 'EQUAL';
+export type MeshDeltaOperation = 'INSERT' | 'UPDATE' | 'DELETE';
 
+export type VectorClock = Record<string, number>;
+
+export interface MeshDelta {
+  deltaId: string;
+  originNodeId: string;
+  targetTable: string;
+  recordKey: string;
+  operation: MeshDeltaOperation;
+  payload: Record<string, unknown>;
+  vectorClock: VectorClock;
+  changeTimestamp: number; // epoch ms
+  checksumSha256: string;
+}
+
+export interface MeshOutboxItem {
+  id: number;
+  targetNodeId: string;
+  deltaId: string;
+  retryCount: number;
+  nextRetryAt?: Date | null;
+  status: 'PENDING' | 'IN_FLIGHT' | 'ACKNOWLEDGED' | 'FAILED';
+  lastError?: string | null;
+  createdAt: Date;
+}
+
+export interface MeshNode {
+  id: number;
+  nodeId: string;
+  name: string;
+  branchType: MeshNodeBranchType;
+  endpointUrl: string;
+  status: MeshNodeStatus;
+  vectorClock: VectorClock;
+  lastSeenAt?: Date | null;
+  lastSyncAt?: Date | null;
+  lastSyncStatus?: string | null;
+  latencyMs?: number;
+  pendingOutboxCount: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface MeshConflictResolution {
+  targetTable: string;
+  recordKey: string;
+  resolution: 'LWW_ACCEPTED' | 'LWW_SUPERSEDED' | 'ALLERGIES_MERGED' | 'VITALS_APPENDED';
+  chosenOrigin: string;
+  details?: string;
+}
+
+export interface MeshReconciliationResult {
+  appliedCount: number;
+  conflictCount: number;
+  skippedCount: number;
+  conflictsResolved: MeshConflictResolution[];
+  updatedVectorClock: VectorClock;
+}
+
+export interface MeshClusterOverview {
+  localNodeId: string;
+  localNodeName: string;
+  localBranchType: MeshNodeBranchType;
+  localVectorClock: VectorClock;
+  nodes: MeshNode[];
+  totalPendingOutbox: number;
+  lastMeshSyncAt?: Date | null;
+}

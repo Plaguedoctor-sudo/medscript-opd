@@ -9,25 +9,25 @@
 
 ## Current State
 
-**Version:** `1.1.8` | **Branch:** `main`
-**Build:** ✅ 0 errors | **Tests:** ✅ 190/190 passing across 18 test suites
-**Status:** Live WebRTC CCTV Player (WHEP <200ms) & Interactive Optical PTZ Active · NVR Footage Vault · Section 65B Forensic Admissibility · LAN Peer Mirroring
+**Version:** `1.1.9` | **Branch:** `main`
+**Build:** ✅ 0 errors | **Tests:** ✅ 206/206 passing across 19 test suites
+**Status:** Multi-Branch Clinic Mesh Replication (Vector Clocks & CRDT LWW Reconciliation) · Live WebRTC WHEP CCTV · NVR Footage Vault · Section 65B Forensic Admissibility
 
 ```
-Next.js 16.3.8 (Turbopack) · SQLite (Drizzle ORM) · High-Availability Clustering · Offline-First PWA · Android Native APK
+Next.js 16.3.8 (Turbopack) · SQLite (Drizzle ORM) · Multi-Branch Mesh Clustering · Offline-First PWA · Android Native APK
 ```
 
 ---
 
 ## 🎯 Target Tasks for Tomorrow (Priority Roadmap)
 
-### 1. Multi-Branch Clinic Mesh Replication
-- Extend LAN mirroring to support multi-branch remote clinic synchronization with intermittent 4G/5G WAN links.
-- Implement delta change vector clocks and conflict-free transactional reconciliation for multi-doctor facilities.
-
-### 2. Patient Portal & Health Information User (HIU) Consent Gateway
+### 1. Patient Portal & Health Information User (HIU) Consent Gateway
 - Provide patient-facing view of ABDM linked care contexts and digital prescriptions via OTP authorization.
 - Enable automatic PM-JAY claim filing integration with electronic National Health Authority submission.
+
+### 2. Autonomous Background Sync Daemon & Resilient WAN Transport
+- Implement automated heartbeat ping and periodic delta synchronization worker running in background.
+- Integrate WebRTC data-channel fallback for peer-to-peer clinic data transfer across symmetric NATs.
 
 ---
 
@@ -168,6 +168,13 @@ Next.js 16.3.8 (Turbopack) · SQLite (Drizzle ORM) · High-Availability Clusteri
 - [x] **Section 65B Medico-Legal Evidence Preservation** — Permanent evidence locking (`is_locked = 1`) exempt from auto-purge, tamper-evident SHA-256 digital seals with constant-time verification, and exportable Certificates of Electronic Evidence under Section 65B Indian Evidence Act / Section 63 Bharatiya Sakshya Adhiniyam.
 - [x] **Interactive Footage Library UI** (`CctvStorageManager.tsx`) — Storage capacity gauge, zone & trigger filtering, clip playback simulator, live hash integrity test, evidence locking dialog, and Section 65B electronic certificate export.
 - [x] **Live WebRTC Video Player & Optical PTZ Canvas** (`src/components/cctv/CctvWebRtcPlayer.tsx`, `src/lib/cctv/webrtc-whep-client.ts`) — Hardware-accelerated WHEP WebRTC video player (<150ms zero-latency), draft-ietf-wish-whep compliance, real-time telemetry HUD (bitrate, fps, jitter, RTT), interactive on-canvas optical PTZ D-pad and drag-to-pan gestures, clinical surveillance presets (Bed, Doorway, Infusion Rack), HIPAA/DISHA privacy masking, and automatic fallback to simulated HUD.
+
+### High Availability & Multi-Branch Clinic Mesh Replication
+- [x] **LAN Peer Mirroring & Automated Failover** (`src/lib/lan-mirroring.ts`, `LanMirroringCard.tsx`) — Sub-second heartbeat monitoring, automatic standby promotion, and zero-data-loss database sync between Doctor Desk and Reception Desk.
+- [x] **Multi-Branch Vector Clocks & CRDT Reconciliation** (`src/lib/mesh-replication.ts`, `MeshReplicationCard.tsx`) — Causal ordering with monotonic vector clocks across multi-doctor facilities, satellite clinics, and mobile medical vans over intermittent 4G/5G WAN links.
+- [x] **Conflict-Free Allergy Set-Union Merging** — Automatic set-union merge for patient drug allergies across branches, guaranteeing zero allergy record loss during concurrent updates.
+- [x] **Store-and-Forward Outbox Queue** (`mesh_outbox_queue`) — Local WAN disconnection resilience with automatic retry backoff, HMAC-SHA256 payload signing, and constant-time PSK token verification.
+- [x] **Live Mesh Command Center** (`MeshReplicationCard.tsx`) — Remote branch registration modal, latency monitoring, outbox depth counters, and manual sync triggers in Settings.
 
 ---
 
