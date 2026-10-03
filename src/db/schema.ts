@@ -1099,4 +1099,231 @@ export const meshOutboxQueueRelations = relations(meshOutboxQueue, ({ one }) => 
   }),
 }));
 
+// ==========================================
+// Pediatric Growth & Immunization Records
+// ==========================================
+
+export const pediatricGrowthRecords = sqliteTable("pediatric_growth_records", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  patientId: integer("patient_id").notNull().references(() => patients.id),
+  recordedAt: integer("recorded_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+  ageMonths: integer("age_months").notNull(),
+  weightKg: real("weight_kg").notNull(),
+  heightCm: real("height_cm").notNull(),
+  headCircumferenceCm: real("head_circumference_cm"),
+  bmi: real("bmi").notNull(),
+  weightForAgeZScore: real("weight_for_age_z_score").notNull(),
+  heightForAgeZScore: real("height_for_age_z_score").notNull(),
+  bmiForAgeZScore: real("bmi_for_age_z_score").notNull(),
+  percentileWeight: real("percentile_weight").notNull(),
+  percentileHeight: real("percentile_height").notNull(),
+  notes: text("notes"),
+  recordedByDoctor: text("recorded_by_doctor"),
+  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+});
+
+export const patientImmunizations = sqliteTable("patient_immunizations", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  patientId: integer("patient_id").notNull().references(() => patients.id),
+  vaccineName: text("vaccine_name").notNull(),
+  vaccineCode: text("vaccine_code").notNull(),
+  doseNumber: integer("dose_number").notNull(),
+  dueAgeMonths: integer("due_age_months").notNull(),
+  scheduledDate: integer("scheduled_date", { mode: "timestamp" }).notNull(),
+  administeredDate: integer("administered_date", { mode: "timestamp" }),
+  status: text("status").notNull().default("PENDING"), // 'PENDING' | 'GIVEN' | 'MISSED' | 'CONTRAINDICATED'
+  batchNumber: text("batch_number"),
+  manufacturer: text("manufacturer"),
+  administeredBy: text("administered_by"),
+  site: text("site"),
+  route: text("route"),
+  adverseReaction: text("adverse_reaction"),
+  reminderSent: integer("reminder_sent", { mode: "boolean" }).$defaultFn(() => false),
+  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+});
+
+// ==========================================
+// Pharmacy Schedule H1 & Narcotics Register
+// ==========================================
+
+export const scheduleH1Register = sqliteTable("schedule_h1_register", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  dispenseDate: integer("dispense_date", { mode: "timestamp" }).$defaultFn(() => new Date()),
+  patientId: integer("patient_id").references(() => patients.id),
+  patientName: text("patient_name").notNull(),
+  patientContact: text("patient_contact").notNull(),
+  patientAddress: text("patient_address"),
+  prescribingDoctorName: text("prescribing_doctor_name").notNull(),
+  prescribingDoctorRegNo: text("prescribing_doctor_reg_no").notNull(),
+  drugName: text("drug_name").notNull(),
+  batchNumber: text("batch_number").notNull(),
+  expiryDate: text("expiry_date").notNull(),
+  quantityDispensed: real("quantity_dispensed").notNull(),
+  unit: text("unit").notNull().default("TABLETS"),
+  dispensedByPharmacist: text("dispensed_by_pharmacist").notNull(),
+  prescriptionRef: text("prescription_ref"),
+  verifiedSeal: text("verified_seal").notNull(), // Tamper-evident HMAC signature
+  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+});
+
+// ==========================================
+// Visual Hospital Wards & Beds
+// ==========================================
+
+export const hospitalWards = sqliteTable("hospital_wards", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull(),
+  floor: text("floor").notNull(),
+  type: text("type").notNull().default("GENERAL"), // 'GENERAL' | 'SEMI_PRIVATE' | 'PRIVATE' | 'ICU' | 'EMERGENCY' | 'NICU' | 'POST_OP'
+  totalBeds: integer("total_beds").notNull().default(0),
+  occupiedBeds: integer("occupied_beds").notNull().default(0),
+  nurseInCharge: text("nurse_in_charge"),
+  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+});
+
+export const hospitalBeds = sqliteTable("hospital_beds", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  wardId: integer("ward_id").notNull().references(() => hospitalWards.id),
+  wardName: text("ward_name").notNull(),
+  bedNumber: text("bed_number").notNull(),
+  type: text("type").notNull().default("GENERAL"),
+  status: text("status").notNull().default("VACANT"), // 'VACANT' | 'OCCUPIED' | 'CLEANING' | 'MAINTENANCE' | 'RESERVED'
+  hasOxygen: integer("has_oxygen", { mode: "boolean" }).$defaultFn(() => true),
+  hasVentilator: integer("has_ventilator", { mode: "boolean" }).$defaultFn(() => false),
+  hasMonitor: integer("has_monitor", { mode: "boolean" }).$defaultFn(() => false),
+  dailyRate: real("daily_rate").notNull().default(1000.00),
+  currentAdmissionId: integer("current_admission_id").references(() => ipdAdmissions.id),
+  patientName: text("patient_name"),
+  patientRegNo: text("patient_reg_no"),
+  admittedAt: integer("admitted_at", { mode: "timestamp" }),
+  attendingDoctor: text("attending_doctor"),
+  notes: text("notes"),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+});
+
+// ==========================================
+// OT Suite WHO Surgical Safety & PAC
+// ==========================================
+
+export const whoSurgicalChecklists = sqliteTable("who_surgical_checklists", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  admissionId: integer("admission_id").notNull().references(() => ipdAdmissions.id),
+  patientId: integer("patient_id").notNull().references(() => patients.id),
+  surgeryName: text("surgery_name").notNull(),
+  otNumber: text("ot_number").notNull().default("OT-1"),
+  operatingSurgeon: text("operating_surgeon").notNull(),
+  anesthesiologist: text("anesthesiologist").notNull(),
+  scrubNurse: text("scrub_nurse").notNull(),
+  
+  // Phase 1: Sign In
+  signInPatientConfirmed: integer("sign_in_patient_confirmed", { mode: "boolean" }).notNull(),
+  signInSiteMarked: integer("sign_in_site_marked", { mode: "boolean" }).notNull(),
+  signInAnesthesiaSafetyCheck: integer("sign_in_anesthesia_safety_check", { mode: "boolean" }).notNull(),
+  signInPulseOximeterActive: integer("sign_in_pulse_oximeter_active", { mode: "boolean" }).notNull(),
+  signInAllergyConfirmed: integer("sign_in_allergy_confirmed", { mode: "boolean" }).notNull(),
+  signInDifficultAirwayRisk: integer("sign_in_difficult_airway_risk", { mode: "boolean" }).notNull(),
+  signInAspirationRisk: integer("sign_in_aspiration_risk", { mode: "boolean" }).notNull(),
+  signInBloodLossRiskEstimatedMl: integer("sign_in_blood_loss_risk_estimated_ml").default(0),
+  signInCompletedAt: integer("sign_in_completed_at", { mode: "timestamp" }),
+  signInSignedBy: text("sign_in_signed_by"),
+
+  // Phase 2: Time Out
+  timeOutTeamIntroduced: integer("time_out_team_introduced", { mode: "boolean" }).notNull(),
+  timeOutPatientIdentified: integer("time_out_patient_identified", { mode: "boolean" }).notNull(),
+  timeOutProcedureConfirmed: integer("time_out_procedure_confirmed", { mode: "boolean" }).notNull(),
+  timeOutIncisionSiteConfirmed: integer("time_out_incision_site_confirmed", { mode: "boolean" }).notNull(),
+  timeOutAntibioticProphylaxisGiven: integer("time_out_antibiotic_prophylaxis_given", { mode: "boolean" }).notNull(),
+  timeOutAntibioticName: text("time_out_antibiotic_name"),
+  timeOutAnticipatedSurgeonNotes: text("time_out_anticipated_surgeon_notes"),
+  timeOutAnticipatedAnesthesiaNotes: text("time_out_anticipated_anesthesia_notes"),
+  timeOutSterilityConfirmed: integer("time_out_sterility_confirmed", { mode: "boolean" }).notNull(),
+  timeOutImagingDisplayed: integer("time_out_imaging_displayed", { mode: "boolean" }).notNull(),
+  timeOutCompletedAt: integer("time_out_completed_at", { mode: "timestamp" }),
+  timeOutSignedBy: text("time_out_signed_by"),
+
+  // Phase 3: Sign Out
+  signOutNurseVerballyConfirmed: integer("sign_out_nurse_verbally_confirmed", { mode: "boolean" }).notNull(),
+  signOutInstrumentCountCorrect: integer("sign_out_instrument_count_correct", { mode: "boolean" }).notNull(),
+  signOutSpongeNeedleCountCorrect: integer("sign_out_sponge_needle_count_correct", { mode: "boolean" }).notNull(),
+  signOutSpecimenLabeledAccurately: integer("sign_out_specimen_labeled_accurately", { mode: "boolean" }).notNull(),
+  signOutEquipmentIssuesAddressed: text("sign_out_equipment_issues_addressed"),
+  signOutRecoveryPlanSurgeonNotes: text("sign_out_recovery_plan_surgeon_notes"),
+  signOutRecoveryPlanAnesthesiaNotes: text("sign_out_recovery_plan_anesthesia_notes"),
+  signOutCompletedAt: integer("sign_out_completed_at", { mode: "timestamp" }),
+  signOutSignedBy: text("sign_out_signed_by"),
+
+  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+});
+
+export const pacRecords = sqliteTable("pac_records", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  admissionId: integer("admission_id").notNull().references(() => ipdAdmissions.id),
+  patientId: integer("patient_id").notNull().references(() => patients.id),
+  evaluationDate: integer("evaluation_date", { mode: "timestamp" }).$defaultFn(() => new Date()),
+  asaClass: text("asa_class").notNull().default("ASA_I"),
+  mallampatiScore: integer("mallampati_score").notNull().default(1),
+  airwayEvaluation: text("airway_evaluation").notNull(),
+  cardiovascularNotes: text("cardiovascular_notes"),
+  respiratoryNotes: text("respiratory_notes"),
+  investigationsReviewed: text("investigations_reviewed").notNull(),
+  plannedAnesthesiaType: text("planned_anesthesia_type").notNull().default("GENERAL"),
+  npoStatusHours: integer("npo_status_hours").notNull().default(6),
+  premedicationOrders: text("premedication_orders"),
+  anesthesiologistName: text("anesthesiologist_name").notNull(),
+  fitnessStatus: text("fitness_status").notNull().default("FIT"),
+  signedSeal: text("signed_seal"),
+  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+});
+
+// ==========================================
+// NABH Crash Cart Emergency Audit Log
+// ==========================================
+
+export const crashCartAudits = sqliteTable("crash_cart_audits", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  auditDate: integer("audit_date", { mode: "timestamp" }).$defaultFn(() => new Date()),
+  shift: text("shift").notNull().default("MORNING"), // 'MORNING' | 'EVENING' | 'NIGHT'
+  cartLocation: text("cart_location").notNull(), // 'ICU' | 'EMERGENCY' | 'OT' | 'WARD_3'
+  sealNumber: text("seal_number").notNull(),
+  sealIntact: integer("seal_intact", { mode: "boolean" }).notNull().$defaultFn(() => true),
+  defibrillatorTestPassed: integer("defibrillator_test_passed", { mode: "boolean" }).notNull().$defaultFn(() => true),
+  laryngoscopeBladesTested: integer("laryngoscope_blades_tested", { mode: "boolean" }).notNull().$defaultFn(() => true),
+  suctionMachineTested: integer("suction_machine_tested", { mode: "boolean" }).notNull().$defaultFn(() => true),
+  oxygenCylinderPressurePsi: integer("oxygen_cylinder_pressure_psi").notNull().default(2000),
+  ambubagTested: integer("ambubag_tested", { mode: "boolean" }).notNull().$defaultFn(() => true),
+  expiredDrugsFound: integer("expired_drugs_found", { mode: "boolean" }).notNull().$defaultFn(() => false),
+  expiredDrugsDetails: text("expired_drugs_details"),
+  missingItemsReported: text("missing_items_reported"),
+  auditedByNurse: text("audited_by_nurse").notNull(),
+  verifiedByDoctor: text("verified_by_doctor"),
+  status: text("status").notNull().default("VERIFIED_READY"),
+  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+});
+
+// ==========================================
+// Medical Specialist Referral Letters
+// ==========================================
+
+export const specialistReferralLetters = sqliteTable("specialist_referral_letters", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  patientId: integer("patient_id").notNull().references(() => patients.id),
+  patientName: text("patient_name").notNull(),
+  patientAgeGender: text("patient_age_gender").notNull(),
+  patientPhone: text("patient_phone"),
+  referralDate: integer("referral_date", { mode: "timestamp" }).$defaultFn(() => new Date()),
+  urgency: text("urgency").notNull().default("ROUTINE"), // 'ROUTINE' | 'URGENT' | 'EMERGENCY'
+  referringDoctorName: text("referring_doctor_name").notNull(),
+  referringDoctorRegNo: text("referring_doctor_reg_no").notNull(),
+  targetSpecialty: text("target_specialty").notNull(),
+  targetHospitalOrDoctor: text("target_hospital_or_doctor").notNull(),
+  provisionalDiagnosis: text("provisional_diagnosis").notNull(),
+  clinicalSummary: text("clinical_summary").notNull(),
+  vitalSigns: text("vital_signs").notNull(),
+  currentMedications: text("current_medications").notNull(),
+  relevantInvestigations: text("relevant_investigations").notNull(),
+  reasonForReferral: text("reason_for_referral").notNull(),
+  digitalSeal: text("digital_seal").notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+});
+
 

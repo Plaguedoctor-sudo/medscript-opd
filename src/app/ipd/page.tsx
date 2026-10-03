@@ -11,6 +11,9 @@ import { SecurityAlertBell } from "@/components/SecurityAlertBell";
 import { LockDeskButton } from "@/components/LockDeskButton";
 import { PrivacyShield } from "@/components/PrivacyShield";
 
+import { VisualBedOccupancyGrid } from "@/components/ipd/VisualBedOccupancyGrid";
+import { getHospitalWards, getHospitalBeds } from "@/lib/ipd/bed-management";
+
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
@@ -20,12 +23,14 @@ export default async function IpdPage({
   searchParams: Promise<{ q?: string; status?: string; ward?: string }>;
 }) {
    await requirePermission('ipd:view', '/ipd');
-  const [{ securityEnabled }, role, currentUser, resolvedParams, securityAlertsData] = await Promise.all([
+  const [{ securityEnabled }, role, currentUser, resolvedParams, securityAlertsData, wards, beds] = await Promise.all([
     getSecurityConfig(),
     getCurrentUserRole(),
     getCurrentUser(),
     searchParams,
     getSecurityAlerts({ unacknowledgedOnly: false, limit: 30 }),
+    Promise.resolve(getHospitalWards()),
+    Promise.resolve(getHospitalBeds()),
   ]);
 
   const { admissions, stats } = await getIpdAdmissions({
@@ -116,7 +121,12 @@ export default async function IpdPage({
         </div>
       </nav>
 
-      <main className="container mx-auto px-4 py-8 max-w-6xl">
+      <main className="container mx-auto px-4 py-8 max-w-6xl space-y-6">
+        <VisualBedOccupancyGrid
+          initialWards={wards}
+          initialBeds={beds}
+          isDoctorOrNurse={role === 'doctor' || role === 'admin_doctor' || role === 'nurse'}
+        />
         <IpdDashboard
           admissions={admissions}
           stats={stats}

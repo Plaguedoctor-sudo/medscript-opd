@@ -693,6 +693,227 @@ sqlite.exec(`
   );
 
   CREATE INDEX IF NOT EXISTS idx_mesh_outbox_target_status ON mesh_outbox_queue(target_node_id, status);
+
+  -- Pediatric Growth & Immunization Records
+  CREATE TABLE IF NOT EXISTS pediatric_growth_records (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    patient_id INTEGER NOT NULL REFERENCES patients(id),
+    recorded_at INTEGER,
+    age_months INTEGER NOT NULL,
+    weight_kg REAL NOT NULL,
+    height_cm REAL NOT NULL,
+    head_circumference_cm REAL,
+    bmi REAL NOT NULL,
+    weight_for_age_z_score REAL NOT NULL,
+    height_for_age_z_score REAL NOT NULL,
+    bmi_for_age_z_score REAL NOT NULL,
+    percentile_weight REAL NOT NULL,
+    percentile_height REAL NOT NULL,
+    notes TEXT,
+    recorded_by_doctor TEXT,
+    created_at INTEGER
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_pediatric_growth_patient ON pediatric_growth_records(patient_id);
+
+  CREATE TABLE IF NOT EXISTS patient_immunizations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    patient_id INTEGER NOT NULL REFERENCES patients(id),
+    vaccine_name TEXT NOT NULL,
+    vaccine_code TEXT NOT NULL,
+    dose_number INTEGER NOT NULL,
+    due_age_months INTEGER NOT NULL,
+    scheduled_date INTEGER NOT NULL,
+    administered_date INTEGER,
+    status TEXT NOT NULL DEFAULT 'PENDING',
+    batch_number TEXT,
+    manufacturer TEXT,
+    administered_by TEXT,
+    site TEXT,
+    route TEXT,
+    adverse_reaction TEXT,
+    reminder_sent INTEGER DEFAULT 0,
+    created_at INTEGER
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_immunizations_patient ON patient_immunizations(patient_id);
+  CREATE INDEX IF NOT EXISTS idx_immunizations_status ON patient_immunizations(status);
+
+  -- Pharmacy Schedule H1 & Narcotics Register
+  CREATE TABLE IF NOT EXISTS schedule_h1_register (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    dispense_date INTEGER,
+    patient_id INTEGER REFERENCES patients(id),
+    patient_name TEXT NOT NULL,
+    patient_contact TEXT NOT NULL,
+    patient_address TEXT,
+    prescribing_doctor_name TEXT NOT NULL,
+    prescribing_doctor_reg_no TEXT NOT NULL,
+    drug_name TEXT NOT NULL,
+    batch_number TEXT NOT NULL,
+    expiry_date TEXT NOT NULL,
+    quantity_dispensed REAL NOT NULL,
+    unit TEXT NOT NULL DEFAULT 'TABLETS',
+    dispensed_by_pharmacist TEXT NOT NULL,
+    prescription_ref TEXT,
+    verified_seal TEXT NOT NULL,
+    created_at INTEGER
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_schedule_h1_dispense ON schedule_h1_register(dispense_date);
+  CREATE INDEX IF NOT EXISTS idx_schedule_h1_drug ON schedule_h1_register(drug_name);
+
+  -- Visual Hospital Wards & Beds
+  CREATE TABLE IF NOT EXISTS hospital_wards (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    floor TEXT NOT NULL,
+    type TEXT NOT NULL DEFAULT 'GENERAL',
+    total_beds INTEGER NOT NULL DEFAULT 0,
+    occupiedBeds INTEGER NOT NULL DEFAULT 0,
+    nurse_in_charge TEXT,
+    created_at INTEGER
+  );
+
+  CREATE TABLE IF NOT EXISTS hospital_beds (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ward_id INTEGER NOT NULL REFERENCES hospital_wards(id),
+    ward_name TEXT NOT NULL,
+    bed_number TEXT NOT NULL,
+    type TEXT NOT NULL DEFAULT 'GENERAL',
+    status TEXT NOT NULL DEFAULT 'VACANT',
+    has_oxygen INTEGER DEFAULT 1,
+    has_ventilator INTEGER DEFAULT 0,
+    has_monitor INTEGER DEFAULT 0,
+    daily_rate REAL NOT NULL DEFAULT 1000.00,
+    current_admission_id INTEGER REFERENCES ipd_admissions(id),
+    patient_name TEXT,
+    patient_reg_no TEXT,
+    admitted_at INTEGER,
+    attending_doctor TEXT,
+    notes TEXT,
+    updated_at INTEGER
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_beds_ward ON hospital_beds(ward_id);
+  CREATE INDEX IF NOT EXISTS idx_beds_status ON hospital_beds(status);
+
+  -- OT Suite WHO Surgical Safety Checklist & PAC
+  CREATE TABLE IF NOT EXISTS who_surgical_checklists (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    admission_id INTEGER NOT NULL REFERENCES ipd_admissions(id),
+    patient_id INTEGER NOT NULL REFERENCES patients(id),
+    surgery_name TEXT NOT NULL,
+    ot_number TEXT NOT NULL DEFAULT 'OT-1',
+    operating_surgeon TEXT NOT NULL,
+    anesthesiologist TEXT NOT NULL,
+    scrub_nurse TEXT NOT NULL,
+    sign_in_patient_confirmed INTEGER NOT NULL,
+    sign_in_site_marked INTEGER NOT NULL,
+    sign_in_anesthesia_safety_check INTEGER NOT NULL,
+    sign_in_pulse_oximeter_active INTEGER NOT NULL,
+    sign_in_allergy_confirmed INTEGER NOT NULL,
+    sign_in_difficult_airway_risk INTEGER NOT NULL,
+    sign_in_aspiration_risk INTEGER NOT NULL,
+    sign_in_blood_loss_risk_estimated_ml INTEGER DEFAULT 0,
+    sign_in_completed_at INTEGER,
+    sign_in_signed_by TEXT,
+    time_out_team_introduced INTEGER NOT NULL,
+    time_out_patient_identified INTEGER NOT NULL,
+    time_out_procedure_confirmed INTEGER NOT NULL,
+    time_out_incision_site_confirmed INTEGER NOT NULL,
+    time_out_antibiotic_prophylaxis_given INTEGER NOT NULL,
+    time_out_antibiotic_name TEXT,
+    time_out_anticipated_surgeon_notes TEXT,
+    time_out_anticipated_anesthesia_notes TEXT,
+    time_out_sterility_confirmed INTEGER NOT NULL,
+    time_out_imaging_displayed INTEGER NOT NULL,
+    time_out_completed_at INTEGER,
+    time_out_signed_by TEXT,
+    sign_out_nurse_verbally_confirmed INTEGER NOT NULL,
+    sign_out_instrument_count_correct INTEGER NOT NULL,
+    sign_out_sponge_needle_count_correct INTEGER NOT NULL,
+    sign_out_specimen_labeled_accurately INTEGER NOT NULL,
+    sign_out_equipment_issues_addressed TEXT,
+    sign_out_recovery_plan_surgeon_notes TEXT,
+    sign_out_recovery_plan_anesthesia_notes TEXT,
+    sign_out_completed_at INTEGER,
+    sign_out_signed_by TEXT,
+    created_at INTEGER
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_who_checklist_adm ON who_surgical_checklists(admission_id);
+
+  CREATE TABLE IF NOT EXISTS pac_records (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    admission_id INTEGER NOT NULL REFERENCES ipd_admissions(id),
+    patient_id INTEGER NOT NULL REFERENCES patients(id),
+    evaluation_date INTEGER,
+    asa_class TEXT NOT NULL DEFAULT 'ASA_I',
+    mallampati_score INTEGER NOT NULL DEFAULT 1,
+    airway_evaluation TEXT NOT NULL,
+    cardiovascular_notes TEXT,
+    respiratory_notes TEXT,
+    investigations_reviewed TEXT NOT NULL,
+    planned_anesthesia_type TEXT NOT NULL DEFAULT 'GENERAL',
+    npo_status_hours INTEGER NOT NULL DEFAULT 6,
+    premedication_orders TEXT,
+    anesthesiologist_name TEXT NOT NULL,
+    fitness_status TEXT NOT NULL DEFAULT 'FIT',
+    signed_seal TEXT,
+    created_at INTEGER
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_pac_adm ON pac_records(admission_id);
+
+  -- NABH Crash Cart Emergency Audit Log
+  CREATE TABLE IF NOT EXISTS crash_cart_audits (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    audit_date INTEGER,
+    shift TEXT NOT NULL DEFAULT 'MORNING',
+    cart_location TEXT NOT NULL,
+    seal_number TEXT NOT NULL,
+    seal_intact INTEGER NOT NULL DEFAULT 1,
+    defibrillator_test_passed INTEGER NOT NULL DEFAULT 1,
+    laryngoscope_blades_tested INTEGER NOT NULL DEFAULT 1,
+    suction_machine_tested INTEGER NOT NULL DEFAULT 1,
+    oxygen_cylinder_pressure_psi INTEGER NOT NULL DEFAULT 2000,
+    ambubag_tested INTEGER NOT NULL DEFAULT 1,
+    expired_drugs_found INTEGER NOT NULL DEFAULT 0,
+    expired_drugs_details TEXT,
+    missing_items_reported TEXT,
+    audited_by_nurse TEXT NOT NULL,
+    verified_by_doctor TEXT,
+    status TEXT NOT NULL DEFAULT 'VERIFIED_READY',
+    created_at INTEGER
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_crash_cart_date ON crash_cart_audits(audit_date);
+
+  -- Medical Specialist Referral Letters
+  CREATE TABLE IF NOT EXISTS specialist_referral_letters (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    patient_id INTEGER NOT NULL REFERENCES patients(id),
+    patient_name TEXT NOT NULL,
+    patient_age_gender TEXT NOT NULL,
+    patient_phone TEXT,
+    referral_date INTEGER,
+    urgency TEXT NOT NULL DEFAULT 'ROUTINE',
+    referring_doctor_name TEXT NOT NULL,
+    referring_doctor_reg_no TEXT NOT NULL,
+    target_specialty TEXT NOT NULL,
+    target_hospital_or_doctor TEXT NOT NULL,
+    provisional_diagnosis TEXT NOT NULL,
+    clinical_summary TEXT NOT NULL,
+    vitalSigns TEXT NOT NULL,
+    current_medications TEXT NOT NULL,
+    relevant_investigations TEXT NOT NULL,
+    reason_for_referral TEXT NOT NULL,
+    digital_seal TEXT NOT NULL,
+    created_at INTEGER
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_referral_patient ON specialist_referral_letters(patient_id);
 `);
 
 // Note: Hardcoded default staff accounts and demo passwords have been permanently eliminated (CWE-798 / CWE-1188 compliance).
@@ -783,6 +1004,59 @@ try {
   }
 } catch (cctvSeedErr) {
   console.error('Failed to seed default hospital CCTV cameras:', cctvSeedErr);
+}
+
+// Auto-seed default Hospital Wards and Beds
+try {
+  const wardCount = sqlite.prepare('SELECT COUNT(*) as count FROM hospital_wards').get() as { count: number } | undefined;
+  if (!wardCount || wardCount.count === 0) {
+    const insertWard = sqlite.prepare(`
+      INSERT INTO hospital_wards (name, floor, type, total_beds, occupiedBeds, nurse_in_charge, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `);
+    const insertBed = sqlite.prepare(`
+      INSERT INTO hospital_beds (ward_id, ward_name, bed_number, type, status, has_oxygen, has_ventilator, has_monitor, daily_rate, current_admission_id, patient_name, patient_reg_no, admitted_at, attending_doctor, notes, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    const now = Date.now();
+    // 1. Intensive Care Unit (ICU)
+    const icuRes = insertWard.run('Critical Care ICU', 'Floor 2', 'ICU', 6, 2, 'Sister Priya Nair', now);
+    const icuId = Number(icuRes.lastInsertRowid);
+    insertBed.run(icuId, 'Critical Care ICU', 'ICU-01', 'ICU', 'OCCUPIED', 1, 1, 1, 4500.00, 1, 'Ramesh Sharma', 'REG-2026-008', now - 86400000, 'Dr. Nitin Sonare', 'Post-MI monitoring. Ventilator supported.', now);
+    insertBed.run(icuId, 'Critical Care ICU', 'ICU-02', 'ICU', 'OCCUPIED', 1, 1, 1, 4500.00, 2, 'Sunita Verma', 'REG-2026-007', now - 43200000, 'Dr. Nitin Sonare', 'DKA management with insulin infusion.', now);
+    insertBed.run(icuId, 'Critical Care ICU', 'ICU-03', 'ICU', 'VACANT', 1, 1, 1, 4500.00, null, null, null, null, null, 'Cleaned and sterilized.', now);
+    insertBed.run(icuId, 'Critical Care ICU', 'ICU-04', 'ICU', 'CLEANING', 1, 0, 1, 4000.00, null, null, null, null, null, 'Terminal disinfection underway.', now);
+    insertBed.run(icuId, 'Critical Care ICU', 'ICU-05', 'ICU', 'VACANT', 1, 0, 1, 4000.00, null, null, null, null, null, 'Ready for admission.', now);
+    insertBed.run(icuId, 'Critical Care ICU', 'ICU-06', 'ICU', 'RESERVED', 1, 1, 1, 4500.00, null, null, null, null, null, 'Reserved for post-op polytrauma.', now);
+
+    // 2. Emergency Trauma Bay
+    const erRes = insertWard.run('Emergency & Acute Trauma Bay', 'Ground Floor', 'EMERGENCY', 4, 1, 'Sister Deepa Thomas', now);
+    const erId = Number(erRes.lastInsertRowid);
+    insertBed.run(erId, 'Emergency & Acute Trauma Bay', 'ER-01', 'EMERGENCY', 'OCCUPIED', 1, 1, 1, 2500.00, null, 'Walk-in Acute Dyspnea', 'REG-EMG-01', now - 7200000, 'Dr. On Duty', 'Nebulization & O2 @ 6L/min.', now);
+    insertBed.run(erId, 'Emergency & Acute Trauma Bay', 'ER-02', 'EMERGENCY', 'VACANT', 1, 0, 1, 2000.00, null, null, null, null, null, 'Crash bay clear.', now);
+    insertBed.run(erId, 'Emergency & Acute Trauma Bay', 'ER-03', 'EMERGENCY', 'VACANT', 1, 0, 0, 1500.00, null, null, null, null, null, 'Triage observation.', now);
+    insertBed.run(erId, 'Emergency & Acute Trauma Bay', 'ER-04', 'EMERGENCY', 'VACANT', 1, 0, 0, 1500.00, null, null, null, null, null, 'Triage observation.', now);
+
+    // 3. Female Inpatient Ward
+    const fWardRes = insertWard.run('Female Medical & Surgical Ward', 'Floor 1', 'GENERAL', 6, 2, 'Sister Sneha Patil', now);
+    const fWardId = Number(fWardRes.lastInsertRowid);
+    insertBed.run(fWardId, 'Female Medical & Surgical Ward', 'FW-01', 'GENERAL', 'OCCUPIED', 1, 0, 0, 1200.00, null, 'Lalita Devi', 'REG-2026-015', now - 172800000, 'Dr. Nitin Sonare', 'Day 2 Post-laparoscopy cholecystectomy.', now);
+    insertBed.run(fWardId, 'Female Medical & Surgical Ward', 'FW-02', 'GENERAL', 'OCCUPIED', 1, 0, 0, 1200.00, null, 'Anita Joshi', 'REG-2026-022', now - 86400000, 'Dr. Nitin Sonare', 'Pyelonephritis receiving IV antibiotics.', now);
+    insertBed.run(fWardId, 'Female Medical & Surgical Ward', 'FW-03', 'GENERAL', 'VACANT', 1, 0, 0, 1200.00, null, null, null, null, null, 'Bed freshly made.', now);
+    insertBed.run(fWardId, 'Female Medical & Surgical Ward', 'FW-04', 'GENERAL', 'VACANT', 1, 0, 0, 1200.00, null, null, null, null, null, 'Bed freshly made.', now);
+    insertBed.run(fWardId, 'Female Medical & Surgical Ward', 'FW-05', 'GENERAL', 'MAINTENANCE', 0, 0, 0, 1200.00, null, null, null, null, null, 'Oxygen flowmeter replacement.', now);
+    insertBed.run(fWardId, 'Female Medical & Surgical Ward', 'FW-06', 'GENERAL', 'VACANT', 1, 0, 0, 1200.00, null, null, null, null, null, 'Bed available.', now);
+
+    // 4. Private Deluxe Wing
+    const pvtRes = insertWard.run('Private Deluxe Suites', 'Floor 3', 'PRIVATE', 3, 1, 'Sister Priya Nair', now);
+    const pvtId = Number(pvtRes.lastInsertRowid);
+    insertBed.run(pvtId, 'Private Deluxe Suites', 'PVT-301', 'PRIVATE', 'OCCUPIED', 1, 0, 1, 3500.00, null, 'Rajeshwari Iyer', 'REG-2026-030', now - 86400000, 'Dr. Nitin Sonare', 'Private deluxe recovery suite.', now);
+    insertBed.run(pvtId, 'Private Deluxe Suites', 'PVT-302', 'PRIVATE', 'VACANT', 1, 0, 1, 3500.00, null, null, null, null, null, 'Cleaned and sanitized.', now);
+    insertBed.run(pvtId, 'Private Deluxe Suites', 'PVT-303', 'PRIVATE', 'VACANT', 1, 0, 1, 3500.00, null, null, null, null, null, 'Cleaned and sanitized.', now);
+  }
+} catch (wardSeedErr) {
+  console.error('Failed to seed default hospital wards and beds:', wardSeedErr);
 }
 
 

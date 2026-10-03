@@ -976,3 +976,249 @@ export interface MeshClusterOverview {
   totalPendingOutbox: number;
   lastMeshSyncAt?: Date | null;
 }
+
+// ==========================================
+// Pediatric Growth & Immunization Types
+// ==========================================
+
+export interface PediatricGrowthRecord {
+  id?: number;
+  patientId: number;
+  recordedAt: Date;
+  ageMonths: number;
+  weightKg: number;
+  heightCm: number;
+  headCircumferenceCm?: number;
+  bmi: number;
+  weightForAgeZScore: number;
+  heightForAgeZScore: number;
+  bmiForAgeZScore: number;
+  percentileWeight: number;
+  percentileHeight: number;
+  notes?: string;
+  recordedByDoctor?: string;
+}
+
+export interface PatientImmunization {
+  id?: number;
+  patientId: number;
+  vaccineName: string;
+  vaccineCode: string;
+  doseNumber: number;
+  dueAgeMonths: number;
+  scheduledDate: Date;
+  administeredDate?: Date | null;
+  status: 'PENDING' | 'GIVEN' | 'MISSED' | 'CONTRAINDICATED';
+  batchNumber?: string;
+  manufacturer?: string;
+  administeredBy?: string;
+  site?: string; // e.g. Anterolateral thigh, Left deltoid
+  route?: string; // IM, SC, Oral, ID
+  adverseReaction?: string;
+  reminderSent?: boolean;
+}
+
+// ==========================================
+// Pharmacy Statutory Schedule H1 Types
+// ==========================================
+
+export interface ScheduleH1Record {
+  id?: number;
+  dispenseDate: Date;
+  patientId?: number;
+  patientName: string;
+  patientContact: string;
+  patientAddress?: string;
+  prescribingDoctorName: string;
+  prescribingDoctorRegNo: string;
+  drugName: string;
+  batchNumber: string;
+  expiryDate: string;
+  quantityDispensed: number;
+  unit: string;
+  dispensedByPharmacist: string;
+  prescriptionRef?: string;
+  verifiedSeal?: string;
+}
+
+// ==========================================
+// Hospital Bed & Visual Ward Types
+// ==========================================
+
+export type BedType = 'GENERAL' | 'SEMI_PRIVATE' | 'PRIVATE' | 'ICU' | 'EMERGENCY' | 'NICU' | 'POST_OP';
+export type BedStatus = 'VACANT' | 'OCCUPIED' | 'CLEANING' | 'MAINTENANCE' | 'RESERVED';
+
+export interface HospitalWard {
+  id: number;
+  name: string;
+  floor: string;
+  type: BedType;
+  totalBeds: number;
+  occupiedBeds: number;
+  nurseInCharge?: string;
+}
+
+export interface HospitalBed {
+  id: number;
+  wardId: number;
+  wardName: string;
+  bedNumber: string;
+  type: BedType;
+  status: BedStatus;
+  hasOxygen: boolean;
+  hasVentilator: boolean;
+  hasMonitor: boolean;
+  dailyRate: number;
+  currentAdmissionId?: number | null;
+  patientName?: string | null;
+  patientRegNo?: string | null;
+  admittedAt?: Date | null;
+  attendingDoctor?: string | null;
+  notes?: string | null;
+}
+
+// ==========================================
+// OT Suite & WHO Surgical Safety Checklist Types
+// ==========================================
+
+export interface WhoSurgicalChecklist {
+  id?: number;
+  admissionId: number;
+  patientId: number;
+  surgeryName: string;
+  otNumber: string;
+  operatingSurgeon: string;
+  anesthesiologist: string;
+  scrubNurse: string;
+  
+  // Phase 1: Sign In (Before Induction)
+  signInPatientConfirmed: boolean;
+  signInSiteMarked: boolean;
+  signInAnesthesiaSafetyCheck: boolean;
+  signInPulseOximeterActive: boolean;
+  signInAllergyConfirmed: boolean;
+  signInDifficultAirwayRisk: boolean;
+  signInAspirationRisk: boolean;
+  signInBloodLossRiskEstimatedMl: number;
+  signInCompletedAt?: Date | null;
+  signInSignedBy?: string | null;
+
+  // Phase 2: Time Out (Before Skin Incision)
+  timeOutTeamIntroduced: boolean;
+  timeOutPatientIdentified: boolean;
+  timeOutProcedureConfirmed: boolean;
+  timeOutIncisionSiteConfirmed: boolean;
+  timeOutAntibioticProphylaxisGiven: boolean;
+  timeOutAntibioticName?: string | null;
+  timeOutAnticipatedSurgeonNotes?: string | null;
+  timeOutAnticipatedAnesthesiaNotes?: string | null;
+  timeOutSterilityConfirmed: boolean;
+  timeOutImagingDisplayed: boolean;
+  timeOutCompletedAt?: Date | null;
+  timeOutSignedBy?: string | null;
+
+  // Phase 3: Sign Out (Before Patient Leaves Room)
+  signOutNurseVerballyConfirmed: boolean;
+  signOutInstrumentCountCorrect: boolean;
+  signOutSpongeNeedleCountCorrect: boolean;
+  signOutSpecimenLabeledAccurately: boolean;
+  signOutEquipmentIssuesAddressed?: string | null;
+  signOutRecoveryPlanSurgeonNotes?: string | null;
+  signOutRecoveryPlanAnesthesiaNotes?: string | null;
+  signOutCompletedAt?: Date | null;
+  signOutSignedBy?: string | null;
+
+  createdAt: Date;
+}
+
+export interface PacRecord {
+  id?: number;
+  admissionId: number;
+  patientId: number;
+  evaluationDate: Date;
+  asaClass: 'ASA_I' | 'ASA_II' | 'ASA_III' | 'ASA_IV' | 'ASA_V' | 'ASA_E';
+  mallampatiScore: 1 | 2 | 3 | 4;
+  airwayEvaluation: string;
+  cardiovascularNotes?: string;
+  respiratoryNotes?: string;
+  investigationsReviewed: string;
+  plannedAnesthesiaType: 'GENERAL' | 'SPINAL' | 'EPIDURAL' | 'REGIONAL_BLOCK' | 'MAC_SEDATION' | 'LOCAL';
+  npoStatusHours: number;
+  premedicationOrders?: string;
+  anesthesiologistName: string;
+  fitnessStatus: 'FIT' | 'FIT_WITH_HIGH_RISK' | 'UNFIT_TEMPORARY' | 'CANCELLED';
+  signedSeal?: string;
+}
+
+// ==========================================
+// NABH Crash Cart & Emergency Equipment Types
+// ==========================================
+
+export interface CrashCartAuditRecord {
+  id?: number;
+  auditDate: Date;
+  shift: 'MORNING' | 'EVENING' | 'NIGHT';
+  cartLocation: string; // 'ICU' | 'EMERGENCY' | 'OT' | 'WARD_3'
+  sealNumber: string;
+  sealIntact: boolean;
+  defibrillatorTestPassed: boolean;
+  laryngoscopeBladesTested: boolean;
+  suctionMachineTested: boolean;
+  oxygenCylinderPressurePsi: number;
+  ambubagTested: boolean;
+  expiredDrugsFound: boolean;
+  expiredDrugsDetails?: string;
+  missingItemsReported?: string;
+  auditedByNurse: string;
+  verifiedByDoctor?: string;
+  status: 'VERIFIED_READY' | 'DEFECT_FLAGGED' | 'RESTOCKED_RESEALED';
+}
+
+// ==========================================
+// Healthcare GST & Dynamic UPI QR Types
+// ==========================================
+
+export interface GstTaxBreakdown {
+  sacCode: string;
+  description: string;
+  taxableAmount: number;
+  cgstRatePercent: number;
+  cgstAmount: number;
+  sgstRatePercent: number;
+  sgstAmount: number;
+  totalTax: number;
+  totalWithTax: number;
+}
+
+export interface UpiPaymentDetails {
+  vpa: string;
+  merchantName: string;
+  amount: number;
+  transactionRef: string;
+  qrPayload: string;
+}
+
+// ==========================================
+// Medical Specialist Referral Types
+// ==========================================
+
+export interface SpecialistReferralLetter {
+  id?: number;
+  patientId: number;
+  patientName: string;
+  patientAgeGender: string;
+  patientPhone?: string;
+  referralDate: Date;
+  urgency: 'ROUTINE' | 'URGENT' | 'EMERGENCY';
+  referringDoctorName: string;
+  referringDoctorRegNo: string;
+  targetSpecialty: string;
+  targetHospitalOrDoctor: string;
+  provisionalDiagnosis: string;
+  clinicalSummary: string;
+  vitalSigns: string;
+  currentMedications: string;
+  relevantInvestigations: string;
+  reasonForReferral: string;
+  digitalSeal: string;
+}

@@ -9,9 +9,9 @@
 
 ## Current State
 
-**Version:** `1.1.9` | **Branch:** `main`
-**Build:** ✅ 0 errors | **Tests:** ✅ 206/206 passing across 19 test suites
-**Status:** Multi-Branch Clinic Mesh Replication (Vector Clocks & CRDT LWW Reconciliation) · Live WebRTC WHEP CCTV · NVR Footage Vault · Section 65B Forensic Admissibility
+**Version:** `1.2.0` | **Branch:** `main`
+**Build:** ✅ 0 errors | **Tests:** ✅ 221/221 passing across 20 test suites
+**Status:** Visual Floor Bed Command Grid · WHO Pediatric Growth Z-Scores · IAP Immunization Timetable · Schedule H1 Statutory Narcotics Register · WHO Surgical Safety OT Checklist · NABH Crash Cart Audits · Healthcare GST SAC 999311 & Bharat UPI QR
 
 ```
 Next.js 16.3.8 (Turbopack) · SQLite (Drizzle ORM) · Multi-Branch Mesh Clustering · Offline-First PWA · Android Native APK
@@ -41,12 +41,20 @@ Next.js 16.3.8 (Turbopack) · SQLite (Drizzle ORM) · Multi-Branch Mesh Clusteri
 - [x] **Drug-Drug Interaction (DDI) checker** — real-time alert on prescription form
 - [x] **Drug-Allergy guard** — cross-checks prescribed drugs against patient allergy list
 - [x] **Clinical calculators modal** — embedded in prescription form
+- [x] **Pediatric WHO Growth Charts & Z-Scores** — Weight-for-Age, Height-for-Age, BMI Z-scores, normal distribution percentiles, and SAM/stunting detection (`src/lib/pediatrics/growth-charts.ts`, `PediatricGrowthChartModal.tsx`)
+- [x] **IAP National Immunization Timetable** — Indian Academy of Pediatrics infant-to-adolescent vaccine timetable generation with batch number and nurse charting (`src/lib/pediatrics/immunization-schedule.ts`, `ImmunizationTrackerModal.tsx`)
+- [x] **Specialist Referral Letter Generator** — Tertiary transfer notes with provisional diagnosis, vitals, active medications, urgency, and deterministic HMAC digital seal (`src/lib/clinical/referral-letter.ts`, `ReferralLetterModal.tsx`)
+- [x] **Prescription Crash-Resilience Auto-Draft** — Client-side auto-draft caching to recover unsaved consultation data upon accidental browser closure (`src/lib/clinical/prescription-draft.ts`)
 - [x] **Medical certificates** — issue & PDF print (`certificate-actions.ts`)
 - [x] **Patient documents** — upload/view attached documents (`PatientDocumentsSection`)
 - [x] **Prescription templates** — save, load, manage templates (`PrescriptionTemplatesModal`)
 - [x] **Vitals analytics** — charts per-patient across 4 vitals tabs (`PatientVitalsAnalytics`)
 
 ### IPD (Inpatient)
+- [x] **Visual Ward & Bed Floor Command Grid** (`VisualBedOccupancyGrid.tsx`, `src/lib/ipd/bed-management.ts`) — Real-time ward occupancy rates, bed status indicators (Occupied, Vacant, Cleaning, Maintenance, Reserved), piped O2/ventilator/multipara monitor tracking, and one-click housekeeping transfers.
+- [x] **WHO Surgical Safety Checklist** (`src/lib/ot/surgical-checklist.ts`, `SurgicalChecklistModal.tsx`) — Global 3-phase surgical checklist (Sign In, Time Out, Sign Out) with nurse, surgeon, and anesthesiologist sign-offs.
+- [x] **Pre-Anesthesia Checkup (PAC) Clearance** — ASA physical status scoring, Mallampati airway classification, NPO fasting tracking, and digital anesthesiologist seal.
+- [x] **NABH Emergency Crash Cart Inspection Audit** (`src/lib/emergency/crash-cart.ts`) — Daily shift verification of defibrillator test, laryngoscope blades, emergency drugs, and oxygen cylinder pressure.
 - [x] **IPD admissions** — create, list, filter (`/ipd`, `/ipd/[id]`)
 - [x] **Clinical rounds** — doctor round notes with vitals
 - [x] **Nurse nursing notes section** — IPD nursing notes
@@ -86,6 +94,9 @@ Next.js 16.3.8 (Turbopack) · SQLite (Drizzle ORM) · Multi-Branch Mesh Clusteri
 - [x] **OPD invoice system** — create, edit, status management (`/billing`, `/billing/[id]`)
 - [x] **Invoice PDF** — printable invoice with clinic branding
 - [x] **Patient search for billing** — quick lookup on new invoice
+- [x] **Healthcare GST & SAC 999311 Compliance** — Statutory exemption on consultations & diagnostic tests, 5% GST calculation on non-ICU room rents exceeding ₹5,000/day, and split pharma GST (`src/lib/billing/gst-calculator.ts`).
+- [x] **Dynamic Bharat UPI QR Billing** — Instant counter payment QR generation compliant with NPCI UPI standards with base64 visual QR and transaction reference tracking (`src/lib/billing/upi-qr-generator.ts`, `UpiDynamicQrModal.tsx`).
+- [x] **ESC/POS Thermal Receipt Printing** — 58mm & 80mm high-speed thermal text formatter for OPD counter slip printers (`src/lib/printing/thermal-printer.ts`).
 
 ### Appointments / Queue
 - [x] **Appointment scheduling** — create, update, cancel (`/appointments`)
@@ -94,6 +105,8 @@ Next.js 16.3.8 (Turbopack) · SQLite (Drizzle ORM) · Multi-Branch Mesh Clusteri
 
 ### Pharmacy / Inventory
 - [x] **Pharmacy inventory** — add, dispense/adjust stock, transactions log (`/inventory`)
+- [x] **Statutory Schedule H1 & Narcotics Register** (`src/lib/pharmacy/schedule-h1.ts`, `ScheduleH1RegisterModal.tsx`) — Indian Drugs & Cosmetics Rules (Rule 65) compliance with tamper-evident HMAC seals, batch expiry tracking, and prescribing doctor MCI registration number recording.
+- [x] **Low-Stock & Reorder Alerts** — Automatic alert flags on inventory items dropping below critical safety buffer stock.
 - [x] **Rack location, supplier, expiry tracking** on inventory items
 
 ### Reports
