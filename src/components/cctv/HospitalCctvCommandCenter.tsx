@@ -22,6 +22,7 @@ import {
   CctvStats,
 } from '@/app/cctv/actions';
 import { OnvifDiscoveredDevice, RtspBridgeStatus, RtspStreamProbeResult } from '@/lib/cctv/rtsp-bridge';
+import { CctvWebRtcPlayer } from './CctvWebRtcPlayer';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -123,6 +124,15 @@ export function HospitalCctvCommandCenter({
   const [isScanningOnvif, setIsScanningOnvif] = useState(false);
   const [probeResult, setProbeResult] = useState<RtspStreamProbeResult | null>(null);
   const [isProbingStream, setIsProbingStream] = useState(false);
+
+  useEffect(() => {
+    startTransition(async () => {
+      try {
+        const status = await getRtspBridgeStatusAction();
+        setBridgeStatus(status);
+      } catch {}
+    });
+  }, []);
 
   const canManage = currentUserRole === 'admin_doctor' || currentUserRole === 'doctor' || currentUserRole === 'manager';
 
@@ -728,6 +738,8 @@ export function HospitalCctvCommandCenter({
                   onDelete={() => handleDeleteCamera(cam.id)}
                   canManage={canManage}
                   getZoneBadgeColor={getZoneBadgeColor}
+                  bridgeUrl={bridgeStatus?.bridgeUrl}
+                  gatewayType={bridgeStatus?.gatewayType}
                 />
               ))}
             </div>
@@ -887,98 +899,25 @@ export function HospitalCctvCommandCenter({
               </div>
             </DialogHeader>
 
-            <div className="relative aspect-video bg-black flex items-center justify-center overflow-hidden">
-              <CctvFeedCanvas
+            <div className="relative aspect-video bg-black flex items-center justify-center overflow-hidden rounded-2xl">
+              <CctvWebRtcPlayer
                 camera={focusedCamera}
                 isExpanded={true}
                 privacyMasking={focusedCamera.privacyMasking}
+                showPtzOverlay={true}
+                bridgeUrl={bridgeStatus?.bridgeUrl}
+                gatewayType={bridgeStatus?.gatewayType}
+                onSnapshot={() => handleCaptureSnapshot(focusedCamera)}
+                onPtzChange={(ptz) => {
+                  if (ptz.presetName) {
+                    setPtzMessage(`Preset: ${ptz.presetName}`);
+                  }
+                }}
               />
 
               {ptzMessage && (
-                <div className="absolute top-4 left-4 bg-black/80 px-3 py-1.5 rounded-lg border border-indigo-500/50 text-indigo-300 font-mono text-xs font-bold">
+                <div className="absolute top-4 left-4 bg-black/80 px-3 py-1.5 rounded-lg border border-indigo-500/50 text-indigo-300 font-mono text-xs font-bold pointer-events-none z-30">
                   {ptzMessage}
-                </div>
-              )}
-
-              {/* PTZ D-Pad Overlay (Only if PTZ supported) */}
-              {focusedCamera.hasPtz && (
-                <div className="absolute bottom-4 right-4 bg-slate-900/90 backdrop-blur-md p-3 rounded-2xl border border-slate-700/80 shadow-2xl flex flex-col items-center gap-2">
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 flex items-center gap-1">
-                    <Sliders className="w-3 h-3 text-indigo-400" /> Optical PTZ
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-1">
-                    <div />
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      onClick={() => handlePtz('UP')}
-                      className="w-8 h-8 text-white hover:bg-indigo-600 rounded-lg"
-                      title="Tilt Up"
-                    >
-                      <ChevronUp className="w-4 h-4" />
-                    </Button>
-                    <div />
-
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      onClick={() => handlePtz('LEFT')}
-                      className="w-8 h-8 text-white hover:bg-indigo-600 rounded-lg"
-                      title="Pan Left"
-                    >
-                      <ChevronLeft className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      onClick={() => handlePtz('RESET')}
-                      className="w-8 h-8 text-slate-400 hover:bg-slate-800 rounded-lg"
-                      title="Reset Home"
-                    >
-                      <RotateCcw className="w-3.5 h-3.5" />
-                    </Button>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      onClick={() => handlePtz('RIGHT')}
-                      className="w-8 h-8 text-white hover:bg-indigo-600 rounded-lg"
-                      title="Pan Right"
-                    >
-                      <ChevronRight className="w-4 h-4" />
-                    </Button>
-
-                    <div />
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      onClick={() => handlePtz('DOWN')}
-                      className="w-8 h-8 text-white hover:bg-indigo-600 rounded-lg"
-                      title="Tilt Down"
-                    >
-                      <ChevronDown className="w-4 h-4" />
-                    </Button>
-                    <div />
-                  </div>
-
-                  <div className="flex items-center gap-1 mt-1 border-t border-slate-800 pt-2 w-full justify-between">
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => handlePtz('ZOOM_IN')}
-                      className="h-7 px-2 text-xs text-emerald-400 hover:bg-emerald-950/50 gap-1"
-                    >
-                      <ZoomIn className="w-3.5 h-3.5" /> In
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => handlePtz('ZOOM_OUT')}
-                      className="h-7 px-2 text-xs text-rose-400 hover:bg-rose-950/50 gap-1"
-                    >
-                      <ZoomOut className="w-3.5 h-3.5" /> Out
-                    </Button>
-                  </div>
                 </div>
               )}
             </div>
@@ -1397,6 +1336,8 @@ interface CctvCameraTileProps {
   onDelete: () => void;
   canManage: boolean;
   getZoneBadgeColor: (zone: string) => string;
+  bridgeUrl?: string;
+  gatewayType?: 'go2rtc' | 'mediamtx' | string;
 }
 
 function CctvCameraTile({
@@ -1409,6 +1350,8 @@ function CctvCameraTile({
   onDelete,
   canManage,
   getZoneBadgeColor,
+  bridgeUrl,
+  gatewayType,
 }: CctvCameraTileProps) {
   const [showMenu, setShowMenu] = useState(false);
 
@@ -1443,12 +1386,16 @@ function CctvCameraTile({
         </div>
       </div>
 
-      {/* Video Feed Canvas */}
+      {/* Video Feed Canvas / WebRTC Player */}
       <div className="relative aspect-video bg-black flex items-center justify-center overflow-hidden">
-        <CctvFeedCanvas
+        <CctvWebRtcPlayer
           camera={camera}
           isExpanded={false}
           privacyMasking={camera.privacyMasking}
+          showPtzOverlay={false}
+          bridgeUrl={bridgeUrl}
+          gatewayType={gatewayType}
+          onSnapshot={onSnapshot}
         />
 
         {/* Privacy Mask Active Banner */}

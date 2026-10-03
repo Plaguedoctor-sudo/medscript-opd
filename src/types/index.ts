@@ -867,5 +867,38 @@ export interface CctvStorageStats {
   triggerBreakdown: Record<CctvTriggerType, number>;
 }
 
+export type CctvStreamProtocol = 'WHEP' | 'SIMULATED' | 'RTSP_DIRECT' | 'HLS';
+
+export interface CctvStreamMetrics {
+  connectionState: 'idle' | 'connecting' | 'connected' | 'failed' | 'disconnected';
+  protocol: CctvStreamProtocol;
+  latencyMs: number;
+  fps: number;
+  bitrateKbps: number;
+  resolution?: string;
+  bytesReceived: number;
+  packetsLost?: number;
+  lastUpdated: Date;
+}
+
+export type CctvPtzAction =
+  | 'UP'
+  | 'DOWN'
+  | 'LEFT'
+  | 'RIGHT'
+  | 'ZOOM_IN'
+  | 'ZOOM_OUT'
+  | 'RESET'
+  | 'PRESET_1'
+  | 'PRESET_2'
+  | 'PRESET_3';
+
+export interface CctvPtzState {
+  pan: number; // -180 to 180 degrees
+  tilt: number; // -90 to 90 degrees
+  zoom: number; // 1.0x to 30.0x
+  presetName?: string;
+}
+
 
 
